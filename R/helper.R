@@ -405,7 +405,7 @@ htlgmm.default<-function(
                     hat_thetaA_glm=speedglm(y~0+.,data = df,offset = offset_term,family = binomial())
                 }else if(family=="gaussian"){
                     hat_thetaA_glm=speedlm(y~0+.,data = df,offset = offset_term)
-                    hat_thetaA_glm=lm(y~0+.,data = df,offset = offset_term)
+                    #hat_thetaA_glm=lm(y~0+.,data = df,offset = offset_term)
                 }
                 hat_thetaA=hat_thetaA_glm$coefficients
                 if(V_thetaA_sandwich){
