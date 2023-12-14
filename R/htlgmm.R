@@ -268,3 +268,72 @@ cv.htlgmm<-function(
     return(res)
 }
 
+
+#' GWAS version of htlgmm.
+#'
+#' GWAS version of htlgmm fits a generalized linear model via generalized method of moments,
+#' The input requires main study and external study.
+#'
+#'
+#' @details GWAS for htlgmm.
+#'
+#' @param y The variable of interest, which can be continuous or binary.
+#' @param Z The overlapping features in both main and external studies.
+#' @param W The unmatched features only in main study, the default is NULL.
+#' @param study_info The trained model from external study, including estimate coefficients, estimated variance-covariance matrix and sample size.
+#' The 'study_info' is in the format of list. The first item is 'Coeff', the second iterm is 'Covariance', and the third item is 'Sample_size'.
+#' @param A The covariates for study-specific adjustment. The default is 'default', which is 'NULL' for 'gaussian' family, '1' for 'binomial' family.
+#' Other than c('default',NULL,1), A must be a matrix whose dimension is the same as the sample dimension or Z and W.
+#' For continuous variable, we suggest scaling the features Z, W to eliminate intercept term.  If 'A = NULL', there is no intercept term included.
+#' For binary variable, we use intercept term by 'A=1' to adjust for different binary trait ratios in main and external studies.
+#' If there is only intercept term in A, we use 'A=1'.
+#' A are the features working for adjustment in reduced model, but A is not summarized in summary statistics(input:study_info).
+#' @param family The family is chosen from c("gaussian","binomial"). Linear regression for "gaussian" and logistic regression for "binomial".
+#' @param output_SNP_only Default is TRUE.
+#' @param seed.use The seed for  97.
+#' @param verbose Default is FALSE.
+#'
+#' @return \itemize{
+#'  \item{beta:} The target coefficient estimation, the features will go in the order of (A,Z,W).
+#'  \item{variance:} The lambda list for cross validation.
+#'  }
+#'
+#'
+#'
+#' @import glmnet
+#' @import stats
+#' @importFrom locfit expit
+#' @importFrom corpcor fast.svd
+#' @importFrom magic adiag
+#' @importFrom MASS ginv
+#' @importFrom speedglm speedglm speedlm
+#' @export
+#'
+gwas.htlgmm<-function(
+        y,Z,W=NULL,
+        study_info=NULL,
+        A='default',
+        family = "gaussian",
+        output_SNP_only=TRUE,
+        seed.use = 97,
+        verbose = FALSE
+){
+    if(!family %in% c("gaussian","binomial")){
+        stop("Select family from c('gaussian','binomial')")
+    }
+
+    if(is.null(dim(A)[1])){
+        if(length(A)==1){
+            if(A=='default'){if(family == "gaussian"){A=NULL}else{A=1}}else{
+                if(!is.null(A)){
+                    if(A!=1){warnings("If A is not a matrix, A should be selected from c('default',NULL,1).")}}
+            }}else{
+                warnings("If A is not selected from c('default',NULL,1), A must be a matrix.")
+            }}
+
+    res<-htlgmm.gwas.default(y,Z,W,study_info,A,family,
+                             output_SNP_only,seed.use,
+                             verbose)
+    return(res)
+}
+
