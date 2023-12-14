@@ -129,7 +129,7 @@ htlgmm.gwas.default<-function(
     beta_var_list<-lapply(1:pZ, function(id){
         if(verbose){message(id)}
         if(is.null(study_info[[id]]$Coeff[1])){
-            beta_var_list<-list("beta"=NULL,
+            return_list<-list("beta"=NULL,
                                 "variance"=NULL)
         }else{
             Zid = Z[,id]
@@ -189,16 +189,16 @@ htlgmm.gwas.default<-function(
     })
     if(output_SNP_only){
         beta_var_mat<-sapply(1:pZ, function(id){
-            c(beta_var_list[[id]]$beta[idZ],beta_var_list[[id]]$variance[idZ])
+            if(is.null(beta_var_list[[id]]$beta[1])){
+                res =c(NA,NA)
+            }else{
+                res=c(beta_var_list[[id]]$beta[idZ],beta_var_list[[id]]$variance[idZ])
+            }
+            res
         })
         beta_var_list<-list("beta"=beta_var_mat[1,],
                             "variance"=beta_var_mat[2,])
     }
     return(beta_var_list)
 }
-
-
-
-
-
 
