@@ -289,9 +289,13 @@ cv.htlgmm<-function(
 #' If there is only intercept term in A, we use 'A=1'.
 #' A are the features working for adjustment in reduced model, but A is not summarized in summary statistics(input:study_info).
 #' @param family The family is chosen from c("gaussian","binomial"). Linear regression for "gaussian" and logistic regression for "binomial".
+#' @param AW_betaAW Default is NULL.
+#' @param A_thetaA Default is NULL.
+#' @param V_thetaA Default is NULL.
 #' @param output_SNP_only Default is TRUE.
 #' @param seed.use The seed for  97.
 #' @param verbose Default is FALSE.
+#' @param output_tmp Default is FALSE
 #'
 #' @return \itemize{
 #'  \item{beta:} The target coefficient estimation, the features will go in the order of (A,Z,W).
@@ -314,9 +318,13 @@ gwas.htlgmm<-function(
         study_info=NULL,
         A='default',
         family = "gaussian",
+        AW_betaAW=NULL,
+        A_thetaA=NULL,
+        V_thetaA=NULL,
         output_SNP_only=TRUE,
         seed.use = 97,
-        verbose = FALSE
+        verbose = FALSE,
+        output_tmp=FALSE
 ){
     if(!family %in% c("gaussian","binomial")){
         stop("Select family from c('gaussian','binomial')")
@@ -332,8 +340,9 @@ gwas.htlgmm<-function(
             }}
 
     res<-htlgmm.gwas.default(y,Z,W,study_info,A,family,
+                             AW_betaAW,A_thetaA,V_thetaA,
                              output_SNP_only,seed.use,
-                             verbose)
+                             verbose,output_tmp)
     return(res)
 }
 

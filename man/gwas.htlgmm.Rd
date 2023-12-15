@@ -11,9 +11,13 @@ gwas.htlgmm(
   study_info = NULL,
   A = "default",
   family = "gaussian",
+  AW_betaAW = NULL,
+  A_thetaA = NULL,
+  V_thetaA = NULL,
   output_SNP_only = TRUE,
   seed.use = 97,
-  verbose = FALSE
+  verbose = FALSE,
+  output_tmp = FALSE
 )
 }
 \arguments{
@@ -35,11 +39,19 @@ A are the features working for adjustment in reduced model, but A is not summari
 
 \item{family}{The family is chosen from c("gaussian","binomial"). Linear regression for "gaussian" and logistic regression for "binomial".}
 
+\item{AW_betaAW}{Default is NULL.}
+
+\item{A_thetaA}{Default is NULL.}
+
+\item{V_thetaA}{Default is NULL.}
+
 \item{output_SNP_only}{Default is TRUE.}
 
 \item{seed.use}{The seed for  97.}
 
 \item{verbose}{Default is FALSE.}
+
+\item{output_tmp}{Default is FALSE}
 }
 \value{
 \itemize{

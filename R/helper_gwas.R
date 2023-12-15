@@ -53,9 +53,13 @@ htlgmm.gwas.default<-function(
         study_info=NULL,
         A=NULL,
         family = "gaussian",
+        AW_betaAW=NULL,
+        A_thetaA=NULL,
+        V_thetaA=NULL,
         output_SNP_only=TRUE,
         seed.use = 97,
-        verbose = FALSE
+        verbose = FALSE,
+        output_tmp = FALSE
 ){
     set.seed(seed.use)
     if (is.null(study_info)){stop("Please input study_info as trained model")}
@@ -101,29 +105,35 @@ htlgmm.gwas.default<-function(
 
     # unique thetaA
     if(pA!=0){
-        df=data.frame(y,A)
-        if(family=="binomial"){
-            hat_thetaA_glm=speedglm(y~0+.,data = df,family = binomial())
-        }else if(family=="gaussian"){
-            hat_thetaA_glm=speedlm(y~0+.,data = df)
+        if(is.null(A_thetaA)){
+            df=data.frame(y,A)
+            if(family=="binomial"){
+                hat_thetaA_glm=speedglm(y~0+.,data = df,family = binomial())
+            }else if(family=="gaussian"){
+                hat_thetaA_glm=speedlm(y~0+.,data = df)
+            }
+            hat_thetaA=hat_thetaA_glm$coefficients
+            V_thetaA=vcov(hat_thetaA_glm)
+            A_thetaA = c(A%*%hat_thetaA)
+        }else if(is.null(V_thetaA)){
+            stop("When inputing A_thetaA, V_thetaA is needed.")
         }
-        hat_thetaA=hat_thetaA_glm$coefficients
-        V_thetaA=vcov(hat_thetaA_glm)
-        A_thetaA = c(A%*%hat_thetaA)
     }else{
         V_thetaA = NULL
         A_thetaA = 0
     }
 
     # unique beta initial
-    df=data.frame(y,A,W)
-    if(family=="binomial"){
-        fit_initial=speedglm(y~0+.,data = df,family = binomial())
-    }else if(family=="gaussian"){
-        fit_initial=speedlm(y~0+.,data = df)
+    if(is.null(AW_betaAW)){
+        df=data.frame(y,A,W)
+        if(family=="binomial"){
+            fit_initial=speedglm(y~0+.,data = df,family = binomial())
+        }else if(family=="gaussian"){
+            fit_initial=speedlm(y~0+.,data = df)
+        }
+        beta_initial_AW=fit_initial$coefficients
+        AW_betaAW = c(cbind(A,W)%*%beta_initial_AW)
     }
-    beta_initial_AW=fit_initial$coefficients
-    AW_betaAW = c(cbind(A,W)%*%beta_initial_AW)
 
     # Estimation of C
     beta_var_list<-lapply(1:pZ, function(id){
@@ -198,6 +208,11 @@ htlgmm.gwas.default<-function(
         })
         beta_var_list<-list("beta"=beta_var_mat[1,],
                             "variance"=beta_var_mat[2,])
+    }
+    if(output_tmp){
+        beta_var_list<-c(beta_var_list,list("AW_betaAW"=AW_betaAW,
+                                            "A_thetaA"=A_thetaA,
+                                            "V_thetaA"=V_thetaA))
     }
     return(beta_var_list)
 }
