@@ -433,7 +433,7 @@ gwas.htlgmm<-function(
 #' @export
 #'
 #'
-htlgmm.fm<-function(
+fm.htlgmm<-function(
         y,Z,W=NULL,
         study_info=NULL,
         A="default",
