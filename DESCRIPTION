@@ -14,7 +14,6 @@ Imports:
     MASS,
     magic,
     caret,
-    locfit,
     corpcor,
     pROC,
     speedglm

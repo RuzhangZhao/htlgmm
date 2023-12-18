@@ -1,26 +1,30 @@
-mu_func<-function(x,family){
-    if(family=='gaussian'){return(x)}
-    else if(family=='binomial'){return(expit(x))}
+expit<-function(x){1/(1 + exp(-x))}
+dexpit<-function(x){
+    expit_x = expit(x)
+    return (expit_x*(1-expit_x))
 }
 Delta_opt<-function(y,Z,W,family,
                     study_info,A=NULL,pA=NULL,
                     beta=NULL,hat_thetaA=NULL,
                     V_thetaA=NULL,use_offset=TRUE){
-    X=cbind(A,Z,W)
-    XR=cbind(A,Z)
     n_main=length(y)
     tilde_thetaZ=study_info[[1]]$Coeff
     tilde_theta=c(hat_thetaA,tilde_thetaZ)
-    mu_X_beta=mu_func(X%*%beta,family) # check
-    mu_XR_theta=mu_func(XR%*%tilde_theta,family)
-    if(family == "binomial"){mu_prime_XR_theta=mu_XR_theta*(1-mu_XR_theta)}
-    else{mu_prime_XR_theta=1}
+    X=cbind(A,Z,W)
+    mu_X_beta=X%*%beta
+    XR=cbind(A,Z)
+    mu_XR_theta=XR%*%tilde_theta
+    if(family == "binomial"){
+        mu_X_beta=expit(mu_X_beta)
+        mu_XR_theta=expit(mu_XR_theta)
+        mu_prime_XR_theta=mu_XR_theta*(1-mu_XR_theta)
+    }else{mu_prime_XR_theta=1}
     V_U1=(1/n_main)*crossprod(X*c(mu_X_beta-y))
     V_U2=(1/n_main)*crossprod(Z*c(mu_X_beta-mu_XR_theta))
     Cov_U1U2=(1/n_main)*crossprod(X*c(mu_X_beta-y),Z*c(mu_X_beta-mu_XR_theta))
     GammaZZ=(1/n_main)*crossprod(Z*c(mu_prime_XR_theta),Z)
     V_thetaZ=study_info[[1]]$Covariance
-    Delta22=V_U2 +GammaZZ%*%(n_main*V_thetaZ)%*%t(GammaZZ)
+    Delta22=V_U2+GammaZZ%*%(n_main*V_thetaZ)%*%t(GammaZZ)
     Delta12=Cov_U1U2
     if(pA!=0){
         GammaZA=(1/n_main)*crossprod(Z*c(mu_prime_XR_theta),A)
@@ -35,12 +39,9 @@ Delta_opt<-function(y,Z,W,family,
           Cov_U1theta=(1/n_main)*crossprod(X*c(mu_X_beta-y),XR*c(mu_XR_theta-y))%*%(inv_GammaXRXR[,1:pA]%*%t(GammaZA))
           Cov_U2theta=(1/n_main)*crossprod(Z*c(mu_X_beta-mu_XR_theta),XR*c(mu_XR_theta-y))%*%(inv_GammaXRXR[,1:pA]%*%t(GammaZA))
         }
-
-        Delta22 = Delta22 + GammaZA%*%(n_main*V_thetaA)%*%t(GammaZA)
-        + Cov_U2theta+t(Cov_U2theta)
+        Delta22 = Delta22 + GammaZA%*%(n_main*V_thetaA)%*%t(GammaZA)+Cov_U2theta+t(Cov_U2theta)
         Delta12 = Delta12 + Cov_U1theta
     }
-
     Delta = rbind(cbind(V_U1,Delta12),cbind(t(Delta12),Delta22))
     Delta
 }
@@ -51,9 +52,11 @@ vcov_sandwich<-function(y,A,Z,family,study_info,pA,
     XR = cbind(A,Z)
     tilde_thetaZ=study_info[[1]]$Coeff
     tilde_theta=c(hat_thetaA,tilde_thetaZ)
-    mu_XR_theta=mu_func(cbind(A,Z)%*%tilde_theta,family)
-    if(family == "binomial"){mu_prime_XR_theta=mu_XR_theta*(1-mu_XR_theta)}
-    else{mu_prime_XR_theta=1}
+    mu_XR_theta=cbind(A,Z)%*%tilde_theta
+    if(family == "binomial"){
+        mu_XR_theta = expit(mu_XR_theta)
+        mu_prime_XR_theta=mu_XR_theta*(1-mu_XR_theta)
+    }else{mu_prime_XR_theta=1}
     if(use_offset){
         inv_GammaAA=ginv((1/n_main)*crossprod(A*c(mu_prime_XR_theta),A))
         V_thetaA = (1/n_main)*inv_GammaAA%*%((1/n_main)* crossprod(A*c(mu_XR_theta-y)) )%*%inv_GammaAA
@@ -89,8 +92,6 @@ pseudo_Xy_binomial<-function(
     pseudo_y= -C_half%*%c(u1,u2) + c(pseudo_X%*%beta)
     list("pseudo_X"=pseudo_X,"pseudo_y"=pseudo_y)
 }
-
-
 
 
 
@@ -321,7 +322,10 @@ htlgmm.default<-function(
         ratio_list = NULL,
         gamma_adaptivelasso = 1/2,
         use_sparseC = TRUE,
-        seed.use = 97
+        seed.use = 97,
+        pseudo_Xy_gaussian=pseudo_Xy_gaussian,
+        pseudo_Xy_binomial=pseudo_Xy_binomial,
+        Delta_opt = Delta_opt
 ){
     set.seed(seed.use)
     if (is.null(study_info)){stop("Please input study_info as trained model")}

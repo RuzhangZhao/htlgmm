@@ -7,17 +7,20 @@ Delta_opt_fast<-function(y,Z,W,A,family,pA,
         XR_theta=expit(XR_theta)
         mu_prime_XR_theta=XR_theta*(1-XR_theta)
     }else{mu_prime_XR_theta=1}
-    V_U1=(1/n_main)*crossprod(X*c(X_beta-y))
-    V_U2=(1/n_main)*crossprod(Z*c(X_beta-XR_theta))
-    Cov_U1U2=(1/n_main)*crossprod(X*c(X_beta-y),Z*c(X_beta-XR_theta))
+    DX = X*c(X_beta-y)
+    DZ = Z*c(X_beta-XR_theta)
+    V_U1=(1/n_main)*crossprod(DX)
+    V_U2=(1/n_main)*crossprod(DZ)
+    Cov_U1U2=(1/n_main)*crossprod(DX,DZ)
     GammaZZ=(1/n_main)*crossprod(Z*c(mu_prime_XR_theta),Z)
     Delta22=V_U2 +GammaZZ%*%(n_main*V_thetaZ)%*%t(GammaZZ)
     Delta12=Cov_U1U2
     if(pA!=0){
         GammaZA=(1/n_main)*crossprod(Z*c(mu_prime_XR_theta),A)
         inv_GammaAA=ginv((1/n_main)*crossprod(A*c(mu_prime_XR_theta),A))
-        Cov_U1theta=(1/n_main)*crossprod(X*c(X_beta-y),A*c(XR_theta-y))%*%(inv_GammaAA%*%t(GammaZA))
-        Cov_U2theta=(1/n_main)*crossprod(Z*c(X_beta-XR_theta),A*c(XR_theta-y))%*%(inv_GammaAA%*%t(GammaZA))
+        Gammas=inv_GammaAA%*%t(GammaZA)
+        Cov_U1theta=(1/n_main)*crossprod(DX,A*c(XR_theta-y))%*%Gammas
+        Cov_U2theta=(1/n_main)*crossprod(DZ,A*c(XR_theta-y))%*%Gammas
         Delta22 = Delta22 + GammaZA%*%(n_main*V_thetaA)%*%t(GammaZA)
         + Cov_U2theta+t(Cov_U2theta)
         Delta12 = Delta12 + Cov_U1theta
@@ -40,7 +43,6 @@ pseudo_Xy_fast<-function(
         ps_y0=0
     }
     pseudo_X=C_half%*%crossprod(cbind(X,Z),X*dexpit_beta)
-
     ps_y1=c(crossprod(y,X))
     ps_y2=c(crossprod(XR_theta,Z))
     pseudo_y=c(c(ps_y0+c(ps_y1,ps_y2))%*%C_half)
