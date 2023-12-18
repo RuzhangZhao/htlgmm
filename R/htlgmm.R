@@ -429,6 +429,7 @@ gwas.htlgmm<-function(
 #' @importFrom MASS ginv
 #' @importFrom pROC auc
 #' @importFrom speedglm speedglm speedlm
+#' @importFrom Rfast colmeans
 #' @export
 #'
 #'
@@ -472,9 +473,7 @@ htlgmm.fm<-function(
                 warnings("If A is not selected from c('default',NULL,1), A must be a matrix.")
             }}
     if(length(study_info)!=ncol(Z)){
-        if(length(study_info)!=pZ){
-            stop("When using htlgmm.finemapping, input Z as a matrix with size of sample*SNP, and study_info as a list of summary statistics. The columns of Z need to match the study_info.")
-        }
+        stop("When using htlgmm.finemapping, input Z as a matrix with size of sample*SNP, and study_info as a list of summary statistics. The columns of Z need to match the study_info.")
     }
     res<-htlgmm.default(y,Z,W,study_info,A,penalty_type,
                         family,initial_with_type,beta_initial,

@@ -25,6 +25,7 @@ pseudo_Xy_binomial_finemapping<-function(
         C_half,Z,W,A,y,beta=NULL,hat_thetaA=NULL,study_info=NULL){
     X=cbind(A,Z,W)
     X_beta=X%*%beta
+    A_thetaA=A%*%hat_thetaA
     expit_beta=c(expit(X_beta))
     dexpit_beta=c(expit_beta*(1-expit_beta))
     pseudo_X=C_half%*%crossprod(cbind(X,Z),X*dexpit_beta)
@@ -49,7 +50,6 @@ Delta_opt_finemapping<-function(y,Z,W,family,
         DZ<-sapply(1:ncol(Z), function(id){
             XR_thetaid<-expit(c(A_thetaA+Z[,id]*study_info[[id]]$Coeff))
             X_beta-XR_thetaid})*Z #the same shape with Z
-        library(Rfast)
         DDZ<-sapply(1:ncol(Z), function(id){
             dexpit(A_thetaA+Z[,id]*study_info[[id]]$Coeff)})*Z
         GammaZZ_vec =colmeans(DDZ*Z)
