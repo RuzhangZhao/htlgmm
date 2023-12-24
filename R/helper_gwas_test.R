@@ -1,5 +1,5 @@
-Delta_opt_fast0<-function(y,Z,W,A,family,pA,
-                         X_beta,A_thetaA,Z_thetaZ,V_thetaA,V_thetaZ){
+Delta_opt_fast<-function(y,Z,W,A,family,pA,
+                         X_beta,A_thetaA,Z_thetaZ,V_thetaA,V_thetaZ,inv_GammaAA){
     n_main=length(y)
     X=cbind(A,W,Z)
     XR_theta=A_thetaA+Z_thetaZ
@@ -7,6 +7,7 @@ Delta_opt_fast0<-function(y,Z,W,A,family,pA,
         X_beta=expit(X_beta)
         XR_theta=expit(XR_theta)
         mu_prime_XR_theta=XR_theta*(1-XR_theta)
+        A_thetaA=expit(A_thetaA)
     }else{mu_prime_XR_theta=1}
     DX = X*c(X_beta-y)
     DZ = Z*c(X_beta-XR_theta)
@@ -18,12 +19,12 @@ Delta_opt_fast0<-function(y,Z,W,A,family,pA,
     Delta22=V_U2 +GammaZZ%*%(n_main*V_thetaZ)%*%t(GammaZZ)
     Delta12=Cov_U1U2
     if(pA!=0){
-        GammaZA=(1/n_main)*crossprod(DZ2,A)
-        inv_GammaAA=spdinv((1/n_main)*crossprod(A*c(mu_prime_XR_theta),A))
-        Gammas=inv_GammaAA%*%t(GammaZA)
-        Cov_U1theta=(1/n_main)*crossprod(DX,A*c(XR_theta-y))%*%Gammas
-        Cov_U2theta=(1/n_main)*crossprod(DZ,A*c(XR_theta-y))%*%Gammas
-        Delta22 = Delta22 + GammaZA%*%(n_main*V_thetaA)%*%t(GammaZA)
+        GammaAZ=(1/n_main)*crossprod(A,DZ2)
+        #inv_GammaAA=ginv((1/n_main)*crossprod(A*c(mu_prime_A_thetaA),A))
+        Gammas=inv_GammaAA%*%GammaAZ
+        Cov_U1theta=(1/n_main)*crossprod(DX,(A*c(A_thetaA-y))%*%Gammas)
+        Cov_U2theta=(1/n_main)*crossprod(DZ,(A*c(A_thetaA-y))%*%Gammas)
+        Delta22 = Delta22 + t(GammaAZ)%*%(n_main*V_thetaA)%*%GammaAZ
         + Cov_U2theta+t(Cov_U2theta)
         Delta12 = Delta12 + Cov_U1theta
     }
@@ -32,10 +33,12 @@ Delta_opt_fast0<-function(y,Z,W,A,family,pA,
 }
 
 
-pseudo_Xy_fast<-function(
-        C_half,y,Z,W,A,XR_theta,
+direct_fast<-function(
+        inv_C,y,Z,W,A,XR_theta,
         X_beta,family){
+    Cn = spdinv(inv_C+diag(1e-15,nrow(inv_C)))
     X=cbind(A,W,Z)
+    scale_factor = length(y)/sqrt(nrow(inv_C))
     if(family == "binomial"){
         XR_theta=c(expit(XR_theta))
         expit_beta=c(expit(X_beta))
@@ -45,15 +48,36 @@ pseudo_Xy_fast<-function(
         dexpit_beta=1
         ps_y0=0
     }
-    pseudo_X=C_half%*%crossprod(cbind(X,Z),X*dexpit_beta)
+    pseudo_X0=crossprod(cbind(X,Z),X*dexpit_beta)/scale_factor
+    ps_XtX = t(pseudo_X0)%*%Cn%*%pseudo_X0
     ps_y1=c(crossprod(y,X))
     ps_y2=c(crossprod(XR_theta,Z))
-    pseudo_y=c(c(ps_y0+c(ps_y1,ps_y2))%*%C_half)
-    list("pseudo_X"=pseudo_X,"pseudo_y"=pseudo_y)
+    ps_y=c(ps_y0+c(ps_y1,ps_y2))/scale_factor
+    ps_Xty = t(pseudo_X0)%*%Cn%*%ps_y
+    beta = c(spdinv(ps_XtX)%*%ps_Xty)
+    beta
+}
+direct_fast2<-function(inv_C,y,Z,W,A,XR_theta,
+                       X_beta,family){
+    Cn = spdinv(inv_C+diag(1e-15,nrow(inv_C)))
+    X=cbind(A,W,Z)
+    scale_factor = length(y)
+    if(family == "binomial"){
+        XR_theta=c(expit(XR_theta))
+        expit_beta=c(expit(X_beta))
+        dexpit_beta=c(expit_beta*(1-expit_beta))
+        ps_y0=c(crossprod(cbind(X,Z),c(dexpit_beta*X_beta-expit_beta)))
+    }else{
+        dexpit_beta=1
+        ps_y0=0
+    }
+    pseudo_X0=crossprod(cbind(X,Z),X*dexpit_beta)/scale_factor
+    ps_XtX = t(pseudo_X0)%*%Cn%*%pseudo_X0
+    inv_ps_XtX=spdinv(ps_XtX)
+    diag(inv_ps_XtX)/scale_factor
 }
 
-
-htlgmm.gwas.default<-function(
+htlgmm.gwas.default2<-function(
         y,Z,W=NULL,
         study_info=NULL,
         A=NULL,
@@ -61,10 +85,12 @@ htlgmm.gwas.default<-function(
         AW_betaAW=NULL,
         A_thetaA=NULL,
         V_thetaA=NULL,
+        inv_GammaAA=NULL,
         output_SNP_only=TRUE,
         seed.use = 97,
         verbose = FALSE,
-        output_tmp = FALSE
+        output_tmp = FALSE,
+        stable=FALSE
 ){
     set.seed(seed.use)
     if (is.null(study_info)){stop("Please input study_info as trained model")}
@@ -120,6 +146,15 @@ htlgmm.gwas.default<-function(
             hat_thetaA=hat_thetaA_glm$coefficients
             V_thetaA=vcov(hat_thetaA_glm)
             A_thetaA = c(A%*%hat_thetaA)
+            if(family == "binomial"){
+                expit_A_thetaA=expit(A_thetaA)
+                mu_prime_A_thetaA=A_thetaA*(1-A_thetaA)
+            }else{mu_prime_A_thetaA=1}
+            if(stable){
+                inv_GammaAA=ginv((1/nZ)*crossprod(A*c(mu_prime_A_thetaA),A))
+            }else{
+                inv_GammaAA=spdinv((1/nZ)*crossprod(A*c(mu_prime_A_thetaA),A))
+            }
         }else if(is.null(V_thetaA)){
             stop("When inputing A_thetaA, V_thetaA is needed.")
         }
@@ -145,7 +180,7 @@ htlgmm.gwas.default<-function(
         if(verbose){message(id)}
         if(is.null(study_info[[id]]$Coeff[1])){
             return_list<-list("beta"=NULL,
-                                "variance"=NULL)
+                              "variance"=NULL)
         }else{
             Zid = Z[,id]
             Z_thetaZ = c(Zid*study_info[[id]]$Coeff)
@@ -159,23 +194,28 @@ htlgmm.gwas.default<-function(
                                    A_thetaA=A_thetaA,
                                    Z_thetaZ=Z_thetaZ,
                                    V_thetaA=V_thetaA,
-                                   V_thetaZ=V_thetaZ)
+                                   V_thetaZ=V_thetaZ,
+                                   inv_GammaAA=inv_GammaAA)
 
+            if(stable){
+                inv_C_svd<-fast.svd(inv_C+diag(1e-15,nrow(inv_C)))
+                C_half<-inv_C_svd$v%*%diag(1/sqrt(inv_C_svd$d))%*%t(inv_C_svd$u)
+                # Prepare for final model
+                pseudo_Xy_list<-pseudo_Xy_fast(C_half=C_half,y=y,Z=Zid,
+                                               W=W,A=A,
+                                               XR_theta=XR_theta,
+                                               X_beta=X_beta,
+                                               family=family)
+                initial_sf<-nZ/sqrt(nrow(pseudo_Xy_list$pseudo_X))
+                pseudo_X<-pseudo_Xy_list$pseudo_X/initial_sf
+                pseudo_y<-pseudo_Xy_list$pseudo_y/initial_sf
+                fit_final_ols=lm(y~0+.,data = data.frame(y= pseudo_y,pseudo_X))
+                beta=fit_final_ols$coefficients
+            }else{
+                beta=direct_fast(inv_C,y,Z,W,A,XR_theta,
+                                 X_beta,family)
+            }
 
-            inv_C_svd<-fast.svd(inv_C+diag(1e-15,nrow(inv_C)))
-            C_half<-inv_C_svd$v%*%diag(1/sqrt(inv_C_svd$d))%*%t(inv_C_svd$u)
-
-            # Prepare for final model
-            pseudo_Xy_list<-pseudo_Xy_fast(C_half=C_half,y=y,Z=Zid,
-                                           W=W,A=A,
-                                           XR_theta=XR_theta,
-                                           X_beta=X_beta,
-                                           family=family)
-            initial_sf<-nZ/sqrt(nrow(pseudo_Xy_list$pseudo_X))
-            pseudo_X<-pseudo_Xy_list$pseudo_X/initial_sf
-            pseudo_y<-pseudo_Xy_list$pseudo_y/initial_sf
-            fit_final_ols=lm(y~0+.,data = data.frame(y= pseudo_y,pseudo_X))
-            beta=fit_final_ols$coefficients
             return_list<-list("beta"=beta)
 
 
@@ -187,19 +227,27 @@ htlgmm.gwas.default<-function(
                                    A_thetaA=A_thetaA,
                                    Z_thetaZ=Z_thetaZ,
                                    V_thetaA=V_thetaA,
-                                   V_thetaZ=V_thetaZ)
-            inv_C_svd<-fast.svd(inv_C+diag(1e-15,nrow(inv_C)))
-            C_half<-inv_C_svd$v%*%diag(1/sqrt(inv_C_svd$d))%*%t(inv_C_svd$u)
-            ## This need a new formulation
-            pseudo_Xy_list<-pseudo_Xy_fast(C_half=C_half,y=y,Z=Zid,
-                                           W=W,A=A,
-                                           XR_theta=XR_theta,
-                                           X_beta=X_beta,
-                                           family=family)
-            Sigsum_half<-pseudo_Xy_list$pseudo_X/nZ
-            Sigsum_scaled<-crossprod(Sigsum_half)
-            inv_Sigsum_scaled<-solve(Sigsum_scaled)
-            final_v<-diag(inv_Sigsum_scaled)/nZ
+                                   V_thetaZ=V_thetaZ,
+                                   inv_GammaAA=inv_GammaAA)
+            if(stable){
+                inv_C_svd<-fast.svd(inv_C+diag(1e-15,nrow(inv_C)))
+                C_half<-inv_C_svd$v%*%diag(1/sqrt(inv_C_svd$d))%*%t(inv_C_svd$u)
+                ## This need a new formulation
+                pseudo_Xy_list<-pseudo_Xy_fast(C_half=C_half,y=y,Z=Zid,
+                                               W=W,A=A,
+                                               XR_theta=XR_theta,
+                                               X_beta=X_beta,
+                                               family=family)
+                Sigsum_half<-pseudo_Xy_list$pseudo_X/nZ
+                Sigsum_scaled<-crossprod(Sigsum_half)
+                inv_Sigsum_scaled<-solve(Sigsum_scaled)
+                final_v<-diag(inv_Sigsum_scaled)/nZ
+            }else{
+                final_v<-direct_fast2(inv_C,
+                                      y,Z,W,A,XR_theta,
+                                      X_beta,family)
+            }
+
             return_list<-c(return_list,list("variance"=final_v))
         }
         return_list
@@ -219,7 +267,9 @@ htlgmm.gwas.default<-function(
     if(output_tmp){
         beta_var_list<-c(beta_var_list,list("AW_betaAW"=AW_betaAW,
                                             "A_thetaA"=A_thetaA,
-                                            "V_thetaA"=V_thetaA))
+                                            "V_thetaA"=V_thetaA,
+                                            "inv_GammaAA"=inv_GammaAA
+                                            ))
     }
     return(beta_var_list)
 }

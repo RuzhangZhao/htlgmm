@@ -1,12 +1,16 @@
 # README
 
-
-
 Please see the google colab link [https://colab.research.google.com/drive/1TWE3ZT30fY1umL_ILoeC2iwS8oTn66aT?usp=sharing] for tutorial. 
 
-This works for README file for `htlgmm` function. 
+To install the $\texttt{htlgmm}$ package, the user can follow
 
-$p_{\mathrm{Z}}=20,p_{\mathrm{W}}=3$
+```R
+devtools::install_github("RuzhangZhao/htlgmm")
+```
+
+
+
+One example for $p_{\mathrm{Z}}=20,p_{\mathrm{W}}=3$
 
 ```R
 # Simulation Example

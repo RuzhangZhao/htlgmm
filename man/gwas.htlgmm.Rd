@@ -14,10 +14,12 @@ gwas.htlgmm(
   AW_betaAW = NULL,
   A_thetaA = NULL,
   V_thetaA = NULL,
+  inv_GammaAA = NULL,
   output_SNP_only = TRUE,
   seed.use = 97,
   verbose = FALSE,
-  output_tmp = FALSE
+  output_tmp = FALSE,
+  stable = FALSE
 )
 }
 \arguments{
@@ -45,6 +47,8 @@ A are the features working for adjustment in reduced model, but A is not summari
 
 \item{V_thetaA}{Default is NULL.}
 
+\item{inv_GammaAA}{Default is NULL.}
+
 \item{output_SNP_only}{Default is TRUE.}
 
 \item{seed.use}{The seed for  97.}
@@ -52,6 +56,8 @@ A are the features working for adjustment in reduced model, but A is not summari
 \item{verbose}{Default is FALSE.}
 
 \item{output_tmp}{Default is FALSE}
+
+\item{stable}{stable}
 }
 \value{
 \itemize{

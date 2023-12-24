@@ -291,10 +291,12 @@ cv.htlgmm<-function(
 #' @param AW_betaAW Default is NULL.
 #' @param A_thetaA Default is NULL.
 #' @param V_thetaA Default is NULL.
+#' @param inv_GammaAA Default is NULL.
 #' @param output_SNP_only Default is TRUE.
 #' @param seed.use The seed for  97.
 #' @param verbose Default is FALSE.
 #' @param output_tmp Default is FALSE
+#' @param stable stable
 #'
 #' @return \itemize{
 #'  \item{beta:} The target coefficient estimation, the features will go in the order of (A,Z,W).
@@ -309,6 +311,7 @@ cv.htlgmm<-function(
 #' @importFrom magic adiag
 #' @importFrom MASS ginv
 #' @importFrom speedglm speedglm speedlm
+#' @importFrom Rfast spdinv
 #' @export
 #'
 gwas.htlgmm<-function(
@@ -319,10 +322,12 @@ gwas.htlgmm<-function(
         AW_betaAW=NULL,
         A_thetaA=NULL,
         V_thetaA=NULL,
+        inv_GammaAA=NULL,
         output_SNP_only=TRUE,
         seed.use = 97,
         verbose = FALSE,
-        output_tmp=FALSE
+        output_tmp=FALSE,
+        stable=FALSE
 ){
     if(!family %in% c("gaussian","binomial")){
         stop("Select family from c('gaussian','binomial')")
@@ -337,10 +342,10 @@ gwas.htlgmm<-function(
                 warnings("If A is not selected from c('default',NULL,1), A must be a matrix.")
             }}
 
-    res<-htlgmm.gwas.default(y,Z,W,study_info,A,family,
-                             AW_betaAW,A_thetaA,V_thetaA,
+    res<-htlgmm.gwas.default2(y,Z,W,study_info,A,family,
+                             AW_betaAW,A_thetaA,V_thetaA,inv_GammaAA,
                              output_SNP_only,seed.use,
-                             verbose,output_tmp)
+                             verbose,output_tmp,stable)
     return(res)
 }
 
