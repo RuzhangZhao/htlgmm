@@ -148,7 +148,7 @@ htlgmm.gwas.default2<-function(
             A_thetaA = c(A%*%hat_thetaA)
             if(family == "binomial"){
                 expit_A_thetaA=expit(A_thetaA)
-                mu_prime_A_thetaA=A_thetaA*(1-A_thetaA)
+                mu_prime_A_thetaA=expit_A_thetaA*(1-expit_A_thetaA)
             }else{mu_prime_A_thetaA=1}
             if(stable){
                 inv_GammaAA=ginv((1/nZ)*crossprod(A*c(mu_prime_A_thetaA),A))
@@ -161,6 +161,7 @@ htlgmm.gwas.default2<-function(
     }else{
         V_thetaA = NULL
         A_thetaA = 0
+        inv_GammaAA = NULL
     }
 
     # unique beta initial
