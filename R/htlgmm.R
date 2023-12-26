@@ -303,7 +303,7 @@ cv.htlgmm<-function(
 #'  \item{variance:} The lambda list for cross validation.
 #'  }
 #'
-#'
+#' @useDynLib htlgmm
 #' @import glmnet
 #' @import stats
 #' @import Rcpp
@@ -493,3 +493,23 @@ fm.htlgmm<-function(
                         pseudo_Xy_binomial_finemapping,Delta_opt_finemapping)
     return(res)
 }
+
+#' Expit Function from Rcpp
+#'
+#'
+#'
+#' @details expit(s)=exp(s)/{1+exp(s)}
+#'
+#' @param x x can be a single number or a vector.
+#' @return the element-wise expit value.
+#'
+#'
+#' @useDynLib htlgmm
+#' @import Rcpp
+#' @export
+#'
+#'
+expit<-function(x){
+    expit_rcpp(x)
+}
+

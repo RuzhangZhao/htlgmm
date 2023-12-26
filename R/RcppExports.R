@@ -29,8 +29,12 @@ dexpit_rcpp <- function(v) {
     .Call('_htlgmm_dexpit_rcpp', PACKAGE = 'htlgmm', v)
 }
 
-add_rcpp <- function(u, v) {
-    .Call('_htlgmm_add_rcpp', PACKAGE = 'htlgmm', u, v)
+addm_rcpp <- function(A, B) {
+    .Call('_htlgmm_addm_rcpp', PACKAGE = 'htlgmm', A, B)
+}
+
+addv_rcpp <- function(u, v) {
+    .Call('_htlgmm_addv_rcpp', PACKAGE = 'htlgmm', u, v)
 }
 
 timesv_rcpp <- function(u, v) {

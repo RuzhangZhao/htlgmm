@@ -35,7 +35,7 @@ Eigen::VectorXd crossprodv_rcpp(
 Eigen::VectorXd prodv_rcpp(
     Eigen::MatrixXd A, Eigen::VectorXd v) {
   // matrix-vector multiplication
-  Eigen::MatrixXd Av = A * v;
+  Eigen::VectorXd Av = A * v;
   // return
   return(Av);
 }
@@ -70,8 +70,17 @@ Eigen::VectorXd dexpit_rcpp(
 }
 
 // [[Rcpp::export]]
-Eigen::VectorXd add_rcpp(Eigen::VectorXd u,
-    Eigen::VectorXd v) {
+Eigen::MatrixXd addm_rcpp(Eigen::MatrixXd A,
+    Eigen::MatrixXd B) {
+  // vector-vector addition
+  Eigen::MatrixXd C = A+B;
+  // return
+  return(C);
+}
+
+// [[Rcpp::export]]
+Eigen::VectorXd addv_rcpp(Eigen::VectorXd u,
+                         Eigen::VectorXd v) {
   // vector-vector addition
   Eigen::VectorXd w = u+v;
   // return
@@ -95,6 +104,5 @@ Eigen::MatrixXd timesm_rcpp(Eigen::MatrixXd A,
   // return
   return(AB);
 }
-
 
 

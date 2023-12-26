@@ -2,7 +2,7 @@ Delta_opt_fast1<-function(y,Z,W,A,family,pA,
                          X_beta,A_thetaA,Z_thetaZ,V_thetaA,V_thetaZ,inv_GammaAA){
     n_main=length(y)
     X=cbind(A,W,Z)
-    XR_theta=add_rcpp(A_thetaA,Z_thetaZ)
+    XR_theta=addv_rcpp(A_thetaA,Z_thetaZ)
     if(family == "binomial"){
         X_beta=expit_rcpp(X_beta)
         XR_theta=expit_rcpp(XR_theta)
@@ -16,7 +16,7 @@ Delta_opt_fast1<-function(y,Z,W,A,family,pA,
     V_U2=(1/n_main)*self_crossprod_rcpp(DZ)
     Cov_U1U2=(1/n_main)*crossprod_rcpp(DX,DZ)
     GammaZZ=(1/n_main)*crossprod_rcpp(DZ2,Z)
-    Delta22=add_rcpp(V_U2,prod_rcpp(prod_rcpp(GammaZZ,(n_main*V_thetaZ)),t(GammaZZ)))
+    Delta22=addm_rcpp(V_U2,prod_rcpp(prod_rcpp(GammaZZ,(n_main*V_thetaZ)),t(GammaZZ)))
     Delta12=Cov_U1U2
     if(pA!=0){
         GammaAZ=(1/n_main)*crossprod_rcpp(A,DZ2)
@@ -24,9 +24,9 @@ Delta_opt_fast1<-function(y,Z,W,A,family,pA,
         Gammas=prod_rcpp(inv_GammaAA,GammaAZ)
         Cov_U1theta=(1/n_main)*crossprod_rcpp(DX,prod_rcpp(A*c(A_thetaA-y),Gammas))
         Cov_U2theta=(1/n_main)*crossprod_rcpp(DZ,prod_rcpp(A*c(A_thetaA-y),Gammas))
-        Delta22 = add_rcpp(Delta22,prod_rcpp(crossprod_rcpp(GammaAZ,n_main*V_thetaA),GammaAZ))
-        Delta22 = add_rcpp(Delta22,add_rcpp(Cov_U2theta,t(Cov_U2theta)))
-        Delta12 = add_rcpp(Delta12, Cov_U1theta)
+        Delta22 = addm_rcpp(Delta22,prod_rcpp(crossprod_rcpp(GammaAZ,n_main*V_thetaA),GammaAZ))
+        Delta22 = addm_rcpp(Delta22,addm_rcpp(Cov_U2theta,t(Cov_U2theta)))
+        Delta12 = addm_rcpp(Delta12, Cov_U1theta)
     }
     Delta = rbind(cbind(V_U1,Delta12),cbind(t(Delta12),Delta22))
     Delta
@@ -43,7 +43,7 @@ direct_fast1<-function(
         XR_theta=expit_rcpp(c(XR_theta))
         expit_beta=expit_rcpp(c(X_beta))
         dexpit_beta=timesv_rcpp(expit_beta,(1-expit_beta))
-        ps_y0=c(crossprod_rcpp(cbind(X,Z),c(dexpit_beta*X_beta-expit_beta)))
+        ps_y0=c(crossprodv_rcpp(cbind(X,Z),c(dexpit_beta*X_beta-expit_beta)))
     }else{
         dexpit_beta=1
         ps_y0=0
@@ -52,7 +52,7 @@ direct_fast1<-function(
     ps_XtX = prod_rcpp(crossprod_rcpp(pseudo_X0,Cn),pseudo_X0)
     ps_y1=crossprodv_rcpp(X,y)
     ps_y2=crossprodv_rcpp(Z,XR_theta)
-    ps_y=add_rcpp(ps_y0,c(ps_y1,ps_y2))/scale_factor
+    ps_y=addv_rcpp(ps_y0,c(ps_y1,ps_y2))/scale_factor
     ps_Xty = prodv_rcpp(crossprod_rcpp(pseudo_X0,Cn),ps_y)
     beta = prodv_rcpp(spdinv(ps_XtX),ps_Xty)
     beta
@@ -66,7 +66,7 @@ direct_fast12<-function(inv_C,y,Z,W,A,XR_theta,
         XR_theta=expit_rcpp(c(XR_theta))
         expit_beta=expit_rcpp(c(X_beta))
         dexpit_beta=timesv_rcpp(expit_beta,(1-expit_beta))
-        ps_y0=c(crossprod_rcpp(cbind(X,Z),c(dexpit_beta*X_beta-expit_beta)))
+        ps_y0=c(crossprodv_rcpp(cbind(X,Z),c(dexpit_beta*X_beta-expit_beta)))
     }else{
         dexpit_beta=1
         ps_y0=0
@@ -173,7 +173,7 @@ htlgmm.gwas.default3<-function(
             fit_initial=speedlm(y~0+.,data = df)
         }
         beta_initial_AW=c(fit_initial$coefficients)
-        AW_betaAW = prod_rcpp(cbind(A,W),beta_initial_AW)
+        AW_betaAW = prodv_rcpp(cbind(A,W),beta_initial_AW)
     }
 
     # Estimation of C
@@ -183,11 +183,11 @@ htlgmm.gwas.default3<-function(
             return_list<-list("beta"=NULL,
                               "variance"=NULL)
         }else{
-            Zid = Z[,id]
+            Zid = Z[,id,drop=FALSE]
             Z_thetaZ = c(Zid*study_info[[id]]$Coeff)
-            V_thetaZ = study_info[[id]]$Covariance
-            X_beta = add_rcpp(AW_betaAW,Z_thetaZ)
-            XR_theta = add_rcpp(A_thetaA,Z_thetaZ)
+            V_thetaZ = as.matrix(study_info[[id]]$Covariance,1,1)
+            X_beta = addv_rcpp(AW_betaAW,Z_thetaZ)
+            XR_theta = addv_rcpp(A_thetaA,Z_thetaZ)
             # start model
             inv_C = Delta_opt_fast1(y=y,Z=Zid,W=W,A=A,
                                    family=family,pA=pA,
