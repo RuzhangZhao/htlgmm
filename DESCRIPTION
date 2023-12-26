@@ -8,6 +8,7 @@ Authors@R: c(
 Maintainer: Ruzhang Zhao <ruzhangzhao@gmail.com>
 Description: More about what it does (maybe more than one line)
     Use four spaces when indenting paragraphs within the Description.
+LinkingTo: Rcpp, RcppEigen
 Imports: 
     glmnet,
     stats,
@@ -17,7 +18,9 @@ Imports:
     corpcor,
     pROC,
     Rfast,
-    speedglm
+    speedglm,
+    Rcpp,
+    RcppEigen
 License: GPL-3
 Encoding: UTF-8
 RoxygenNote: 7.2.1

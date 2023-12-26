@@ -304,9 +304,10 @@ cv.htlgmm<-function(
 #'  }
 #'
 #'
-#'
 #' @import glmnet
 #' @import stats
+#' @import Rcpp
+#' @import RcppEigen
 #' @importFrom corpcor fast.svd
 #' @importFrom magic adiag
 #' @importFrom MASS ginv
@@ -342,7 +343,7 @@ gwas.htlgmm<-function(
                 warnings("If A is not selected from c('default',NULL,1), A must be a matrix.")
             }}
 
-    res<-htlgmm.gwas.default2(y,Z,W,study_info,A,family,
+    res<-htlgmm.gwas.default3(y,Z,W,study_info,A,family,
                              AW_betaAW,A_thetaA,V_thetaA,inv_GammaAA,
                              output_SNP_only,seed.use,
                              verbose,output_tmp,stable)
