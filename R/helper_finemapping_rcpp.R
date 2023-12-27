@@ -1,8 +1,7 @@
 Delta_opt_finemapping<-function(y,Z,W,family,
                                 study_info,A=NULL,pA=NULL,pZ=NULL,
                                 beta=NULL,hat_thetaA=NULL,
-                                V_thetaA=NULL,use_offset=NULL,X=NULL,
-                                XR=NULL,corZ=NULL){
+                                V_thetaA=NULL,X=NULL,corZ=NULL){
     n_main=length(y)
     if(is.null(dim(X)[1])){X=cbind(A,Z,W)}
     X_beta = prodv_rcpp(X,beta)
@@ -51,7 +50,7 @@ Delta_opt_finemapping<-function(y,Z,W,family,
 }
 
 pseudo_Xy_gaussian_finemapping<-function(
-        C_half,Z,W,A,y,beta=NULL,hat_thetaA=NULL,study_info=NULL,X=NULL,XR=NULL){
+        C_half,Z,W,A,y,beta=NULL,hat_thetaA=NULL,study_info=NULL,X=NULL){
     if(is.null(dim(X)[1])){X=cbind(A,Z,W)}
     A_thetaA = prodv_rcpp(A,hat_thetaA)
     pseudo_X=prod_rcpp(C_half,crossprod_rcpp(cbind(X,Z),X))
@@ -63,7 +62,7 @@ pseudo_Xy_gaussian_finemapping<-function(
     list("pseudo_X"=pseudo_X,"pseudo_y"=pseudo_y)
 }
 pseudo_Xy_binomial_finemapping<-function(
-        C_half,Z,W,A,y,beta=NULL,hat_thetaA=NULL,study_info=NULL,X=NULL,XR=NULL){
+        C_half,Z,W,A,y,beta=NULL,hat_thetaA=NULL,study_info=NULL,X=NULL){
     if(is.null(dim(X)[1])){X=cbind(A,Z,W)}
     X_beta=prodv_rcpp(X,beta)
     A_thetaA=prodv_rcpp(A,hat_thetaA)
@@ -94,6 +93,7 @@ fm.htlgmm.default<-function(
         remove_penalty_Z = FALSE,
         remove_penalty_W = FALSE,
         inference = TRUE,
+        refine_C = TRUE,
         sqrt_matrix ="cholesky",
         use_cv = TRUE,
         type_measure = "default",
@@ -279,8 +279,9 @@ fm.htlgmm.default<-function(
     }
 
     # Prepare for final model
-
-    pseudo_Xy_list<-pseudo_Xy(C_half,Z,W,A,y,beta_initial,hat_thetaA,study_info,X)
+    pseudo_Xy_list<-pseudo_Xy(C_half=C_half,Z=Z,W=W,A=A,y=y,
+                              beta=beta_initial,hat_thetaA=hat_thetaA,
+                              study_info=study_info,X=X)
     initial_sf<-nZ/sqrt(nrow(pseudo_Xy_list$pseudo_X))
     pseudo_X<-pseudo_Xy_list$pseudo_X/initial_sf
     pseudo_y<-pseudo_Xy_list$pseudo_y/initial_sf
@@ -417,23 +418,27 @@ fm.htlgmm.default<-function(
                 warning("Current penalty is lasso, please turn to adaptivelasso for inference")
             }
             # refine C
-            inv_C = Delta_opt_finemapping(y=y,Z=Z,W=W,
-                                          family=family,
-                                          study_info=study_info,
-                                          A=A,pA=pA,pZ=pZ,beta=beta_initial,
-                                          hat_thetaA=hat_thetaA,
-                                          V_thetaA = V_thetaA,
-                                          X=X,
-                                          corZ=corZ)
-            if(sqrt_matrix =="svd"){
-                inv_C_svd=fast.svd(inv_C+diag(1e-15,nrow(inv_C)))
-                C_half=prod_rcpp(inv_C_svd$v,(t(inv_C_svd$u)*1/sqrt(inv_C_svd$d)))
-                #C_half<-inv_C_svd$v%*%diag(1/sqrt(inv_C_svd$d))%*%t(inv_C_svd$u)
-            }else if(sqrt_matrix =="cholesky"){
-                C_half<-sqrtchoinv_rcpp(inv_C+diag(1e-15,nrow(inv_C)))
+            if(refine_C){
+                inv_C = Delta_opt_finemapping(y=y,Z=Z,W=W,
+                                              family=family,
+                                              study_info=study_info,
+                                              A=A,pA=pA,pZ=pZ,beta=beta,
+                                              hat_thetaA=hat_thetaA,
+                                              V_thetaA = V_thetaA,
+                                              X=X,
+                                              corZ=corZ)
+                if(sqrt_matrix =="svd"){
+                    inv_C_svd=fast.svd(inv_C+diag(1e-15,nrow(inv_C)))
+                    C_half=prod_rcpp(inv_C_svd$v,(t(inv_C_svd$u)*1/sqrt(inv_C_svd$d)))
+                    #C_half<-inv_C_svd$v%*%diag(1/sqrt(inv_C_svd$d))%*%t(inv_C_svd$u)
+                }else if(sqrt_matrix =="cholesky"){
+                    C_half<-sqrtchoinv_rcpp(inv_C+diag(1e-15,nrow(inv_C)))
+                }
             }
 
-            pseudo_Xy_list<-pseudo_Xy(C_half,Z,W,A,y,beta,hat_thetaA,study_info,X)
+            pseudo_Xy_list<-pseudo_Xy(C_half=C_half,Z=Z,W=W,A=A,y=y,
+                                      beta=beta,hat_thetaA=hat_thetaA,
+                                      study_info=study_info,X=X)
             Sigsum_half<-pseudo_Xy_list$pseudo_X/nZ
 
             Sigsum_scaled<-self_crossprod_rcpp(Sigsum_half)

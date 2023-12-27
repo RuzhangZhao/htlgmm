@@ -2,7 +2,7 @@
 Delta_opt_rcpp<-function(y,Z,W,family,
                     study_info,A=NULL,pA=NULL,pZ=NULL,
                     beta=NULL,hat_thetaA=NULL,
-                    V_thetaA=NULL,use_offset=TRUE,X=NULL,XR=NULL,corZ=NULL){
+                    V_thetaA=NULL,use_offset=TRUE,X=NULL,XR=NULL){
     n_main=length(y)
     tilde_thetaZ=study_info[[1]]$Coeff
     tilde_theta=c(hat_thetaA,tilde_thetaZ)
@@ -312,6 +312,7 @@ htlgmm.default<-function(
         remove_penalty_Z = FALSE,
         remove_penalty_W = FALSE,
         inference = TRUE,
+        refine_C = TRUE,
         sqrt_matrix ="cholesky",
         use_cv = TRUE,
         type_measure = "default",
@@ -660,20 +661,23 @@ htlgmm.default<-function(
                 warning("Current penalty is lasso, please turn to adaptivelasso for inference")
             }
             # refine C
-            inv_C = Delta_opt_rcpp(y=y,Z=Z,W=W,
-                              family=family,
-                              study_info=study_info,
-                              A=A,pA=pA,pZ=pZ,beta=beta,
-                              hat_thetaA=hat_thetaA,
-                              V_thetaA = V_thetaA,
-                              use_offset = use_offset,
-                              X=X)
-            if(sqrt_matrix =="svd"){
-                inv_C_svd=fast.svd(inv_C+diag(1e-15,nrow(inv_C)))
-                C_half=prod_rcpp(inv_C_svd$v,(t(inv_C_svd$u)*1/sqrt(inv_C_svd$d)))
-                #C_half<-inv_C_svd$v%*%diag(1/sqrt(inv_C_svd$d))%*%t(inv_C_svd$u)
-            }else if(sqrt_matrix =="cholesky"){
-                C_half<-sqrtchoinv_rcpp(inv_C+diag(1e-15,nrow(inv_C)))
+            if(refine_C){
+                inv_C = Delta_opt_rcpp(y=y,Z=Z,W=W,
+                                       family=family,
+                                       study_info=study_info,
+                                       A=A,pA=pA,pZ=pZ,beta=beta,
+                                       hat_thetaA=hat_thetaA,
+                                       V_thetaA = V_thetaA,
+                                       use_offset = use_offset,
+                                       X=X,XR=XR)
+
+                if(sqrt_matrix =="svd"){
+                    inv_C_svd=fast.svd(inv_C+diag(1e-15,nrow(inv_C)))
+                    C_half=prod_rcpp(inv_C_svd$v,(t(inv_C_svd$u)*1/sqrt(inv_C_svd$d)))
+                    #C_half<-inv_C_svd$v%*%diag(1/sqrt(inv_C_svd$d))%*%t(inv_C_svd$u)
+                }else if(sqrt_matrix =="cholesky"){
+                    C_half<-sqrtchoinv_rcpp(inv_C+diag(1e-15,nrow(inv_C)))
+                }
             }
 
             pseudo_Xy_list<-pseudo_Xy(C_half=C_half,Z=Z,W=W,A=A,y=y,

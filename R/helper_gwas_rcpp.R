@@ -58,8 +58,8 @@ direct_fast_beta<-function(
     beta = prodv_rcpp(choinv_rcpp(ps_XtX),ps_Xty)
     beta
 }
-direct_fast_var<-function(Cn,y,Z,W,A,XR_theta,
-                       X_beta,family,X=NULL){
+direct_fast_var<-function(Cn,y,Z,W,A,X_beta,
+                          XR_theta,family,X=NULL){
     if(is.null(dim(X)[1])){X=cbind(A,W,Z)}
     scale_factor = length(y)
     if(family == "binomial"){
@@ -225,8 +225,8 @@ htlgmm.gwas.default<-function(
 
             if(sqrt_matrix =="none"){
                 Cn = choinv_rcpp(inv_C+diag(1e-15,nrow(inv_C)))
-                beta=direct_fast_beta(Cn,y,Z,W,A,X_beta,
-                                      XR_theta,family,X=X)
+                beta=direct_fast_beta(Cn=Cn,y=y,Z=Z,W=W,A=A,X_beta=X_beta,
+                                      XR_theta=XR_theta,family=family,X=X)
             }else{
                 if(sqrt_matrix =="svd"){
                     inv_C_svd=fast.svd(inv_C+diag(1e-15,nrow(inv_C)))
@@ -265,8 +265,10 @@ htlgmm.gwas.default<-function(
                 Cn = choinv_rcpp(inv_C+diag(1e-15,nrow(inv_C)))
             }
             if(sqrt_matrix == "none"){
-                final_v<-direct_fast_var(Cn,y,Z,W,A,X_beta,
-                                         XR_theta,family,X=X)
+                final_v<-direct_fast_var(Cn=Cn,y=y,Z=Z,W=W,A=A,
+                                         X_beta=X_beta,
+                                         XR_theta=XR_theta,
+                                         family=family,X=X)
             }else{
                 if(sqrt_matrix =="svd"){
                     inv_C_svd=fast.svd(inv_C+diag(1e-15,nrow(inv_C)))

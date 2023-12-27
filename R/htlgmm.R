@@ -34,6 +34,7 @@
 #' @param remove_penalty_Z Not penalize Z if it is TRUE. The default is FALSE.
 #' @param remove_penalty_W Not penalize W if it is TRUE. The default is FALSE.
 #' @param inference Whether to do inference without penalty or post-selection inference with adaptive lasso penalty. The default is TRUE.
+#' @param refine_C When computing the variance, whether recompute the weighting matrix C using final estimated beta.
 #' @param sqrt_matrix The method to split weighting matrix into square root matrix. Select from c('svd','cholesky'), where 'cholesky' generates faster computation.
 #' @param fix_lambda Without cross validation, fix the lambda. The default is NULL.
 #' @param lambda_list Customize the input lambda list for validation. The default is NULL to generate lambda list according to glmnet.
@@ -87,7 +88,8 @@ htlgmm<-function(
         remove_penalty_Z = FALSE,
         remove_penalty_W = FALSE,
         inference = TRUE,
-        sqrt_matrix ="svd",
+        refine_C = TRUE,
+        sqrt_matrix ="cholesky",
         fix_lambda = NULL,
         lambda_list = NULL,
         fix_ratio = NULL,
@@ -117,9 +119,9 @@ htlgmm<-function(
                         family,initial_with_type,beta_initial,
                         hat_thetaA,V_thetaA,use_offset,
                         V_thetaA_sandwich,remove_penalty_Z,
-                        remove_penalty_W,inference,sqrt_matrix,
-                        use_cv,type_measure,nfolds,fix_lambda,
-                        lambda_list,tune_ratio,fix_ratio,
+                        remove_penalty_W,inference,refine_C,
+                        sqrt_matrix,use_cv,type_measure,nfolds,
+                        fix_lambda,lambda_list,tune_ratio,fix_ratio,
                         ratio_list,gamma_adaptivelasso,
                         use_sparseC,seed.use)
     return(res)
@@ -164,6 +166,7 @@ htlgmm<-function(
 #' @param remove_penalty_Z Not penalize Z if it is TRUE. The default is FALSE.
 #' @param remove_penalty_W Not penalize W if it is TRUE. The default is FALSE.
 #' @param inference Whether to do inference without penalty or post-selection inference with adaptive lasso penalty. The default is TRUE.
+#' @param refine_C When computing the variance, whether recompute the weighting matrix C using final estimated beta.
 #' @param sqrt_matrix The method to split weighting matrix into square root matrix. Select from c('svd','cholesky'), where 'cholesky' generates faster computation.
 #' @param use_cv Whether to use cross validation to determine the best lambda (or ratio).
 #' @param type_measure Select from c("default", "mse", "deviance", "auc"). Default is mse(liner), deviance(logistic). 'auc' is another choice for binary y.
@@ -230,7 +233,8 @@ cv.htlgmm<-function(
         remove_penalty_Z = FALSE,
         remove_penalty_W = FALSE,
         inference = TRUE,
-        sqrt_matrix = 'svd',
+        refine_C = TRUE,
+        sqrt_matrix = 'cholesky',
         use_cv = TRUE,
         type_measure = "default",
         nfolds = 10,
@@ -260,9 +264,9 @@ cv.htlgmm<-function(
                         family,initial_with_type,beta_initial,
                         hat_thetaA,V_thetaA,use_offset,
                         V_thetaA_sandwich,remove_penalty_Z,
-                        remove_penalty_W,inference,sqrt_matrix,
-                        use_cv,type_measure,nfolds,fix_lambda,
-                        lambda_list,tune_ratio,fix_ratio,
+                        remove_penalty_W,inference,refine_C,
+                        sqrt_matrix,use_cv,type_measure,nfolds,
+                        fix_lambda,lambda_list,tune_ratio,fix_ratio,
                         ratio_list,gamma_adaptivelasso,
                         use_sparseC,seed.use)
 
@@ -392,6 +396,7 @@ gwas.htlgmm<-function(
 #' @param remove_penalty_Z Not penalize Z if it is TRUE. The default is FALSE.
 #' @param remove_penalty_W Not penalize W if it is TRUE. The default is FALSE.
 #' @param inference Whether to do inference without penalty or post-selection inference with adaptive lasso penalty. The default is TRUE.
+#' @param refine_C When computing the variance, whether recompute the weighting matrix C using final estimated beta.
 #' @param sqrt_matrix The method to split weighting matrix into square root matrix. Select from c('svd','cholesky'), where 'cholesky' generates faster computation.
 #' @param use_cv Whether to use cross validation to determine the best lambda (or ratio).
 #' @param type_measure Select from c("default", "mse", "deviance", "auc"). Default is mse(liner), deviance(logistic). 'auc' is another choice for binary y.
@@ -458,6 +463,7 @@ fm.htlgmm<-function(
         remove_penalty_Z = FALSE,
         remove_penalty_W = FALSE,
         inference = TRUE,
+        refine_C = TRUE,
         sqrt_matrix = 'svd',
         use_cv = TRUE,
         type_measure = "default",
@@ -490,9 +496,9 @@ fm.htlgmm<-function(
     res<-fm.htlgmm.default(y,Z,W,study_info,A,penalty_type,
                         family,initial_with_type,beta_initial,
                         hat_thetaA,V_thetaA,remove_penalty_Z,
-                        remove_penalty_W,inference,sqrt_matrix,
-                        use_cv,type_measure,nfolds,fix_lambda,
-                        lambda_list,tune_ratio,fix_ratio,
+                        remove_penalty_W,inference,refine_C,
+                        sqrt_matrix,use_cv,type_measure,nfolds,
+                        fix_lambda,lambda_list,tune_ratio,fix_ratio,
                         ratio_list,gamma_adaptivelasso,
                         use_sparseC,seed.use)
     return(res)
