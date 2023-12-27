@@ -251,7 +251,7 @@ htlgmm.gwas.default<-function(
             return_list<-list("beta"=beta)
 
             # refine C
-            X_beta = prodv_rcpp(,beta)
+            X_beta = prodv_rcpp(X,beta)
             if(refine_C){
                 inv_C = Delta_opt_gwas(y=y,Z=Zid,W=W,A=A,
                                        family=family,pA=pA,
