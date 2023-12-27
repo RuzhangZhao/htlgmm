@@ -294,7 +294,7 @@ cv.htlgmm<-function(
 #' If there is only intercept term in A, we use 'A=1'.
 #' A are the features working for adjustment in reduced model, but A is not summarized in summary statistics(input:study_info).
 #' @param family The family is chosen from c("gaussian","binomial"). Linear regression for "gaussian" and logistic regression for "binomial".
-#' @param fit_initial Whether we fit the main study for the initial value of beta. The default is NULL.
+#' @param initial_fit Whether we fit the main study for the initial value of beta. The default is NULL.
 #' @param AW_betaAW Default is NULL.
 #' @param A_thetaA Default is NULL.
 #' @param V_thetaA Default is NULL.
@@ -327,7 +327,7 @@ gwas.htlgmm<-function(
         study_info=NULL,
         A='default',
         family = "gaussian",
-        fit_initial=FALSE,
+        initial_fit=FALSE,
         AW_betaAW=NULL,
         A_thetaA=NULL,
         V_thetaA=NULL,
@@ -352,7 +352,7 @@ gwas.htlgmm<-function(
                 warnings("If A is not selected from c('default',NULL,1), A must be a matrix.")
             }}
 
-    res<-htlgmm.gwas.default(y,Z,W,study_info,A,family,fit_initial,
+    res<-htlgmm.gwas.default(y,Z,W,study_info,A,family,initial_fit,
                              AW_betaAW,A_thetaA,V_thetaA,inv_GammaAA,
                              refine_C,sqrt_matrix,
                              output_SNP_only,seed.use,

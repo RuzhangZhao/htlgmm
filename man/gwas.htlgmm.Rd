@@ -11,7 +11,7 @@ gwas.htlgmm(
   study_info = NULL,
   A = "default",
   family = "gaussian",
-  fit_initial = FALSE,
+  initial_fit = FALSE,
   AW_betaAW = NULL,
   A_thetaA = NULL,
   V_thetaA = NULL,
@@ -43,7 +43,7 @@ A are the features working for adjustment in reduced model, but A is not summari
 
 \item{family}{The family is chosen from c("gaussian","binomial"). Linear regression for "gaussian" and logistic regression for "binomial".}
 
-\item{fit_initial}{Whether we fit the main study for the initial value of beta. The default is NULL.}
+\item{initial_fit}{Whether we fit the main study for the initial value of beta. The default is NULL.}
 
 \item{AW_betaAW}{Default is NULL.}
 

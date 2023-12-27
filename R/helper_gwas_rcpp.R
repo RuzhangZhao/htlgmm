@@ -104,7 +104,7 @@ htlgmm.gwas.default<-function(
         study_info=NULL,
         A=NULL,
         family = "gaussian",
-        fit_initial=FALSE,
+        initial_fit=FALSE,
         AW_betaAW=NULL,
         A_thetaA=NULL,
         V_thetaA=NULL,
@@ -189,7 +189,7 @@ htlgmm.gwas.default<-function(
     }
 
     # unique beta initial
-    if(!fit_initial){
+    if(!initial_fit){
         if(is.null(AW_betaAW)){
             df=data.frame(y,A,W)
             if(family=="binomial"){
@@ -213,7 +213,7 @@ htlgmm.gwas.default<-function(
             Z_thetaZ = c(Zid*study_info[[id]]$Coeff)
             V_thetaZ = as.matrix(study_info[[id]]$Covariance,1,1)
             X = cbind(A,W,Zid)
-            if(fit_initial){
+            if(initial_fit){
                 df=data.frame(y,X)
                 if(family=="binomial"){
                     fit_initial=speedglm(y~0+.,data = df,family = binomial())
