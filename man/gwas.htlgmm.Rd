@@ -11,6 +11,7 @@ gwas.htlgmm(
   study_info = NULL,
   A = "default",
   family = "gaussian",
+  fit_initial = FALSE,
   AW_betaAW = NULL,
   A_thetaA = NULL,
   V_thetaA = NULL,
@@ -41,6 +42,8 @@ If there is only intercept term in A, we use 'A=1'.
 A are the features working for adjustment in reduced model, but A is not summarized in summary statistics(input:study_info).}
 
 \item{family}{The family is chosen from c("gaussian","binomial"). Linear regression for "gaussian" and logistic regression for "binomial".}
+
+\item{fit_initial}{Whether we fit the main study for the initial value of beta. The default is NULL.}
 
 \item{AW_betaAW}{Default is NULL.}
 

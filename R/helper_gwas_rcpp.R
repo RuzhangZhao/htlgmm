@@ -104,6 +104,7 @@ htlgmm.gwas.default<-function(
         study_info=NULL,
         A=NULL,
         family = "gaussian",
+        fit_initial=FALSE,
         AW_betaAW=NULL,
         A_thetaA=NULL,
         V_thetaA=NULL,
@@ -188,15 +189,17 @@ htlgmm.gwas.default<-function(
     }
 
     # unique beta initial
-    if(is.null(AW_betaAW)){
-        df=data.frame(y,A,W)
-        if(family=="binomial"){
-            fit_initial=speedglm(y~0+.,data = df,family = binomial())
-        }else if(family=="gaussian"){
-            fit_initial=speedlm(y~0+.,data = df)
+    if(!fit_initial){
+        if(is.null(AW_betaAW)){
+            df=data.frame(y,A,W)
+            if(family=="binomial"){
+                fit_initial=speedglm(y~0+.,data = df,family = binomial())
+            }else if(family=="gaussian"){
+                fit_initial=speedlm(y~0+.,data = df)
+            }
+            beta_initial_AW=c(fit_initial$coefficients)
+            AW_betaAW = prodv_rcpp(cbind(A,W),beta_initial_AW)
         }
-        beta_initial_AW=c(fit_initial$coefficients)
-        AW_betaAW = prodv_rcpp(cbind(A,W),beta_initial_AW)
     }
 
     # Estimation of C
@@ -209,9 +212,21 @@ htlgmm.gwas.default<-function(
             Zid = Z[,id,drop=FALSE]
             Z_thetaZ = c(Zid*study_info[[id]]$Coeff)
             V_thetaZ = as.matrix(study_info[[id]]$Covariance,1,1)
-            X_beta = AW_betaAW+Z_thetaZ
-            XR_theta = A_thetaA+Z_thetaZ
             X = cbind(A,W,Zid)
+            if(fit_initial){
+                df=data.frame(y,X)
+                if(family=="binomial"){
+                    fit_initial=speedglm(y~0+.,data = df,family = binomial())
+                }else if(family=="gaussian"){
+                    fit_initial=speedlm(y~0+.,data = df)
+                }
+                beta_initial=c(fit_initial$coefficients)
+                X_beta = prodv_rcpp(X,beta_initial)
+            }else{
+                X_beta = AW_betaAW+Z_thetaZ
+            }
+            XR_theta = A_thetaA+Z_thetaZ
+
             # start model
             inv_C = Delta_opt_gwas(y=y,Z=Zid,W=W,A=A,
                                    family=family,pA=pA,
