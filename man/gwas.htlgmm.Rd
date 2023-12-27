@@ -15,11 +15,12 @@ gwas.htlgmm(
   A_thetaA = NULL,
   V_thetaA = NULL,
   inv_GammaAA = NULL,
+  refine_C = TRUE,
+  sqrt_matrix = "none",
   output_SNP_only = TRUE,
   seed.use = 97,
   verbose = FALSE,
-  output_tmp = FALSE,
-  stable = FALSE
+  output_tmp = FALSE
 )
 }
 \arguments{
@@ -49,6 +50,10 @@ A are the features working for adjustment in reduced model, but A is not summari
 
 \item{inv_GammaAA}{Default is NULL.}
 
+\item{refine_C}{When computing the variance, whether recompute the weighting matrix C using final estimated beta.}
+
+\item{sqrt_matrix}{The method to split weighting matrix into square root matrix. Select from c('svd','cholesky','none'), where 'cholesky' generates faster computation. When there is no penalty, no need to split the weighting matrix.}
+
 \item{output_SNP_only}{Default is TRUE.}
 
 \item{seed.use}{The seed for  97.}
@@ -56,8 +61,6 @@ A are the features working for adjustment in reduced model, but A is not summari
 \item{verbose}{Default is FALSE.}
 
 \item{output_tmp}{Default is FALSE}
-
-\item{stable}{stable}
 }
 \value{
 \itemize{

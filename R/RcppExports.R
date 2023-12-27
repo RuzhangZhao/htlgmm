@@ -29,19 +29,27 @@ dexpit_rcpp <- function(v) {
     .Call('_htlgmm_dexpit_rcpp', PACKAGE = 'htlgmm', v)
 }
 
-addm_rcpp <- function(A, B) {
-    .Call('_htlgmm_addm_rcpp', PACKAGE = 'htlgmm', A, B)
-}
-
-addv_rcpp <- function(u, v) {
-    .Call('_htlgmm_addv_rcpp', PACKAGE = 'htlgmm', u, v)
-}
-
 timesv_rcpp <- function(u, v) {
     .Call('_htlgmm_timesv_rcpp', PACKAGE = 'htlgmm', u, v)
 }
 
 timesm_rcpp <- function(A, B) {
     .Call('_htlgmm_timesm_rcpp', PACKAGE = 'htlgmm', A, B)
+}
+
+square_rcpp <- function(mat) {
+    .Call('_htlgmm_square_rcpp', PACKAGE = 'htlgmm', mat)
+}
+
+expitm_rcpp <- function(A) {
+    .Call('_htlgmm_expitm_rcpp', PACKAGE = 'htlgmm', A)
+}
+
+sqrtchoinv_rcpp <- function(matrix) {
+    .Call('_htlgmm_sqrtchoinv_rcpp', PACKAGE = 'htlgmm', matrix)
+}
+
+choinv_rcpp <- function(matrix) {
+    .Call('_htlgmm_choinv_rcpp', PACKAGE = 'htlgmm', matrix)
 }
 

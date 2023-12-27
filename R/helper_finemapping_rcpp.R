@@ -1,61 +1,21 @@
-
-dexpit1<-function(x){return (expit(x)*(1-expit(x)))} # rank3
-dexpit2<-function (x) {1/(2+exp(x)+exp(-x))} # rank2
-expit1<-function (x)
-{
-    y <- x
-    ix <- (x < 0)
-    y[ix] <- exp(x[ix])/(1 + exp(x[ix]))
-    y[!ix] <- 1/(1 + exp(-x[!ix]))
-    y
-} # twice slower
-pseudo_Xy_gaussian_finemapping<-function(
-        C_half,Z,W,A,y,beta=NULL,hat_thetaA=NULL,study_info=NULL){
-    X=cbind(A,Z,W)
-    A_thetaA = c(A%*%hat_thetaA)
-    pseudo_X=C_half%*%crossprod(cbind(X,Z),X)
-    pseudo_y1=c(crossprod(y,X))
-    pseudo_y2<-sapply(1:ncol(Z), function(id){
-        c(c(A_thetaA+Z[,id]*study_info[[id]]$Coeff)%*%Z[,id])
-    })
-    pseudo_y=c(c(pseudo_y1,pseudo_y2)%*%C_half)
-    list("pseudo_X"=pseudo_X,"pseudo_y"=pseudo_y)
-}
-pseudo_Xy_binomial_finemapping<-function(
-        C_half,Z,W,A,y,beta=NULL,hat_thetaA=NULL,study_info=NULL){
-    X=cbind(A,Z,W)
-    X_beta=X%*%beta
-    A_thetaA=A%*%hat_thetaA
-    expit_beta=c(expit(X_beta))
-    dexpit_beta=c(expit_beta*(1-expit_beta))
-    #pseudo_X=C_half%*%Rfast::Crossprod(cbind(X,Z),X*dexpit_beta)
-    pseudo_X=C_half%*%crossprod(cbind(X,Z),X*dexpit_beta)
-
-    ps_y0=c(crossprod(cbind(X,Z),c(dexpit_beta*X_beta-expit_beta)))
-    ps_y1=c(crossprod(y,X))
-    ps_y2<-sapply(1:ncol(Z), function(id){
-        c(expit(c(A_thetaA+Z[,id]*study_info[[id]]$Coeff))%*%Z[,id])
-    })
-    pseudo_y=c(c(ps_y0+c(ps_y1,ps_y2))%*%C_half)
-    list("pseudo_X"=pseudo_X,"pseudo_y"=pseudo_y)
-}
 Delta_opt_finemapping<-function(y,Z,W,family,
-                       study_info,A=NULL,pA=NULL,
-                       beta=NULL,hat_thetaA=NULL,
-                       V_thetaA=NULL,use_offset=NULL){
+                                study_info,A=NULL,pA=NULL,pZ=NULL,
+                                beta=NULL,hat_thetaA=NULL,
+                                V_thetaA=NULL,use_offset=NULL,X=NULL,
+                                XR=NULL,corZ=NULL){
     n_main=length(y)
-    DX=cbind(A,W,Z)
-    X_beta = DX%*%beta
-    A_thetaA = A%*%hat_thetaA
+    if(is.null(dim(X)[1])){X=cbind(A,Z,W)}
+    X_beta = prodv_rcpp(X,beta)
+    A_thetaA = prodv_rcpp(A,hat_thetaA)
     if(family == "binomial"){
-        X_beta=expit(X_beta)
+        X_beta=expit_rcpp(X_beta)
         DZ<-sapply(1:ncol(Z), function(id){
-            XR_thetaid<-expit(c(A_thetaA+Z[,id]*study_info[[id]]$Coeff))
+            XR_thetaid<-expit_rcpp(c(A_thetaA+Z[,id]*study_info[[id]]$Coeff))
             X_beta-XR_thetaid})*Z #the same shape with Z
         DDZ<-sapply(1:ncol(Z), function(id){
-            dexpit(A_thetaA+Z[,id]*study_info[[id]]$Coeff)})*Z
-        GammaZZ_vec =colmeans(DDZ*Z)
-        A_thetaA = expit(A_thetaA)
+            dexpit_rcpp(A_thetaA+Z[,id]*study_info[[id]]$Coeff)})*Z
+        GammaZZ_vec =colMeans(timesm_rcpp(DDZ,Z))
+        A_thetaA = expit_rcpp(A_thetaA)
         mu_prime_A_thetaA = A_thetaA*(1-A_thetaA)
     }else{
         DZ<-sapply(1:ncol(Z), function(id){
@@ -63,31 +23,62 @@ Delta_opt_finemapping<-function(y,Z,W,family,
             X_beta-XR_thetaid
         }) #the same shape with Z
         DDZ = Z
-        GammaZZ_vec = colmeans(Z^2)
+        GammaZZ_vec = colMeans(square_rcpp(Z))
         mu_prime_A_thetaA = 1
     }
-    DX = DX*c(X_beta-y)
-    V_U1=(1/n_main)*crossprod(DX)
-    V_U2=(1/n_main)*crossprod(DZ)
-    Cov_U1U2=(1/n_main)*crossprod(DX,DZ)
+    DX = X*c(X_beta-y)
+    V_U1=(1/n_main)*self_crossprod_rcpp(DX)
+    V_U2=(1/n_main)*self_crossprod_rcpp(DZ)
+    Cov_U1U2=(1/n_main)*crossprod_rcpp(DX,DZ)
 
     V_thetaZ_vec<-sapply(1:ncol(Z), function(id){
         sqrt(study_info[[id]]$Covariance)})
 
-    Delta22=V_U2+n_main*t((GammaZZ_vec*V_thetaZ_vec)*cor(Z))*(GammaZZ_vec*V_thetaZ_vec)
+    Delta22=V_U2+n_main*t((GammaZZ_vec*V_thetaZ_vec)*corZ)*(GammaZZ_vec*V_thetaZ_vec)
     #Delta22=V_U2+GammaZZ%*%(n_main*V_thetaZ)%*%t(GammaZZ)
     Delta12=Cov_U1U2
     if(pA!=0){
-        GammaZA=(1/n_main)*crossprod(DDZ,A)
-        inv_GammaAA=ginv((1/n_main)*crossprod(A*c(mu_prime_A_thetaA),A))
-        Cov_U1theta=(1/n_main)*crossprod(DX,A*c(A_thetaA-y))%*%(inv_GammaAA%*%t(GammaZA))
-        Cov_U2theta=(1/n_main)*crossprod(DZ,A*c(A_thetaA-y))%*%(inv_GammaAA%*%t(GammaZA))
-        Delta22 = Delta22 + GammaZA%*%(n_main*V_thetaA)%*%t(GammaZA)
+        GammaZA=(1/n_main)*crossprod_rcpp(DDZ,A)
+        inv_GammaAA=ginv((1/n_main)*crossprod_rcpp(A*c(mu_prime_A_thetaA),A))
+        Cov_U1theta=(1/n_main)*crossprod_rcpp(DX,A*c(A_thetaA-y))%*%(inv_GammaAA%*%t(GammaZA))
+        Cov_U2theta=(1/n_main)*crossprod_rcpp(DZ,A*c(A_thetaA-y))%*%(inv_GammaAA%*%t(GammaZA))
+        Delta22 = Delta22 + prod_rcpp(prod_rcpp(GammaZA,(n_main*V_thetaA)),t(GammaZA))
         + Cov_U2theta+t(Cov_U2theta)
         Delta12 = Delta12 + Cov_U1theta
     }
     Delta = rbind(cbind(V_U1,Delta12),cbind(t(Delta12),Delta22))
     Delta
+}
+
+pseudo_Xy_gaussian_finemapping<-function(
+        C_half,Z,W,A,y,beta=NULL,hat_thetaA=NULL,study_info=NULL,X=NULL,XR=NULL){
+    if(is.null(dim(X)[1])){X=cbind(A,Z,W)}
+    A_thetaA = prodv_rcpp(A,hat_thetaA)
+    pseudo_X=prod_rcpp(C_half,crossprod_rcpp(cbind(X,Z),X))
+    pseudo_y1=crossprodv_rcpp(X,y)
+    pseudo_y2<-sapply(1:ncol(Z), function(id){
+        c(c(A_thetaA+Z[,id]*study_info[[id]]$Coeff)%*%Z[,id])
+    })
+    pseudo_y=prodv_rcpp(C_half,c(pseudo_y1,pseudo_y2))
+    list("pseudo_X"=pseudo_X,"pseudo_y"=pseudo_y)
+}
+pseudo_Xy_binomial_finemapping<-function(
+        C_half,Z,W,A,y,beta=NULL,hat_thetaA=NULL,study_info=NULL,X=NULL,XR=NULL){
+    if(is.null(dim(X)[1])){X=cbind(A,Z,W)}
+    X_beta=prodv_rcpp(X,beta)
+    A_thetaA=prodv_rcpp(A,hat_thetaA)
+    expit_beta=expit_rcpp(X_beta)
+    dexpit_beta=expit_beta*(1-expit_beta)
+    #pseudo_X=C_half%*%Rfast::Crossprod(cbind(X,Z),X*dexpit_beta)
+    pseudo_X=prod_rcpp(C_half,crossprod_rcpp(cbind(X,Z),X*dexpit_beta))
+
+    ps_y0=crossprodv_rcpp(cbind(X,Z),c(dexpit_beta*X_beta-expit_beta))
+    ps_y1=crossprodv_rcpp(X,y)
+    ps_y2<-sapply(1:ncol(Z), function(id){
+        c(expit_rcpp(c(A_thetaA+Z[,id]*study_info[[id]]$Coeff))%*%Z[,id])
+    })
+    pseudo_y=prodv_rcpp(C_half,c(ps_y0+c(ps_y1,ps_y2)))
+    list("pseudo_X"=pseudo_X,"pseudo_y"=pseudo_y)
 }
 
 fm.htlgmm.default<-function(
@@ -103,6 +94,7 @@ fm.htlgmm.default<-function(
         remove_penalty_Z = FALSE,
         remove_penalty_W = FALSE,
         inference = TRUE,
+        sqrt_matrix ="cholesky",
         use_cv = TRUE,
         type_measure = "default",
         nfolds = 10,
@@ -122,6 +114,9 @@ fm.htlgmm.default<-function(
     }
     if(!type_measure%in% c("default", "mse", "deviance", "auc")){
         stop("Select type_measure from c('default','deviance','auc')")
+    }
+    if(!sqrt_matrix %in% c("cholesky","svd")){
+        stop("Select penalty type from c('cholesky','svd').")
     }
     if(is.null(dim(Z)[1])){
         warning("Z is input as a vector, convert Z into matrix with size nZ*1")
@@ -262,22 +257,30 @@ fm.htlgmm.default<-function(
         w_adaptive<-w_adaptive*fix_penalty
     }else{w_adaptive<-fix_penalty}
     # Estimation of C
+    corZ = cor(Z)
     inv_C = Delta_opt_finemapping(y=y,Z=Z,W=W,
-                      family=family,
-                      study_info=study_info,
-                      A=A,pA=pA,beta=beta_initial,
-                      hat_thetaA=hat_thetaA,
-                      V_thetaA = V_thetaA)
+                                  family=family,
+                                  study_info=study_info,
+                                  A=A,pA=pA,pZ=pZ,beta=beta_initial,
+                                  hat_thetaA=hat_thetaA,
+                                  V_thetaA = V_thetaA,
+                                  X=X,
+                                  corZ=corZ)
     if(use_sparseC){
         C_half<-diag(1/sqrt(diag(inv_C)))
     }else{
-        inv_C_svd<-fast.svd(inv_C+diag(1e-15,nrow(inv_C)))
-        C_half<-inv_C_svd$v%*%diag(1/sqrt(inv_C_svd$d))%*%t(inv_C_svd$u)
+        if(sqrt_matrix =="svd"){
+            inv_C_svd=fast.svd(inv_C+diag(1e-15,nrow(inv_C)))
+            C_half=prod_rcpp(inv_C_svd$v,(t(inv_C_svd$u)*1/sqrt(inv_C_svd$d)))
+            #C_half<-inv_C_svd$v%*%diag(1/sqrt(inv_C_svd$d))%*%t(inv_C_svd$u)
+        }else if(sqrt_matrix =="cholesky"){
+            C_half<-sqrtchoinv_rcpp(inv_C+diag(1e-15,nrow(inv_C)))
+        }
     }
 
     # Prepare for final model
 
-    pseudo_Xy_list<-pseudo_Xy(C_half,Z,W,A,y,beta_initial,hat_thetaA,study_info)
+    pseudo_Xy_list<-pseudo_Xy(C_half,Z,W,A,y,beta_initial,hat_thetaA,study_info,X)
     initial_sf<-nZ/sqrt(nrow(pseudo_Xy_list$pseudo_X))
     pseudo_X<-pseudo_Xy_list$pseudo_X/initial_sf
     pseudo_y<-pseudo_Xy_list$pseudo_y/initial_sf
@@ -415,24 +418,25 @@ fm.htlgmm.default<-function(
             }
             # refine C
             inv_C = Delta_opt_finemapping(y=y,Z=Z,W=W,
-                              family=family,
-                              study_info=study_info,
-                              A=A,pA=pA,beta=beta_initial,
-                              hat_thetaA=hat_thetaA,
-                              V_thetaA = V_thetaA)
-            inv_C_svd<-fast.svd(inv_C+diag(1e-15,nrow(inv_C)))
-            C_half<-inv_C_svd$v%*%diag(1/sqrt(inv_C_svd$d))%*%t(inv_C_svd$u)
+                                          family=family,
+                                          study_info=study_info,
+                                          A=A,pA=pA,pZ=pZ,beta=beta_initial,
+                                          hat_thetaA=hat_thetaA,
+                                          V_thetaA = V_thetaA,
+                                          X=X,
+                                          corZ=corZ)
+            if(sqrt_matrix =="svd"){
+                inv_C_svd=fast.svd(inv_C+diag(1e-15,nrow(inv_C)))
+                C_half=prod_rcpp(inv_C_svd$v,(t(inv_C_svd$u)*1/sqrt(inv_C_svd$d)))
+                #C_half<-inv_C_svd$v%*%diag(1/sqrt(inv_C_svd$d))%*%t(inv_C_svd$u)
+            }else if(sqrt_matrix =="cholesky"){
+                C_half<-sqrtchoinv_rcpp(inv_C+diag(1e-15,nrow(inv_C)))
+            }
 
-            pseudo_Xy_list<-pseudo_Xy(C_half,Z,W,A,y,beta,hat_thetaA,study_info)
+            pseudo_Xy_list<-pseudo_Xy(C_half,Z,W,A,y,beta,hat_thetaA,study_info,X)
             Sigsum_half<-pseudo_Xy_list$pseudo_X/nZ
 
-            #expit_beta<-c(expit(X%*%beta))
-            #dexpit_beta<-expit_beta*(1-expit_beta)
-            #pseudo_X<-C_half%*%rbind(t(X),t(Z))%*%(X*c(dexpit_beta))/nZ
-
-            ## gaussian: Sigsum_half<-cbind(ZWtZW/nZ,crossprod(ZW,Z)/nZ)%*%C_half
-
-            Sigsum_scaled<-crossprod(Sigsum_half)
+            Sigsum_scaled<-self_crossprod_rcpp(Sigsum_half)
             Sigsum_scaled_nonzero<-Sigsum_scaled[index_nonzero,index_nonzero]
             inv_Sigsum_scaled_nonzero<-solve(Sigsum_scaled_nonzero)
             final_v<-diag(inv_Sigsum_scaled_nonzero)/nZ

@@ -69,23 +69,6 @@ Eigen::VectorXd dexpit_rcpp(
   return(dexpitv);
 }
 
-// [[Rcpp::export]]
-Eigen::MatrixXd addm_rcpp(Eigen::MatrixXd A,
-    Eigen::MatrixXd B) {
-  // vector-vector addition
-  Eigen::MatrixXd C = A+B;
-  // return
-  return(C);
-}
-
-// [[Rcpp::export]]
-Eigen::VectorXd addv_rcpp(Eigen::VectorXd u,
-                         Eigen::VectorXd v) {
-  // vector-vector addition
-  Eigen::VectorXd w = u+v;
-  // return
-  return(w);
-}
 
 // [[Rcpp::export]]
 Eigen::VectorXd timesv_rcpp(Eigen::VectorXd u,
@@ -103,6 +86,62 @@ Eigen::MatrixXd timesm_rcpp(Eigen::MatrixXd A,
   Eigen::MatrixXd AB = A.array()*B.array();
   // return
   return(AB);
+}
+
+
+// [[Rcpp::export]]
+Eigen::VectorXd square_rcpp(const Eigen::MatrixXd& mat) {
+  // Calculate the sum of each column
+  Eigen::VectorXd mat2 = mat.array().square();;
+  return mat2;
+}
+
+
+// [[Rcpp::export]]
+Eigen::MatrixXd expitm_rcpp(
+    Eigen::MatrixXd A) {
+  // expit(s) = exp(s)/(1+exp(s))
+  Eigen::MatrixXd negA = -A;
+  Eigen::MatrixXd expitA = 1.0/(negA.array().exp()+1);
+  // return
+  return(expitA);
+}
+
+// [[Rcpp::export]]
+Eigen::MatrixXd sqrtchoinv_rcpp(const Eigen::MatrixXd& matrix) {
+  // Check if the matrix is square
+  if (matrix.rows() != matrix.cols()) {
+    Rcpp::stop("Matrix must be square.");
+  }
+
+  // Compute the Cholesky decomposition
+  Eigen::LLT<Eigen::MatrixXd> llt(matrix);
+  if (llt.info() != Eigen::Success) {
+    Rcpp::stop("Cholesky decomposition failed.");
+  }
+  // Compute the inverse of L
+  Eigen::MatrixXd L_inv = llt.matrixL().solve(Eigen::MatrixXd::Identity(matrix.rows(), matrix.cols()));
+
+  // The square root of the inverse of A is L^{-T}
+  return L_inv;
+}
+
+// [[Rcpp::export]]
+Eigen::MatrixXd choinv_rcpp(const Eigen::MatrixXd& matrix) {
+  // Ensure the matrix is square
+  if (matrix.rows() != matrix.cols()) {
+    Rcpp::stop("Matrix must be square.");
+  }
+  // Compute the Cholesky decomposition (LLT)
+  Eigen::LLT<Eigen::MatrixXd> llt(matrix);
+
+  // Check if the matrix is positive definite
+  if(llt.info() != Eigen::Success) {
+    Rcpp::stop("Matrix is not positive definite.");
+  }
+
+  // Compute the inverse based on the Cholesky decomposition
+  return llt.solve(Eigen::MatrixXd::Identity(matrix.rows(), matrix.cols()));
 }
 
 

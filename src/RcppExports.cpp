@@ -92,30 +92,6 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
-// addm_rcpp
-Eigen::MatrixXd addm_rcpp(Eigen::MatrixXd A, Eigen::MatrixXd B);
-RcppExport SEXP _htlgmm_addm_rcpp(SEXP ASEXP, SEXP BSEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< Eigen::MatrixXd >::type A(ASEXP);
-    Rcpp::traits::input_parameter< Eigen::MatrixXd >::type B(BSEXP);
-    rcpp_result_gen = Rcpp::wrap(addm_rcpp(A, B));
-    return rcpp_result_gen;
-END_RCPP
-}
-// addv_rcpp
-Eigen::VectorXd addv_rcpp(Eigen::VectorXd u, Eigen::VectorXd v);
-RcppExport SEXP _htlgmm_addv_rcpp(SEXP uSEXP, SEXP vSEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< Eigen::VectorXd >::type u(uSEXP);
-    Rcpp::traits::input_parameter< Eigen::VectorXd >::type v(vSEXP);
-    rcpp_result_gen = Rcpp::wrap(addv_rcpp(u, v));
-    return rcpp_result_gen;
-END_RCPP
-}
 // timesv_rcpp
 Eigen::VectorXd timesv_rcpp(Eigen::VectorXd u, Eigen::VectorXd v);
 RcppExport SEXP _htlgmm_timesv_rcpp(SEXP uSEXP, SEXP vSEXP) {
@@ -140,6 +116,50 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// square_rcpp
+Eigen::VectorXd square_rcpp(const Eigen::MatrixXd& mat);
+RcppExport SEXP _htlgmm_square_rcpp(SEXP matSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< const Eigen::MatrixXd& >::type mat(matSEXP);
+    rcpp_result_gen = Rcpp::wrap(square_rcpp(mat));
+    return rcpp_result_gen;
+END_RCPP
+}
+// expitm_rcpp
+Eigen::MatrixXd expitm_rcpp(Eigen::MatrixXd A);
+RcppExport SEXP _htlgmm_expitm_rcpp(SEXP ASEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< Eigen::MatrixXd >::type A(ASEXP);
+    rcpp_result_gen = Rcpp::wrap(expitm_rcpp(A));
+    return rcpp_result_gen;
+END_RCPP
+}
+// sqrtchoinv_rcpp
+Eigen::MatrixXd sqrtchoinv_rcpp(const Eigen::MatrixXd& matrix);
+RcppExport SEXP _htlgmm_sqrtchoinv_rcpp(SEXP matrixSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< const Eigen::MatrixXd& >::type matrix(matrixSEXP);
+    rcpp_result_gen = Rcpp::wrap(sqrtchoinv_rcpp(matrix));
+    return rcpp_result_gen;
+END_RCPP
+}
+// choinv_rcpp
+Eigen::MatrixXd choinv_rcpp(const Eigen::MatrixXd& matrix);
+RcppExport SEXP _htlgmm_choinv_rcpp(SEXP matrixSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< const Eigen::MatrixXd& >::type matrix(matrixSEXP);
+    rcpp_result_gen = Rcpp::wrap(choinv_rcpp(matrix));
+    return rcpp_result_gen;
+END_RCPP
+}
 
 static const R_CallMethodDef CallEntries[] = {
     {"_htlgmm_crossprod_rcpp", (DL_FUNC) &_htlgmm_crossprod_rcpp, 2},
@@ -149,10 +169,12 @@ static const R_CallMethodDef CallEntries[] = {
     {"_htlgmm_self_crossprod_rcpp", (DL_FUNC) &_htlgmm_self_crossprod_rcpp, 1},
     {"_htlgmm_expit_rcpp", (DL_FUNC) &_htlgmm_expit_rcpp, 1},
     {"_htlgmm_dexpit_rcpp", (DL_FUNC) &_htlgmm_dexpit_rcpp, 1},
-    {"_htlgmm_addm_rcpp", (DL_FUNC) &_htlgmm_addm_rcpp, 2},
-    {"_htlgmm_addv_rcpp", (DL_FUNC) &_htlgmm_addv_rcpp, 2},
     {"_htlgmm_timesv_rcpp", (DL_FUNC) &_htlgmm_timesv_rcpp, 2},
     {"_htlgmm_timesm_rcpp", (DL_FUNC) &_htlgmm_timesm_rcpp, 2},
+    {"_htlgmm_square_rcpp", (DL_FUNC) &_htlgmm_square_rcpp, 1},
+    {"_htlgmm_expitm_rcpp", (DL_FUNC) &_htlgmm_expitm_rcpp, 1},
+    {"_htlgmm_sqrtchoinv_rcpp", (DL_FUNC) &_htlgmm_sqrtchoinv_rcpp, 1},
+    {"_htlgmm_choinv_rcpp", (DL_FUNC) &_htlgmm_choinv_rcpp, 1},
     {NULL, NULL, 0}
 };
 

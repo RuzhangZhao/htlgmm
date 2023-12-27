@@ -7,7 +7,7 @@
 expit(x)
 }
 \arguments{
-\item{x}{x can be a single number or a vector.}
+\item{x}{x can be a single number or a vector or a matrix.}
 }
 \value{
 the element-wise expit value.

@@ -34,6 +34,7 @@
 #' @param remove_penalty_Z Not penalize Z if it is TRUE. The default is FALSE.
 #' @param remove_penalty_W Not penalize W if it is TRUE. The default is FALSE.
 #' @param inference Whether to do inference without penalty or post-selection inference with adaptive lasso penalty. The default is TRUE.
+#' @param sqrt_matrix The method to split weighting matrix into square root matrix. Select from c('svd','cholesky'), where 'cholesky' generates faster computation.
 #' @param fix_lambda Without cross validation, fix the lambda. The default is NULL.
 #' @param lambda_list Customize the input lambda list for validation. The default is NULL to generate lambda list according to glmnet.
 #' @param fix_ratio The fixed ratio for two-lambda strategy. The ratio is multiplied for Z features. The default is NULL. If it is NULL, select the best ratio via cross validation or holdout validation.
@@ -71,7 +72,6 @@
 #' @export
 #'
 #'
-
 htlgmm<-function(
         y,Z,W=NULL,
         study_info=NULL,
@@ -87,6 +87,7 @@ htlgmm<-function(
         remove_penalty_Z = FALSE,
         remove_penalty_W = FALSE,
         inference = TRUE,
+        sqrt_matrix ="svd",
         fix_lambda = NULL,
         lambda_list = NULL,
         fix_ratio = NULL,
@@ -116,8 +117,8 @@ htlgmm<-function(
                         family,initial_with_type,beta_initial,
                         hat_thetaA,V_thetaA,use_offset,
                         V_thetaA_sandwich,remove_penalty_Z,
-                        remove_penalty_W,inference,use_cv,
-                        type_measure,nfolds,fix_lambda,
+                        remove_penalty_W,inference,sqrt_matrix,
+                        use_cv,type_measure,nfolds,fix_lambda,
                         lambda_list,tune_ratio,fix_ratio,
                         ratio_list,gamma_adaptivelasso,
                         use_sparseC,seed.use)
@@ -163,6 +164,7 @@ htlgmm<-function(
 #' @param remove_penalty_Z Not penalize Z if it is TRUE. The default is FALSE.
 #' @param remove_penalty_W Not penalize W if it is TRUE. The default is FALSE.
 #' @param inference Whether to do inference without penalty or post-selection inference with adaptive lasso penalty. The default is TRUE.
+#' @param sqrt_matrix The method to split weighting matrix into square root matrix. Select from c('svd','cholesky'), where 'cholesky' generates faster computation.
 #' @param use_cv Whether to use cross validation to determine the best lambda (or ratio).
 #' @param type_measure Select from c("default", "mse", "deviance", "auc"). Default is mse(liner), deviance(logistic). 'auc' is another choice for binary y.
 #' @param nfolds The fold number for cross validation. Only work for use_cv = TRUE.The default is 10.
@@ -228,6 +230,7 @@ cv.htlgmm<-function(
         remove_penalty_Z = FALSE,
         remove_penalty_W = FALSE,
         inference = TRUE,
+        sqrt_matrix = 'svd',
         use_cv = TRUE,
         type_measure = "default",
         nfolds = 10,
@@ -257,12 +260,11 @@ cv.htlgmm<-function(
                         family,initial_with_type,beta_initial,
                         hat_thetaA,V_thetaA,use_offset,
                         V_thetaA_sandwich,remove_penalty_Z,
-                        remove_penalty_W,inference,use_cv,
-                        type_measure,nfolds,fix_lambda,
+                        remove_penalty_W,inference,sqrt_matrix,
+                        use_cv,type_measure,nfolds,fix_lambda,
                         lambda_list,tune_ratio,fix_ratio,
                         ratio_list,gamma_adaptivelasso,
-                        use_sparseC,seed.use,pseudo_Xy_gaussian,
-                        pseudo_Xy_binomial,Delta_opt)
+                        use_sparseC,seed.use)
 
     return(res)
 }
@@ -292,11 +294,12 @@ cv.htlgmm<-function(
 #' @param A_thetaA Default is NULL.
 #' @param V_thetaA Default is NULL.
 #' @param inv_GammaAA Default is NULL.
+#' @param refine_C When computing the variance, whether recompute the weighting matrix C using final estimated beta.
+#' @param sqrt_matrix The method to split weighting matrix into square root matrix. Select from c('svd','cholesky','none'), where 'cholesky' generates faster computation. When there is no penalty, no need to split the weighting matrix.
 #' @param output_SNP_only Default is TRUE.
 #' @param seed.use The seed for  97.
 #' @param verbose Default is FALSE.
 #' @param output_tmp Default is FALSE
-#' @param stable stable
 #'
 #' @return \itemize{
 #'  \item{beta:} The target coefficient estimation, the features will go in the order of (A,Z,W).
@@ -312,7 +315,6 @@ cv.htlgmm<-function(
 #' @importFrom magic adiag
 #' @importFrom MASS ginv
 #' @importFrom speedglm speedglm speedlm
-#' @importFrom Rfast spdinv
 #' @export
 #'
 gwas.htlgmm<-function(
@@ -324,11 +326,12 @@ gwas.htlgmm<-function(
         A_thetaA=NULL,
         V_thetaA=NULL,
         inv_GammaAA=NULL,
+        refine_C = TRUE,
+        sqrt_matrix = "none",
         output_SNP_only=TRUE,
         seed.use = 97,
         verbose = FALSE,
-        output_tmp=FALSE,
-        stable=FALSE
+        output_tmp=FALSE
 ){
     if(!family %in% c("gaussian","binomial")){
         stop("Select family from c('gaussian','binomial')")
@@ -343,10 +346,11 @@ gwas.htlgmm<-function(
                 warnings("If A is not selected from c('default',NULL,1), A must be a matrix.")
             }}
 
-    res<-htlgmm.gwas.default3(y,Z,W,study_info,A,family,
+    res<-htlgmm.gwas.default(y,Z,W,study_info,A,family,
                              AW_betaAW,A_thetaA,V_thetaA,inv_GammaAA,
+                             refine_C,sqrt_matrix,
                              output_SNP_only,seed.use,
-                             verbose,output_tmp,stable)
+                             verbose,output_tmp)
     return(res)
 }
 
@@ -388,6 +392,7 @@ gwas.htlgmm<-function(
 #' @param remove_penalty_Z Not penalize Z if it is TRUE. The default is FALSE.
 #' @param remove_penalty_W Not penalize W if it is TRUE. The default is FALSE.
 #' @param inference Whether to do inference without penalty or post-selection inference with adaptive lasso penalty. The default is TRUE.
+#' @param sqrt_matrix The method to split weighting matrix into square root matrix. Select from c('svd','cholesky'), where 'cholesky' generates faster computation.
 #' @param use_cv Whether to use cross validation to determine the best lambda (or ratio).
 #' @param type_measure Select from c("default", "mse", "deviance", "auc"). Default is mse(liner), deviance(logistic). 'auc' is another choice for binary y.
 #' @param nfolds The fold number for cross validation. Only work for use_cv = TRUE.The default is 10.
@@ -435,7 +440,6 @@ gwas.htlgmm<-function(
 #' @importFrom MASS ginv
 #' @importFrom pROC auc
 #' @importFrom speedglm speedglm speedlm
-#' @importFrom Rfast colmeans
 #' @export
 #'
 #'
@@ -454,6 +458,7 @@ fm.htlgmm<-function(
         remove_penalty_Z = FALSE,
         remove_penalty_W = FALSE,
         inference = TRUE,
+        sqrt_matrix = 'svd',
         use_cv = TRUE,
         type_measure = "default",
         nfolds = 10,
@@ -481,26 +486,23 @@ fm.htlgmm<-function(
     if(length(study_info)!=ncol(Z)){
         stop("When using htlgmm.finemapping, input Z as a matrix with size of sample*SNP, and study_info as a list of summary statistics. The columns of Z need to match the study_info.")
     }
-    res<-htlgmm.default(y,Z,W,study_info,A,penalty_type,
+    corZ = cor(Z)
+    res<-fm.htlgmm.default(y,Z,W,study_info,A,penalty_type,
                         family,initial_with_type,beta_initial,
-                        hat_thetaA,V_thetaA,use_offset,
-                        V_thetaA_sandwich,remove_penalty_Z,
-                        remove_penalty_W,inference,use_cv,
-                        type_measure,nfolds,fix_lambda,
+                        hat_thetaA,V_thetaA,remove_penalty_Z,
+                        remove_penalty_W,inference,sqrt_matrix,
+                        use_cv,type_measure,nfolds,fix_lambda,
                         lambda_list,tune_ratio,fix_ratio,
                         ratio_list,gamma_adaptivelasso,
-                        use_sparseC,seed.use,pseudo_Xy_gaussian_finemapping,
-                        pseudo_Xy_binomial_finemapping,Delta_opt_finemapping)
+                        use_sparseC,seed.use)
     return(res)
 }
 
 #' Expit Function from Rcpp
 #'
-#'
-#'
 #' @details expit(s)=exp(s)/{1+exp(s)}
 #'
-#' @param x x can be a single number or a vector.
+#' @param x x can be a single number or a vector or a matrix.
 #' @return the element-wise expit value.
 #'
 #'
@@ -510,6 +512,11 @@ fm.htlgmm<-function(
 #'
 #'
 expit<-function(x){
-    expit_rcpp(x)
+    if (is.null(dim(x)[1])){
+        expitx=expit_rcpp(x)
+    }else{
+        expitx=expitm_rcpp(x)
+    }
+    expitx
 }
 

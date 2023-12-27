@@ -17,7 +17,6 @@ Imports:
     caret,
     corpcor,
     pROC,
-    Rfast,
     speedglm,
     Rcpp,
     RcppEigen

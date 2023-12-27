@@ -1,12 +1,12 @@
-Delta_opt_fast1<-function(y,Z,W,A,family,pA,
+Delta_opt_gwas<-function(y,Z,W,A,family,pA,
                          X_beta,A_thetaA,Z_thetaZ,V_thetaA,V_thetaZ,inv_GammaAA){
     n_main=length(y)
     X=cbind(A,W,Z)
-    XR_theta=addv_rcpp(A_thetaA,Z_thetaZ)
+    XR_theta=A_thetaA+Z_thetaZ
     if(family == "binomial"){
         X_beta=expit_rcpp(X_beta)
         XR_theta=expit_rcpp(XR_theta)
-        mu_prime_XR_theta=timesv_rcpp(XR_theta,(1-XR_theta))
+        mu_prime_XR_theta=XR_theta*(1-XR_theta)
         A_thetaA=expit_rcpp(A_thetaA)
     }else{mu_prime_XR_theta=1}
     DX = X*c(X_beta-y)
@@ -16,33 +16,34 @@ Delta_opt_fast1<-function(y,Z,W,A,family,pA,
     V_U2=(1/n_main)*self_crossprod_rcpp(DZ)
     Cov_U1U2=(1/n_main)*crossprod_rcpp(DX,DZ)
     GammaZZ=(1/n_main)*crossprod_rcpp(DZ2,Z)
-    Delta22=addm_rcpp(V_U2,prod_rcpp(prod_rcpp(GammaZZ,(n_main*V_thetaZ)),t(GammaZZ)))
+    Delta22=V_U2+prod_rcpp(prod_rcpp(GammaZZ,(n_main*V_thetaZ)),t(GammaZZ))
     Delta12=Cov_U1U2
     if(pA!=0){
         GammaAZ=(1/n_main)*crossprod_rcpp(A,DZ2)
         #inv_GammaAA=ginv((1/n_main)*crossprod(A*c(mu_prime_A_thetaA),A))
         Gammas=prod_rcpp(inv_GammaAA,GammaAZ)
-        Cov_U1theta=(1/n_main)*crossprod_rcpp(DX,prod_rcpp(A*c(A_thetaA-y),Gammas))
-        Cov_U2theta=(1/n_main)*crossprod_rcpp(DZ,prod_rcpp(A*c(A_thetaA-y),Gammas))
-        Delta22 = addm_rcpp(Delta22,prod_rcpp(crossprod_rcpp(GammaAZ,n_main*V_thetaA),GammaAZ))
-        Delta22 = addm_rcpp(Delta22,addm_rcpp(Cov_U2theta,t(Cov_U2theta)))
-        Delta12 = addm_rcpp(Delta12, Cov_U1theta)
+        DDA=prod_rcpp(A*c(A_thetaA-y),Gammas)
+        Cov_U1theta=(1/n_main)*crossprod_rcpp(DX,DDA)
+        Cov_U2theta=(1/n_main)*crossprod_rcpp(DZ,DDA)
+        Delta22 = Delta22+prod_rcpp(crossprod_rcpp(GammaAZ,n_main*V_thetaA),GammaAZ)
+        +Cov_U2theta+t(Cov_U2theta)
+        Delta12 = Delta12+ Cov_U1theta
     }
     Delta = rbind(cbind(V_U1,Delta12),cbind(t(Delta12),Delta22))
     Delta
 }
 
 
-direct_fast1<-function(
+direct_fast_beta<-function(
         inv_C,y,Z,W,A,XR_theta,
         X_beta,family){
-    Cn = spdinv(inv_C+diag(1e-15,nrow(inv_C)))
+    Cn = choinv_rcpp(inv_C+diag(1e-15,nrow(inv_C)))
     X=cbind(A,W,Z)
     scale_factor = length(y)/sqrt(nrow(inv_C))
     if(family == "binomial"){
         XR_theta=expit_rcpp(c(XR_theta))
         expit_beta=expit_rcpp(c(X_beta))
-        dexpit_beta=timesv_rcpp(expit_beta,(1-expit_beta))
+        dexpit_beta=expit_beta*(1-expit_beta)
         ps_y0=c(crossprodv_rcpp(cbind(X,Z),c(dexpit_beta*X_beta-expit_beta)))
     }else{
         dexpit_beta=1
@@ -52,20 +53,20 @@ direct_fast1<-function(
     ps_XtX = prod_rcpp(crossprod_rcpp(pseudo_X0,Cn),pseudo_X0)
     ps_y1=crossprodv_rcpp(X,y)
     ps_y2=crossprodv_rcpp(Z,XR_theta)
-    ps_y=addv_rcpp(ps_y0,c(ps_y1,ps_y2))/scale_factor
+    ps_y=c(ps_y0+c(ps_y1,ps_y2))/scale_factor
     ps_Xty = prodv_rcpp(crossprod_rcpp(pseudo_X0,Cn),ps_y)
-    beta = prodv_rcpp(spdinv(ps_XtX),ps_Xty)
+    beta = prodv_rcpp(choinv_rcpp(ps_XtX),ps_Xty)
     beta
 }
-direct_fast12<-function(inv_C,y,Z,W,A,XR_theta,
+direct_fast_var<-function(inv_C,y,Z,W,A,XR_theta,
                        X_beta,family){
-    Cn = spdinv(inv_C+diag(1e-15,nrow(inv_C)))
+    Cn = choinv_rcpp(inv_C+diag(1e-15,nrow(inv_C)))
     X=cbind(A,W,Z)
     scale_factor = length(y)
     if(family == "binomial"){
         XR_theta=expit_rcpp(c(XR_theta))
         expit_beta=expit_rcpp(c(X_beta))
-        dexpit_beta=timesv_rcpp(expit_beta,(1-expit_beta))
+        dexpit_beta=expit_beta*(1-expit_beta)
         ps_y0=c(crossprodv_rcpp(cbind(X,Z),c(dexpit_beta*X_beta-expit_beta)))
     }else{
         dexpit_beta=1
@@ -73,11 +74,33 @@ direct_fast12<-function(inv_C,y,Z,W,A,XR_theta,
     }
     pseudo_X0=crossprod_rcpp(cbind(X,Z),X*dexpit_beta)/scale_factor
     ps_XtX = prod_rcpp(crossprod_rcpp(pseudo_X0,Cn),pseudo_X0)
-    inv_ps_XtX=spdinv(ps_XtX)
+    inv_ps_XtX=choinv_rcpp(ps_XtX)
     diag(inv_ps_XtX)/scale_factor
 }
 
-htlgmm.gwas.default3<-function(
+pseudo_Xy_gwas<-function(
+        C_half,y,Z,W,A,XR_theta,
+        X_beta,family){
+    X=cbind(A,W,Z)
+    if(family == "binomial"){
+        XR_theta=expit_rcpp(XR_theta)
+        expit_beta=expit_rcpp(X_beta)
+        dexpit_beta=expit_beta*(1-expit_beta)
+        ps_y0=crossprodv_rcpp(cbind(X,Z),c(dexpit_beta*X_beta-expit_beta))
+    }else{
+        dexpit_beta=1
+        ps_y0=0
+    }
+    pseudo_X=prod_rcpp(C_half,crossprod_rcpp(cbind(X,Z),X*dexpit_beta))
+    ps_y1=crossprodv_rcpp(X,y)
+    ps_y2=crossprodv_rcpp(Z,XR_theta)
+    pseudo_y=prodv_rcpp(C_half,c(ps_y0+c(ps_y1,ps_y2)))
+    list("pseudo_X"=pseudo_X,"pseudo_y"=pseudo_y)
+}
+
+
+
+htlgmm.gwas.default<-function(
         y,Z,W=NULL,
         study_info=NULL,
         A=NULL,
@@ -86,15 +109,18 @@ htlgmm.gwas.default3<-function(
         A_thetaA=NULL,
         V_thetaA=NULL,
         inv_GammaAA=NULL,
+        refine_C = TRUE,
+        sqrt_matrix = "none",
         output_SNP_only=TRUE,
         seed.use = 97,
         verbose = FALSE,
-        output_tmp = FALSE,
-        stable=FALSE
+        output_tmp = FALSE
 ){
     set.seed(seed.use)
     if (is.null(study_info)){stop("Please input study_info as trained model")}
-
+    if(!sqrt_matrix %in% c("cholesky","svd","none")){
+        stop("Select penalty type from c('cholesky','svd','none').")
+    }
     if(is.null(dim(Z)[1])){
         warning("Z is input as a vector, convert Z into matrix with size nZ*1")
         Z=matrix(Z,ncol=1)
@@ -145,16 +171,14 @@ htlgmm.gwas.default3<-function(
             }
             hat_thetaA=c(hat_thetaA_glm$coefficients)
             V_thetaA=vcov(hat_thetaA_glm)
+            if(is.null(dim(V_thetaA)[1])){V_thetaA = as.matrix(V_thetaA,nrow=pA,ncol=pA)}
             A_thetaA = prodv_rcpp(A,hat_thetaA)
             if(family == "binomial"){
                 expit_A_thetaA=expit_rcpp(A_thetaA)
-                mu_prime_A_thetaA=timesv_rcpp(expit_A_thetaA,(1-expit_A_thetaA))
+                mu_prime_A_thetaA=expit_A_thetaA*(1-expit_A_thetaA)
             }else{mu_prime_A_thetaA=1}
-            if(stable){
-                inv_GammaAA=ginv((1/nZ)*crossprod(A*c(mu_prime_A_thetaA),A))
-            }else{
-                inv_GammaAA=spdinv((1/nZ)*crossprod_rcpp(A*c(mu_prime_A_thetaA),A))
-            }
+            inv_GammaAA=choinv_rcpp((1/nZ)*crossprod_rcpp(A*c(mu_prime_A_thetaA),A)+
+                                        diag(1e-15,pA))
         }else if(is.null(V_thetaA)){
             stop("When inputing A_thetaA, V_thetaA is needed.")
         }
@@ -186,10 +210,10 @@ htlgmm.gwas.default3<-function(
             Zid = Z[,id,drop=FALSE]
             Z_thetaZ = c(Zid*study_info[[id]]$Coeff)
             V_thetaZ = as.matrix(study_info[[id]]$Covariance,1,1)
-            X_beta = addv_rcpp(AW_betaAW,Z_thetaZ)
-            XR_theta = addv_rcpp(A_thetaA,Z_thetaZ)
+            X_beta = AW_betaAW+Z_thetaZ
+            XR_theta = A_thetaA+Z_thetaZ
             # start model
-            inv_C = Delta_opt_fast1(y=y,Z=Zid,W=W,A=A,
+            inv_C = Delta_opt_gwas(y=y,Z=Zid,W=W,A=A,
                                    family=family,pA=pA,
                                    X_beta=X_beta,
                                    A_thetaA=A_thetaA,
@@ -197,12 +221,19 @@ htlgmm.gwas.default3<-function(
                                    V_thetaA=V_thetaA,
                                    V_thetaZ=V_thetaZ,
                                    inv_GammaAA=inv_GammaAA)
+            if(sqrt_matrix =="none"){
+                beta=direct_fast_beta(inv_C,y,Z,W,A,XR_theta,
+                                      X_beta,family)
+            }else{
+                if(sqrt_matrix =="svd"){
+                    inv_C_svd=fast.svd(inv_C+diag(1e-15,nrow(inv_C)))
+                    C_half=prod_rcpp(inv_C_svd$v,(t(inv_C_svd$u)*1/sqrt(inv_C_svd$d)))
+                    #C_half<-inv_C_svd$v%*%diag(1/sqrt(inv_C_svd$d))%*%t(inv_C_svd$u)
+                }else if(sqrt_matrix =="cholesky"){
+                    C_half<-sqrtchoinv_rcpp(inv_C+diag(1e-15,nrow(inv_C)))
+                }
 
-            if(stable){
-                inv_C_svd<-fast.svd(inv_C+diag(1e-15,nrow(inv_C)))
-                C_half<-inv_C_svd$v%*%diag(1/sqrt(inv_C_svd$d))%*%t(inv_C_svd$u)
-                # Prepare for final model
-                pseudo_Xy_list<-pseudo_Xy_fast(C_half=C_half,y=y,Z=Zid,
+                pseudo_Xy_list<-pseudo_Xy_gwas(C_half=C_half,y=y,Z=Zid,
                                                W=W,A=A,
                                                XR_theta=XR_theta,
                                                X_beta=X_beta,
@@ -212,41 +243,43 @@ htlgmm.gwas.default3<-function(
                 pseudo_y<-pseudo_Xy_list$pseudo_y/initial_sf
                 fit_final_ols=lm(y~0+.,data = data.frame(y= pseudo_y,pseudo_X))
                 beta=fit_final_ols$coefficients
-            }else{
-                beta=direct_fast1(inv_C,y,Z,W,A,XR_theta,
-                                 X_beta,family)
             }
 
             return_list<-list("beta"=beta)
 
-
             # refine C
             X_beta = prodv_rcpp(cbind(A,W,Zid),beta)
-            inv_C = Delta_opt_fast1(y=y,Z=Zid,W=W,A=A,
-                                   family=family,pA=pA,
-                                   X_beta=X_beta,
-                                   A_thetaA=A_thetaA,
-                                   Z_thetaZ=Z_thetaZ,
-                                   V_thetaA=V_thetaA,
-                                   V_thetaZ=V_thetaZ,
-                                   inv_GammaAA=inv_GammaAA)
-            if(stable){
-                inv_C_svd<-fast.svd(inv_C+diag(1e-15,nrow(inv_C)))
-                C_half<-inv_C_svd$v%*%diag(1/sqrt(inv_C_svd$d))%*%t(inv_C_svd$u)
-                ## This need a new formulation
-                pseudo_Xy_list<-pseudo_Xy_fast(C_half=C_half,y=y,Z=Zid,
+            if(refine_C){
+                inv_C = Delta_opt_gwas(y=y,Z=Zid,W=W,A=A,
+                                       family=family,pA=pA,
+                                       X_beta=X_beta,
+                                       A_thetaA=A_thetaA,
+                                       Z_thetaZ=Z_thetaZ,
+                                       V_thetaA=V_thetaA,
+                                       V_thetaZ=V_thetaZ,
+                                       inv_GammaAA=inv_GammaAA)
+            }
+            if(sqrt_matrix == "none"){
+                final_v<-direct_fast_var(inv_C,
+                                         y,Z,W,A,XR_theta,
+                                         X_beta,family)
+            }else{
+                if(sqrt_matrix =="svd"){
+                    inv_C_svd=fast.svd(inv_C+diag(1e-15,nrow(inv_C)))
+                    C_half=prod_rcpp(inv_C_svd$v,(t(inv_C_svd$u)*1/sqrt(inv_C_svd$d)))
+                    #C_half<-inv_C_svd$v%*%diag(1/sqrt(inv_C_svd$d))%*%t(inv_C_svd$u)
+                }else if(sqrt_matrix =="cholesky"){
+                    C_half<-sqrtchoinv_rcpp(inv_C+diag(1e-15,nrow(inv_C)))
+                }
+                pseudo_Xy_list<-pseudo_Xy_gwas(C_half=C_half,y=y,Z=Zid,
                                                W=W,A=A,
                                                XR_theta=XR_theta,
                                                X_beta=X_beta,
                                                family=family)
                 Sigsum_half<-pseudo_Xy_list$pseudo_X/nZ
                 Sigsum_scaled<-self_crossprod_rcpp(Sigsum_half)
-                inv_Sigsum_scaled<-spdinv(Sigsum_scaled)
+                inv_Sigsum_scaled<-choinv_rcpp(Sigsum_scaled)
                 final_v<-diag(inv_Sigsum_scaled)/nZ
-            }else{
-                final_v<-direct_fast12(inv_C,
-                                      y,Z,W,A,XR_theta,
-                                      X_beta,family)
             }
 
             return_list<-c(return_list,list("variance"=final_v))

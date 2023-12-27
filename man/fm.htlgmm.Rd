@@ -21,6 +21,7 @@ fm.htlgmm(
   remove_penalty_Z = FALSE,
   remove_penalty_W = FALSE,
   inference = TRUE,
+  sqrt_matrix = "svd",
   use_cv = TRUE,
   type_measure = "default",
   nfolds = 10,
@@ -77,6 +78,8 @@ The default is NULL, and main study is used for initial estimation according to 
 \item{remove_penalty_W}{Not penalize W if it is TRUE. The default is FALSE.}
 
 \item{inference}{Whether to do inference without penalty or post-selection inference with adaptive lasso penalty. The default is TRUE.}
+
+\item{sqrt_matrix}{The method to split weighting matrix into square root matrix. Select from c('svd','cholesky'), where 'cholesky' generates faster computation.}
 
 \item{use_cv}{Whether to use cross validation to determine the best lambda (or ratio).}
 
