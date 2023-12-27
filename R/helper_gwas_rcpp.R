@@ -1,8 +1,9 @@
 Delta_opt_gwas<-function(y,Z,W,A,family,pA,
-                         X_beta,A_thetaA,Z_thetaZ,V_thetaA,V_thetaZ,inv_GammaAA){
+                         X_beta,XR_theta,A_thetaA,
+                         V_thetaA,V_thetaZ,inv_GammaAA,
+                         X=NULL){
     n_main=length(y)
-    X=cbind(A,W,Z)
-    XR_theta=A_thetaA+Z_thetaZ
+    if(is.null(dim(X)[1])){X=cbind(A,W,Z)}
     if(family == "binomial"){
         X_beta=expit_rcpp(X_beta)
         XR_theta=expit_rcpp(XR_theta)
@@ -35,11 +36,10 @@ Delta_opt_gwas<-function(y,Z,W,A,family,pA,
 
 
 direct_fast_beta<-function(
-        inv_C,y,Z,W,A,XR_theta,
-        X_beta,family){
-    Cn = choinv_rcpp(inv_C+diag(1e-15,nrow(inv_C)))
-    X=cbind(A,W,Z)
-    scale_factor = length(y)/sqrt(nrow(inv_C))
+        Cn,y,Z,W,A,X_beta,
+        XR_theta,family,X=NULL){
+    if(is.null(dim(X)[1])){X=cbind(A,W,Z)}
+    scale_factor = length(y)/sqrt(nrow(Cn))
     if(family == "binomial"){
         XR_theta=expit_rcpp(c(XR_theta))
         expit_beta=expit_rcpp(c(X_beta))
@@ -58,10 +58,9 @@ direct_fast_beta<-function(
     beta = prodv_rcpp(choinv_rcpp(ps_XtX),ps_Xty)
     beta
 }
-direct_fast_var<-function(inv_C,y,Z,W,A,XR_theta,
-                       X_beta,family){
-    Cn = choinv_rcpp(inv_C+diag(1e-15,nrow(inv_C)))
-    X=cbind(A,W,Z)
+direct_fast_var<-function(Cn,y,Z,W,A,XR_theta,
+                       X_beta,family,X=NULL){
+    if(is.null(dim(X)[1])){X=cbind(A,W,Z)}
     scale_factor = length(y)
     if(family == "binomial"){
         XR_theta=expit_rcpp(c(XR_theta))
@@ -79,9 +78,9 @@ direct_fast_var<-function(inv_C,y,Z,W,A,XR_theta,
 }
 
 pseudo_Xy_gwas<-function(
-        C_half,y,Z,W,A,XR_theta,
-        X_beta,family){
-    X=cbind(A,W,Z)
+        C_half,y,Z,W,A,X_beta,
+        XR_theta,family,X=NULL){
+    if(is.null(dim(X)[1])){X=cbind(A,W,Z)}
     if(family == "binomial"){
         XR_theta=expit_rcpp(XR_theta)
         expit_beta=expit_rcpp(X_beta)
@@ -212,18 +211,22 @@ htlgmm.gwas.default<-function(
             V_thetaZ = as.matrix(study_info[[id]]$Covariance,1,1)
             X_beta = AW_betaAW+Z_thetaZ
             XR_theta = A_thetaA+Z_thetaZ
+            X = cbind(A,W,Zid)
             # start model
             inv_C = Delta_opt_gwas(y=y,Z=Zid,W=W,A=A,
                                    family=family,pA=pA,
                                    X_beta=X_beta,
+                                   XR_theta=XR_theta,
                                    A_thetaA=A_thetaA,
-                                   Z_thetaZ=Z_thetaZ,
                                    V_thetaA=V_thetaA,
                                    V_thetaZ=V_thetaZ,
-                                   inv_GammaAA=inv_GammaAA)
+                                   inv_GammaAA=inv_GammaAA,
+                                   X=X)
+
             if(sqrt_matrix =="none"){
-                beta=direct_fast_beta(inv_C,y,Z,W,A,XR_theta,
-                                      X_beta,family)
+                Cn = choinv_rcpp(inv_C+diag(1e-15,nrow(inv_C)))
+                beta=direct_fast_beta(Cn,y,Z,W,A,X_beta,
+                                      XR_theta,family,X=X)
             }else{
                 if(sqrt_matrix =="svd"){
                     inv_C_svd=fast.svd(inv_C+diag(1e-15,nrow(inv_C)))
@@ -235,9 +238,9 @@ htlgmm.gwas.default<-function(
 
                 pseudo_Xy_list<-pseudo_Xy_gwas(C_half=C_half,y=y,Z=Zid,
                                                W=W,A=A,
-                                               XR_theta=XR_theta,
                                                X_beta=X_beta,
-                                               family=family)
+                                               XR_theta=XR_theta,
+                                               family=family,X=X)
                 initial_sf<-nZ/sqrt(nrow(pseudo_Xy_list$pseudo_X))
                 pseudo_X<-pseudo_Xy_list$pseudo_X/initial_sf
                 pseudo_y<-pseudo_Xy_list$pseudo_y/initial_sf
@@ -248,21 +251,22 @@ htlgmm.gwas.default<-function(
             return_list<-list("beta"=beta)
 
             # refine C
-            X_beta = prodv_rcpp(cbind(A,W,Zid),beta)
+            X_beta = prodv_rcpp(,beta)
             if(refine_C){
                 inv_C = Delta_opt_gwas(y=y,Z=Zid,W=W,A=A,
                                        family=family,pA=pA,
                                        X_beta=X_beta,
+                                       XR_theta=XR_theta,
                                        A_thetaA=A_thetaA,
-                                       Z_thetaZ=Z_thetaZ,
                                        V_thetaA=V_thetaA,
                                        V_thetaZ=V_thetaZ,
-                                       inv_GammaAA=inv_GammaAA)
+                                       inv_GammaAA=inv_GammaAA,
+                                       X=X)
+                Cn = choinv_rcpp(inv_C+diag(1e-15,nrow(inv_C)))
             }
             if(sqrt_matrix == "none"){
-                final_v<-direct_fast_var(inv_C,
-                                         y,Z,W,A,XR_theta,
-                                         X_beta,family)
+                final_v<-direct_fast_var(Cn,y,Z,W,A,X_beta,
+                                         XR_theta,family,X=X)
             }else{
                 if(sqrt_matrix =="svd"){
                     inv_C_svd=fast.svd(inv_C+diag(1e-15,nrow(inv_C)))
@@ -273,9 +277,9 @@ htlgmm.gwas.default<-function(
                 }
                 pseudo_Xy_list<-pseudo_Xy_gwas(C_half=C_half,y=y,Z=Zid,
                                                W=W,A=A,
-                                               XR_theta=XR_theta,
                                                X_beta=X_beta,
-                                               family=family)
+                                               XR_theta=XR_theta,
+                                               family=family,X=X)
                 Sigsum_half<-pseudo_Xy_list$pseudo_X/nZ
                 Sigsum_scaled<-self_crossprod_rcpp(Sigsum_half)
                 inv_Sigsum_scaled<-choinv_rcpp(Sigsum_scaled)
