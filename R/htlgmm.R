@@ -471,8 +471,8 @@ fm.htlgmm<-function(
         remove_penalty_Z = FALSE,
         remove_penalty_W = FALSE,
         inference = TRUE,
-        refine_C = TRUE,
-        sqrt_matrix = 'svd',
+        refine_C = FALSE,
+        sqrt_matrix = "cholesky",
         use_cv = TRUE,
         type_measure = "default",
         nfolds = 10,
@@ -482,7 +482,7 @@ fm.htlgmm<-function(
         fix_ratio = NULL,
         ratio_list = NULL,
         gamma_adaptivelasso = 1/2,
-        use_sparseC = TRUE,
+        use_sparseC = FALSE,
         seed.use = 97
 ){
     if(!family %in% c("gaussian","binomial")){
