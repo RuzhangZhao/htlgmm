@@ -28,6 +28,8 @@ cv.htlgmm(
   nfolds = 10,
   fix_lambda = NULL,
   lambda_list = NULL,
+  nlambda = 100,
+  lambda.min.ratio = 1e-04,
   tune_ratio = FALSE,
   fix_ratio = NULL,
   ratio_list = NULL,
@@ -93,6 +95,10 @@ The default is NULL, and main study is used for initial estimation according to 
 \item{fix_lambda}{Without cross validation, fix the lambda. The default is NULL.}
 
 \item{lambda_list}{Customize the input lambda list for validation. The default is NULL to generate lambda list according to glmnet.}
+
+\item{nlambda}{The number of lambda values - default is 100.}
+
+\item{lambda.min.ratio}{Smallest value for lambda, as a fraction of lambda.max. The default is 0.0001.}
 
 \item{tune_ratio}{Whether to use two-lambda stratgey. The default is TRUE.}
 

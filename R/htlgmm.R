@@ -173,6 +173,8 @@ htlgmm<-function(
 #' @param nfolds The fold number for cross validation. Only work for use_cv = TRUE.The default is 10.
 #' @param fix_lambda Without cross validation, fix the lambda. The default is NULL.
 #' @param lambda_list Customize the input lambda list for validation. The default is NULL to generate lambda list according to glmnet.
+#' @param nlambda The number of lambda values - default is 100.
+#' @param lambda.min.ratio Smallest value for lambda, as a fraction of lambda.max. The default is 0.0001.
 #' @param tune_ratio Whether to use two-lambda stratgey. The default is TRUE.
 #' @param fix_ratio The fixed ratio for two-lambda strategy. The ratio is multiplied for Z features. The default is NULL. If it is NULL, select the best ratio via cross validation or holdout validation.
 #' @param ratio_list The ratio list if it is preset. The default is NULL and ratio list will be generated.
@@ -240,6 +242,8 @@ cv.htlgmm<-function(
         nfolds = 10,
         fix_lambda = NULL,
         lambda_list = NULL,
+        nlambda = 100,
+        lambda.min.ratio = 0.0001,
         tune_ratio = FALSE,
         fix_ratio = NULL,
         ratio_list = NULL,
@@ -266,13 +270,13 @@ cv.htlgmm<-function(
                         V_thetaA_sandwich,remove_penalty_Z,
                         remove_penalty_W,inference,refine_C,
                         sqrt_matrix,use_cv,type_measure,nfolds,
-                        fix_lambda,lambda_list,tune_ratio,fix_ratio,
-                        ratio_list,gamma_adaptivelasso,
+                        fix_lambda,lambda_list,nlambda,lambda.min.ratio,
+                        tune_ratio,fix_ratio,ratio_list,
+                        gamma_adaptivelasso,
                         use_sparseC,seed.use)
 
     return(res)
 }
-
 
 #' GWAS version of htlgmm.
 #'
@@ -411,6 +415,8 @@ gwas.htlgmm<-function(
 #' @param nfolds The fold number for cross validation. Only work for use_cv = TRUE.The default is 10.
 #' @param fix_lambda Without cross validation, fix the lambda. The default is NULL.
 #' @param lambda_list Customize the input lambda list for validation. The default is NULL to generate lambda list according to glmnet.
+#' @param nlambda The number of lambda values - default is 100.
+#' @param lambda.min.ratio Smallest value for lambda, as a fraction of lambda.max. The default is 0.0001.
 #' @param tune_ratio Whether to use two-lambda stratgey. The default is TRUE.
 #' @param fix_ratio The fixed ratio for two-lambda strategy. The ratio is multiplied for Z features. The default is NULL. If it is NULL, select the best ratio via cross validation or holdout validation.
 #' @param ratio_list The ratio list if it is preset. The default is NULL and ratio list will be generated.
@@ -478,6 +484,8 @@ fm.htlgmm<-function(
         nfolds = 10,
         fix_lambda = NULL,
         lambda_list = NULL,
+        nlambda = 100,
+        lambda.min.ratio = 0.0001,
         tune_ratio = FALSE,
         fix_ratio = NULL,
         ratio_list = NULL,
@@ -506,8 +514,9 @@ fm.htlgmm<-function(
                         hat_thetaA,V_thetaA,remove_penalty_Z,
                         remove_penalty_W,inference,refine_C,
                         sqrt_matrix,use_cv,type_measure,nfolds,
-                        fix_lambda,lambda_list,tune_ratio,fix_ratio,
-                        ratio_list,gamma_adaptivelasso,
+                        fix_lambda,lambda_list,nlambda,lambda.min.ratio,
+                        tune_ratio,fix_ratio,ratio_list,
+                        gamma_adaptivelasso,
                         use_sparseC,seed.use)
     return(res)
 }
