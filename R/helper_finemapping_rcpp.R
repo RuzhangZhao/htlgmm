@@ -53,7 +53,8 @@ Delta_opt_finemapping<-function(y,Z,W,family,
 pseudo_Xy_gaussian_finemapping<-function(
         C_half,Z,W,A,y,beta=NULL,hat_thetaA=NULL,study_info=NULL,X=NULL){
     if(is.null(dim(X)[1])){X=cbind(A,Z,W)}
-    A_thetaA = prodv_rcpp(A,hat_thetaA)
+    if(is.null(A)){A_thetaA = 0
+    }else{A_thetaA = prodv_rcpp(A,hat_thetaA)}
     pseudo_X=prod_rcpp(C_half,crossprod_rcpp(cbind(X,Z),X))
     pseudo_y1=crossprodv_rcpp(X,y)
     pseudo_y2<-sapply(1:ncol(Z), function(id){
@@ -66,7 +67,8 @@ pseudo_Xy_binomial_finemapping<-function(
         C_half,Z,W,A,y,beta=NULL,hat_thetaA=NULL,study_info=NULL,X=NULL){
     if(is.null(dim(X)[1])){X=cbind(A,Z,W)}
     X_beta=prodv_rcpp(X,beta)
-    A_thetaA=prodv_rcpp(A,hat_thetaA)
+    if(is.null(A)){A_thetaA = 0
+    }else{A_thetaA = prodv_rcpp(A,hat_thetaA)}
     expit_beta=expit_rcpp(X_beta)
     dexpit_beta=expit_beta*(1-expit_beta)
     #pseudo_X=C_half%*%Rfast::Crossprod(cbind(X,Z),X*dexpit_beta)
