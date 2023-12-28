@@ -294,6 +294,11 @@ cv.htlgmm<-function(
 #' If there is only intercept term in A, we use 'A=1'.
 #' A are the features working for adjustment in reduced model, but A is not summarized in summary statistics(input:study_info).
 #' @param family The family is chosen from c("gaussian","binomial"). Linear regression for "gaussian" and logistic regression for "binomial".
+#' @param beta_initial The beta_initial list matching study_info, which provides the initial value of beta, e.g. fitting full model using plink2. If there is only one SNP, the beta_initial can be a vector.
+#' The default is NULL. The beta_initial should go in the order of (A,W,Z), where Z is for each SNP.
+#' There are four options: 1. beta_initial provided; 2. When beta_initial is NULL, fit beta_initial internally by setting initial_fit to be TRUE.
+#' 3. When beta_initial is NULL, initial_fit is FALSE, AW_betaAW is NULL we fit full model without SNP only using (A,W) to generate AW_betaAW.
+#' 4. When beta_initial is NULL, initial_fit is FALSE, we use the provided AW_betaAW.
 #' @param initial_fit Whether we fit the main study for the initial value of beta. The default is NULL.
 #' @param AW_betaAW Default is NULL.
 #' @param A_thetaA Default is NULL.
@@ -327,6 +332,7 @@ gwas.htlgmm<-function(
         study_info=NULL,
         A='default',
         family = "gaussian",
+        beta_initial=NULL,
         initial_fit=FALSE,
         AW_betaAW=NULL,
         A_thetaA=NULL,

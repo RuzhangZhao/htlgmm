@@ -104,6 +104,7 @@ htlgmm.gwas.default<-function(
         study_info=NULL,
         A=NULL,
         family = "gaussian",
+        beta_initial = NULL,
         initial_fit=FALSE,
         AW_betaAW=NULL,
         A_thetaA=NULL,
@@ -137,6 +138,15 @@ htlgmm.gwas.default<-function(
     idZ=pA+pW+1
     if(length(study_info)!=pZ){
         stop("When using htlgmm.gwas, input Z as a matrix with size of sample*SNP, and study_info as a list of summary statistics. The columns of Z need to match the study_info.")
+    }
+    if(!is.null(beta_initial)){
+        if(!is.list(beta_initial)){
+            if(pZ == 1){beta_initial = list(beta_initial)}else{
+                stop("The beta_initial should be a list matching study_info.")
+            }
+        }else if(length(beta_initial)!=pZ){
+            stop("The beta_initial should be a list matching study_info.")
+        }
     }
     Acolnames=NULL
     if(pA>0){
@@ -189,7 +199,7 @@ htlgmm.gwas.default<-function(
     }
 
     # unique beta initial
-    if(!initial_fit){
+    if(is.null(beta_initial) & !initial_fit){
         if(is.null(AW_betaAW)){
             df=data.frame(y,A,W)
             if(family=="binomial"){
@@ -213,17 +223,21 @@ htlgmm.gwas.default<-function(
             Z_thetaZ = c(Zid*study_info[[id]]$Coeff)
             V_thetaZ = as.matrix(study_info[[id]]$Covariance,1,1)
             X = cbind(A,W,Zid)
-            if(initial_fit){
-                df=data.frame(y,X)
-                if(family=="binomial"){
-                    fit_initial=speedglm(y~0+.,data = df,family = binomial())
-                }else if(family=="gaussian"){
-                    fit_initial=speedlm(y~0+.,data = df)
-                }
-                beta_initial=c(fit_initial$coefficients)
-                X_beta = prodv_rcpp(X,beta_initial)
+            if(!is.null(beta_initial)){
+                X_beta = prodv_rcpp(X,beta_initial[[id]])
             }else{
-                X_beta = AW_betaAW+Z_thetaZ
+                if(initial_fit){
+                    df=data.frame(y,X)
+                    if(family=="binomial"){
+                        fit_initial=speedglm(y~0+.,data = df,family = binomial())
+                    }else if(family=="gaussian"){
+                        fit_initial=speedlm(y~0+.,data = df)
+                    }
+                    beta_initial=c(fit_initial$coefficients)
+                    X_beta = prodv_rcpp(X,beta_initial)
+                }else{
+                    X_beta = AW_betaAW+Z_thetaZ
+                }
             }
             XR_theta = A_thetaA+Z_thetaZ
 
