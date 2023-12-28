@@ -358,9 +358,9 @@ gwas.htlgmm<-function(
                 warnings("If A is not selected from c('default',NULL,1), A must be a matrix.")
             }}
 
-    res<-htlgmm.gwas.default(y,Z,W,study_info,A,family,initial_fit,
-                             AW_betaAW,A_thetaA,V_thetaA,inv_GammaAA,
-                             refine_C,sqrt_matrix,
+    res<-htlgmm.gwas.default(y,Z,W,study_info,A,family,beta_initial,
+                             initial_fit,AW_betaAW,A_thetaA,V_thetaA,
+                             inv_GammaAA,refine_C,sqrt_matrix,
                              output_SNP_only,seed.use,
                              verbose,output_tmp)
     return(res)
