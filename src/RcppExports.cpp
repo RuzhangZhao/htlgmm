@@ -117,12 +117,12 @@ BEGIN_RCPP
 END_RCPP
 }
 // square_rcpp
-Eigen::VectorXd square_rcpp(const Eigen::MatrixXd& mat);
+Eigen::MatrixXd square_rcpp(const Eigen::MatrixXd mat);
 RcppExport SEXP _htlgmm_square_rcpp(SEXP matSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< const Eigen::MatrixXd& >::type mat(matSEXP);
+    Rcpp::traits::input_parameter< const Eigen::MatrixXd >::type mat(matSEXP);
     rcpp_result_gen = Rcpp::wrap(square_rcpp(mat));
     return rcpp_result_gen;
 END_RCPP

@@ -5,7 +5,8 @@ Delta_opt_finemapping<-function(y,Z,W,family,
     n_main=length(y)
     if(is.null(dim(X)[1])){X=cbind(A,Z,W)}
     X_beta = prodv_rcpp(X,beta)
-    A_thetaA = prodv_rcpp(A,hat_thetaA)
+    if(pA==0){ A_thetaA=0
+    }else{A_thetaA = prodv_rcpp(A,hat_thetaA)}
     if(family == "binomial"){
         X_beta=expit_rcpp(X_beta)
         DZ<-sapply(1:ncol(Z), function(id){

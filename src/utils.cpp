@@ -90,9 +90,9 @@ Eigen::MatrixXd timesm_rcpp(Eigen::MatrixXd A,
 
 
 // [[Rcpp::export]]
-Eigen::VectorXd square_rcpp(const Eigen::MatrixXd& mat) {
-  // Calculate the sum of each column
-  Eigen::VectorXd mat2 = mat.array().square();;
+Eigen::MatrixXd square_rcpp(const Eigen::MatrixXd mat) {
+  // Calculate the square of each element
+  Eigen::MatrixXd mat2 = mat.array().square();;
   return mat2;
 }
 
