@@ -50,6 +50,7 @@ Delta_opt_rcpp<-function(y,Z,W,family,
 vcov_sandwich_rcpp<-function(y,A,Z,family,study_info,pA,
                         hat_thetaA,use_offset,XR=NULL){
     n_main = length(y)
+    if(is.null(dim(XR)[1])){XR=cbind(A,Z)}
     tilde_thetaZ=study_info[[1]]$Coeff
     tilde_theta=c(hat_thetaA,tilde_thetaZ)
     mu_XR_theta=prodv_rcpp(cbind(A,Z),tilde_theta)
@@ -416,8 +417,11 @@ htlgmm.default<-function(
                 }
                 hat_thetaA=hat_thetaA_glm$coefficients
                 if(V_thetaA_sandwich){
-                    V_thetaA=vcov_sandwich_rcpp(y,A,Z,family,study_info,pA,
-                                           hat_thetaA,use_offset)
+                    V_thetaA=vcov_sandwich_rcpp(y=y,A=A,Z=Z,family=family,
+                                                study_info=study_info,pA=pA,
+                                                hat_thetaA=hat_thetaA,
+                                                use_offset=use_offset,
+                                                XR=XR)
                 }else{V_thetaA=vcov(hat_thetaA_glm)}
             }else{
                 df=data.frame(y,A,Z)
@@ -534,12 +538,12 @@ htlgmm.default<-function(
     # generate lambda list from glmnet
     if(penalty_type != "none"){
         if(is.null(fix_lambda)&is.null(lambda_list)){
-            #fit_final<-glmnet(x= pseudo_X,y= pseudo_y,standardize=F,
-            #                  intercept=F,alpha = final_alpha,penalty.factor = w_adaptive)
-            #lambda_list<-fit_final$lambda
-            #lambda_list<-lambda_list[!is.na(lambda_list)]
-            innerprod<-crossprodv_rcpp(pseudo_X,pseudo_y)[which(w_adaptive!=0)]
-            lambda.max <-max(abs(innerprod))/nrow(pseudo_X)
+            fit_final<-glmnet(x= pseudo_X,y= pseudo_y,standardize=F,
+                              intercept=F,alpha = final_alpha,penalty.factor = fix_penalty)
+            #innerprod<-crossprodv_rcpp(pseudo_X,pseudo_y)[which(fix_penalty!=0)]
+            #lambda.max<-min(max(abs(innerprod))/nrow(pseudo_X),fit_final$lambda[1])
+            #message(c(lambda.max,fit_final$lambda[1],max(abs(innerprod))/nrow(pseudo_X)))
+            lambda.max<-fit_final$lambda[1]
             lambda_list <-exp(seq(log(lambda.max),log(lambda.max*lambda.min.ratio),
                                   length.out=nlambda))
         }

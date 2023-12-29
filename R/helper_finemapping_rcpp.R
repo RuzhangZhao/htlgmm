@@ -294,12 +294,9 @@ fm.htlgmm.default<-function(
     # generate lambda list from glmnet
     if(penalty_type != "none"){
         if(is.null(fix_lambda)&is.null(lambda_list)){
-            #fit_final<-glmnet(x= pseudo_X,y= pseudo_y,standardize=F,
-            #                  intercept=F,alpha = final_alpha,penalty.factor = w_adaptive)
-            #lambda_list<-fit_final$lambda
-            #lambda_list<-lambda_list[!is.na(lambda_list)]
-            innerprod<-crossprodv_rcpp(pseudo_X,pseudo_y)[which(w_adaptive!=0)]
-            lambda.max <-max(abs(innerprod))/nrow(pseudo_X)
+            fit_final<-glmnet(x= pseudo_X,y= pseudo_y,standardize=F,
+                              intercept=F,alpha = final_alpha,penalty.factor = fix_penalty)
+            lambda.max<-fit_final$lambda[1]
             lambda_list <-exp(seq(log(lambda.max),log(lambda.max*lambda.min.ratio),
                                   length.out=nlambda))
         }
