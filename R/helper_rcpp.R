@@ -374,7 +374,7 @@ htlgmm.default<-function(
 
     Aid<-1:pA
     Zid<-(pA+1):(pA+pZ)
-    Wid<-(pA+pZ+1):(pA+pZ+pW)
+    if(pW>0){Wid<-(pA+pZ+1):(pA+pZ+pW)}else{pW=0}
     Acolnames=NULL
     if(pA>0){
         Acolnames=colnames(A)
@@ -389,12 +389,12 @@ htlgmm.default<-function(
         colnames(A)=Acolnames
     }
     Zcolnames=colnames(Z)
-    Wcolnames=colnames(W)
+    if(pW>0){Wcolnames=colnames(W)}else{Wcolnames=NULL}
     if(is.null(Zcolnames[1])){
         Zcolnames=paste0('Z',1:pZ)
         colnames(Z)=Zcolnames
     }
-    if(is.null(Wcolnames[1])){
+    if(!is.null(W) & is.null(Wcolnames[1])){
         Wcolnames=paste0('W',1:pW)
         colnames(W)=Wcolnames
     }
