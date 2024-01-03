@@ -87,7 +87,7 @@ fm.htlgmm.default<-function(
         y,Z,W=NULL,
         study_info=NULL,
         A=1,
-        penalty_type = "lasso",
+        penalty_type = "adaptivelasso",
         family = "gaussian",
         initial_with_type = "ridge",
         beta_initial = NULL,
@@ -296,9 +296,9 @@ fm.htlgmm.default<-function(
         if(is.null(fix_lambda)&is.null(lambda_list)){
             fit_final<-glmnet(x= pseudo_X,y= pseudo_y,standardize=F,
                               intercept=F,alpha = final_alpha,penalty.factor = fix_penalty)
+            #lambda_list<-fit_final$lambda
             lambda.max<-fit_final$lambda[1]
-            lambda_list <-exp(seq(log(lambda.max),log(lambda.max*lambda.min.ratio),
-                                  length.out=nlambda))
+            lambda_list <-exp(seq(log(lambda.max),log(lambda.max*lambda.min.ratio),length.out=nlambda))
         }
     }
     if(!is.null(fix_lambda)){
@@ -419,7 +419,13 @@ fm.htlgmm.default<-function(
     }
     if(inference){
         index_nonzero<-which(beta!=0)
-        if(length(index_nonzero) > 1){
+        # remove intercept term related
+        if(pA>0 & penalty_type != "none"){
+            if(Acolnames[1]=='intercept' & index_nonzero[1] == 1){
+                index_nonzero = index_nonzero[-1]
+            }
+        }
+        if(length(index_nonzero) > 0){
             if(penalty_type == "lasso"){
                 warning("Current penalty is lasso, please turn to adaptivelasso for inference")
             }
@@ -449,7 +455,7 @@ fm.htlgmm.default<-function(
 
             Sigsum_scaled<-self_crossprod_rcpp(Sigsum_half)
             Sigsum_scaled_nonzero<-Sigsum_scaled[index_nonzero,index_nonzero]
-            inv_Sigsum_scaled_nonzero<-solve(Sigsum_scaled_nonzero)
+            inv_Sigsum_scaled_nonzero<-choinv_rcpp(Sigsum_scaled_nonzero)
             final_v<-diag(inv_Sigsum_scaled_nonzero)/nZ
 
             pval_final<-pchisq(beta[index_nonzero]^2/final_v,1,lower.tail = F)
