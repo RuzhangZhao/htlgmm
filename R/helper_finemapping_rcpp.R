@@ -417,61 +417,83 @@ fm.htlgmm.default<-function(
                                 "cv_auc"=cv_dev$auc/nfolds))
         }
     }
-    if(inference){
-        index_nonzero<-which(beta!=0)
-        # remove intercept term related
-        if(pA>0 & penalty_type != "none"){
-            if(Acolnames[1]=='intercept' & index_nonzero[1] == 1){
-                index_nonzero = index_nonzero[-1]
+
+    index_nonzero<-which(beta!=0)
+    # remove intercept term related
+    #if(inference){
+    #    if(pA>0 & penalty_type != "none"){
+    #        if(Acolnames[1]=='intercept' & index_nonzero[1] == 1){
+    #            index_nonzero = index_nonzero[-1]
+    #        }
+    #    }
+    #}
+    if(length(index_nonzero) > 0){
+        if(penalty_type == "lasso"){
+            warning("Current penalty is lasso, please turn to adaptivelasso for inference")
+        }
+        # refine C
+        if(refine_C){
+            inv_C = Delta_opt_finemapping(y=y,Z=Z,W=W,
+                                          family=family,
+                                          study_info=study_info,
+                                          A=A,pA=pA,pZ=pZ,beta=beta,
+                                          hat_thetaA=hat_thetaA,
+                                          V_thetaA = V_thetaA,
+                                          X=X,
+                                          corZ=corZ)
+            if(sqrt_matrix =="svd"){
+                inv_C_svd=fast.svd(inv_C+diag(1e-15,nrow(inv_C)))
+                C_half=prod_rcpp(inv_C_svd$v,(t(inv_C_svd$u)*1/sqrt(inv_C_svd$d)))
+                #C_half<-inv_C_svd$v%*%diag(1/sqrt(inv_C_svd$d))%*%t(inv_C_svd$u)
+            }else if(sqrt_matrix =="cholesky"){
+                C_half<-sqrtchoinv_rcpp(inv_C+diag(1e-15,nrow(inv_C)))
             }
         }
-        if(length(index_nonzero) > 0){
-            if(penalty_type == "lasso"){
-                warning("Current penalty is lasso, please turn to adaptivelasso for inference")
-            }
-            # refine C
-            if(refine_C){
-                inv_C = Delta_opt_finemapping(y=y,Z=Z,W=W,
-                                              family=family,
-                                              study_info=study_info,
-                                              A=A,pA=pA,pZ=pZ,beta=beta,
-                                              hat_thetaA=hat_thetaA,
-                                              V_thetaA = V_thetaA,
-                                              X=X,
-                                              corZ=corZ)
-                if(sqrt_matrix =="svd"){
-                    inv_C_svd=fast.svd(inv_C+diag(1e-15,nrow(inv_C)))
-                    C_half=prod_rcpp(inv_C_svd$v,(t(inv_C_svd$u)*1/sqrt(inv_C_svd$d)))
-                    #C_half<-inv_C_svd$v%*%diag(1/sqrt(inv_C_svd$d))%*%t(inv_C_svd$u)
-                }else if(sqrt_matrix =="cholesky"){
-                    C_half<-sqrtchoinv_rcpp(inv_C+diag(1e-15,nrow(inv_C)))
-                }
-            }
 
-            pseudo_Xy_list<-pseudo_Xy(C_half=C_half,Z=Z,W=W,A=A,y=y,
-                                      beta=beta,hat_thetaA=hat_thetaA,
-                                      study_info=study_info,X=X)
-            Sigsum_half<-pseudo_Xy_list$pseudo_X/nZ
+        pseudo_Xy_list<-pseudo_Xy(C_half=C_half,Z=Z,W=W,A=A,y=y,
+                                  beta=beta,hat_thetaA=hat_thetaA,
+                                  study_info=study_info,X=X)
+        Sigsum_half<-pseudo_Xy_list$pseudo_X/nZ
 
-            Sigsum_scaled<-self_crossprod_rcpp(Sigsum_half)
-            Sigsum_scaled_nonzero<-Sigsum_scaled[index_nonzero,index_nonzero]
-            inv_Sigsum_scaled_nonzero<-choinv_rcpp(Sigsum_scaled_nonzero)
-            final_v<-diag(inv_Sigsum_scaled_nonzero)/nZ
+        Sigsum_scaled<-self_crossprod_rcpp(Sigsum_half)
+        Sigsum_scaled_nonzero<-Sigsum_scaled[index_nonzero,index_nonzero]
+        inv_Sigsum_scaled_nonzero<-choinv_rcpp(Sigsum_scaled_nonzero)
+        final_v<-diag(inv_Sigsum_scaled_nonzero)/nZ
 
-            pval_final<-pchisq(beta[index_nonzero]^2/final_v,1,lower.tail = F)
-            pval_final1<-p.adjust(pval_final,method = "BH")
-            selected_pos<-index_nonzero[which(pval_final1<0.05)]
-            return_list<-c(return_list,
-                           list("selected_vars"=
-                                    list("position"=index_nonzero,
-                                         "name"=Xcolnames[index_nonzero],
-                                         "coef"=beta[index_nonzero],
-                                         "variance"=final_v,
-                                         "pval"=pval_final,
-                                         "FDR_adjust_position"=selected_pos,
-                                         "FDR_adjust_name"=Xcolnames[selected_pos])
-                           ))
+        pval_final<-pchisq(beta[index_nonzero]^2/final_v,1,lower.tail = F)
+        pval_final1<-p.adjust(pval_final,method = "BH")
+        selected_pos<-index_nonzero[which(pval_final1<0.05)]
+        return_list<-c(return_list,
+                       list("selected_vars"=
+                                list("position"=index_nonzero,
+                                     "name"=Xcolnames[index_nonzero],
+                                     "coef"=beta[index_nonzero],
+                                     "variance"=final_v,
+                                     "pval"=pval_final,
+                                     "FDR_adjust_position"=selected_pos,
+                                     "FDR_adjust_name"=Xcolnames[selected_pos])
+                       ))
+        if(pA>0 & penalty_type != "none"){
+        if(Acolnames[1]=='intercept' & index_nonzero[1] == 1){
+        index_nonzero = index_nonzero[-1]
+        Sigsum_scaled_nonzero<-Sigsum_scaled[index_nonzero,index_nonzero]
+        inv_Sigsum_scaled_nonzero<-choinv_rcpp(Sigsum_scaled_nonzero)
+        final_v<-diag(inv_Sigsum_scaled_nonzero)/nZ
+        pval_final<-pchisq(beta[index_nonzero]^2/final_v,1,lower.tail = F)
+        pval_final1<-p.adjust(pval_final,method = "BH")
+        selected_pos<-index_nonzero[which(pval_final1<0.05)]
+        return_list<-c(return_list,
+                       list("selected_vars_nointercept"=
+                                list("position"=index_nonzero,
+                                     "name"=Xcolnames[index_nonzero],
+                                     "coef"=beta[index_nonzero],
+                                     "variance"=final_v,
+                                     "pval"=pval_final,
+                                     "FDR_adjust_position"=selected_pos,
+                                     "FDR_adjust_name"=Xcolnames[selected_pos])
+                       ))
         }}
+    }
     return(return_list)
 }
 
