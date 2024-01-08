@@ -537,8 +537,8 @@ group.fm.htlgmm.default<-function(
         gamma_adaptivelasso = 1/2,
         use_sparseC = TRUE,
         seed.use = 97){
-    if(!decor_method%in%c("pca","top")){
-        stop("Select decor_method from c('pca','top')")
+    if(!decor_method%in%c("pca","top","pip")){
+        stop("Select decor_method from c('pca','top','pip')")
     }
     set.seed(seed.use)
     if (is.null(study_info)){stop("Please input study_info as trained model")}
@@ -584,7 +584,6 @@ group.fm.htlgmm.default<-function(
         cur_clu = 1
         remain_ct = pZ
         while(remain_ct>0 & cur_id < pZ){
-            message(cur_id)
             if(qval_cutoff>s[1,cur_id]){break}
             cur_cutoff = sqrt(1-qval_cutoff/s[1,cur_id])
             if(cur_cutoff<min_cor){break}
@@ -599,12 +598,12 @@ group.fm.htlgmm.default<-function(
             }
         }
         if(remain_ct>0 & cur_id < pZ){
+            cur_clu = cur_clu-1
             s=s[,s[3,]==1]
             for(i in 1:ncol(s)){
                 clusters_list[[cur_clu+i]]=s[2,i]
             }
         }
-
         Z_clu<-sapply(1:length(clusters_list), function(j){
             cur_clu<-clusters_list[[j]]
             if(length(cur_clu)>1){
@@ -624,7 +623,25 @@ group.fm.htlgmm.default<-function(
             }
             zpc
         })
+        study_info_clu<-lapply(1:length(clusters_list), function(i){
+            list("Coeff"=Z_clu[1,i],
+                 "Covariance"=Z_clu[2,i],
+                 "Sample_size"=Z_clu[3,i]
+            )
+        })
+        Z_clu = Z_clu[-c(1,2,3),]
 
+        beta_initial = NULL
+        res_clu<-fm.htlgmm.default(y,Z_clu,W,study_info_clu,A,penalty_type,
+                                   family,initial_with_type,beta_initial,
+                                   hat_thetaA,V_thetaA,remove_penalty_Z,
+                                   remove_penalty_W,inference,refine_C,
+                                   sqrt_matrix,use_cv,type_measure,nfolds,
+                                   fix_lambda,lambda_list,nlambda,lambda.min.ratio,
+                                   tune_ratio,fix_ratio,ratio_list,
+                                   gamma_adaptivelasso,
+                                   use_sparseC,seed.use)
+        output=c(res_clu,list("clusters_list"=clusters_list))
     }else{
         dissimilarity=as.dist(1-abs(corZ))
         hc=hclust(dissimilarity, method = "complete")
@@ -652,7 +669,7 @@ group.fm.htlgmm.default<-function(
                         cur_var=sapply(cur_clu, function(i){sqrt(study_info[[i]]$Covariance)})
                         cur_size=sapply(cur_clu, function(i){study_info[[i]]$Sample_size})
                         Coeff=rotate_%*%cur_beta
-                        Covariance=c(rotate_%*%crossprodv_rcpp(t(cur_var*corZ[cur_clu,cur_clu])*cur_var,rotate_))
+                        Covariance=c(rotate_%*%prodv_rcpp(t(cur_var*corZ[cur_clu,cur_clu])*cur_var,rotate_))
                         Sample_size=rotate_%*%cur_size
                         zpc=c(Coeff,Covariance,Sample_size,zpca$x[,1])
                     }else{
