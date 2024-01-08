@@ -529,7 +529,7 @@ group.fm.htlgmm.default<-function(
         nfolds = 10,
         fix_lambda = NULL,
         lambda_list = NULL,
-        nlambda = 10,
+        nlambda = 20,
         lambda.min.ratio = 0.0001,
         tune_ratio = FALSE,
         fix_ratio = NULL,
@@ -583,26 +583,48 @@ group.fm.htlgmm.default<-function(
         height_cutoff <- 1 - cur_cor
         clusters <- cutree(hc, h = height_cutoff)
         clusters_list <- split(1:length(clusters), clusters)
-        Z_clu<-sapply(1:length(clusters_list), function(j){
-            cur_clu<-clusters_list[[j]]
-            if(length(cur_clu)>1){
-                zpca=prcomp(Z[,cur_clu], rank. = 1)
-                rotate_=c(zpca$rotation)
-                cur_beta=sapply(cur_clu, function(i){study_info[[i]]$Coeff})
-                cur_var=sapply(cur_clu, function(i){sqrt(study_info[[i]]$Covariance)})
-                cur_size=sapply(cur_clu, function(i){study_info[[i]]$Sample_size})
-                Coeff=rotate_%*%cur_beta
-                Covariance=c(rotate_%*%crossprodv_rcpp(t(cur_var*corZ[cur_clu,cur_clu])*cur_var,rotate_))
-                Sample_size=rotate_%*%cur_size
-                zpc=c(Coeff,Covariance,Sample_size,zpca$x[,1])
-            }else{
-                Coeff=study_info[[cur_clu]]$Coeff
-                Covariance=study_info[[cur_clu]]$Covariance
-                Sample_size=study_info[[cur_clu]]$Sample_size
-                zpc=c(Coeff,Covariance,Sample_size,Z[,cur_clu])
-            }
-            zpc
-        })
+        if(decor_method == "pca"){
+            Z_clu<-sapply(1:length(clusters_list), function(j){
+                cur_clu<-clusters_list[[j]]
+                if(length(cur_clu)>1){
+                    zpca=prcomp(Z[,cur_clu], rank. = 1)
+                    rotate_=c(zpca$rotation)
+                    cur_beta=sapply(cur_clu, function(i){study_info[[i]]$Coeff})
+                    cur_var=sapply(cur_clu, function(i){sqrt(study_info[[i]]$Covariance)})
+                    cur_size=sapply(cur_clu, function(i){study_info[[i]]$Sample_size})
+                    Coeff=rotate_%*%cur_beta
+                    Covariance=c(rotate_%*%crossprodv_rcpp(t(cur_var*corZ[cur_clu,cur_clu])*cur_var,rotate_))
+                    Sample_size=rotate_%*%cur_size
+                    zpc=c(Coeff,Covariance,Sample_size,zpca$x[,1])
+                }else{
+                    Coeff=study_info[[cur_clu]]$Coeff
+                    Covariance=study_info[[cur_clu]]$Covariance
+                    Sample_size=study_info[[cur_clu]]$Sample_size
+                    zpc=c(Coeff,Covariance,Sample_size,Z[,cur_clu])
+                }
+                zpc
+            })
+        }else{
+            Z_clu<-sapply(1:length(clusters_list), function(j){
+                cur_clu<-clusters_list[[j]]
+                if(length(cur_clu)>1){
+                    cur_beta=sapply(cur_clu, function(i){study_info[[i]]$Coeff})
+                    cur_var=sapply(cur_clu, function(i){sqrt(study_info[[i]]$Covariance)})
+                    cur_size=sapply(cur_clu, function(i){study_info[[i]]$Sample_size})
+                    maxid = which.max(abs(cur_beta^2/cur_var))
+                    Coeff=cur_beta[maxid]
+                    Covariance=cur_var[maxid]
+                    Sample_size=cur_size[maxid]
+                    zpc=c(Coeff,Covariance,Sample_size,Z[,cur_clu[maxid]])
+                }else{
+                    Coeff=study_info[[cur_clu]]$Coeff
+                    Covariance=study_info[[cur_clu]]$Covariance
+                    Sample_size=study_info[[cur_clu]]$Sample_size
+                    zpc=c(Coeff,Covariance,Sample_size,Z[,cur_clu])
+                }
+                zpc
+            })
+        }
         study_info_clu<-lapply(1:length(clusters_list), function(i){
             list("Coeff"=Z_clu[1,i],
                  "Covariance"=Z_clu[2,i],
