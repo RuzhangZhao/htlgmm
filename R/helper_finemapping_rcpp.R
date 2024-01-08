@@ -567,94 +567,155 @@ group.fm.htlgmm.default<-function(
     }
 
     corZ = cor(Z)
-    dissimilarity=as.dist(1-abs(corZ))
-    hc=hclust(dissimilarity, method = "complete")
-    if(max_cor<=min_cor){
-        stop("We need max_cor > min_cor")
-    }
-    max_cor=min(max_cor,max(abs(corZ)[row(corZ)!=col(corZ)]))
-    min_cor=max(min_cor,min(abs(corZ)[row(corZ)!=col(corZ)]))
-    if(max_cor<=min_cor){
-        stop("The max cor in Z is smaller than preset min_cor or the min cor in Z is larger than preset max_cor")
-    }
-    cor_seq = c(seq(min_cor,max_cor,length.out=ncor))
-    res_clu_bycor=lapply(cor_seq, function(cur_cor){
-        message(cur_cor)
-        height_cutoff <- 1 - cur_cor
-        clusters <- cutree(hc, h = height_cutoff)
-        clusters_list <- split(1:length(clusters), clusters)
-        if(decor_method == "pca"){
-            Z_clu<-sapply(1:length(clusters_list), function(j){
-                cur_clu<-clusters_list[[j]]
-                if(length(cur_clu)>1){
-                    zpca=prcomp(Z[,cur_clu], rank. = 1)
-                    rotate_=c(zpca$rotation)
-                    cur_beta=sapply(cur_clu, function(i){study_info[[i]]$Coeff})
-                    cur_var=sapply(cur_clu, function(i){sqrt(study_info[[i]]$Covariance)})
-                    cur_size=sapply(cur_clu, function(i){study_info[[i]]$Sample_size})
-                    Coeff=rotate_%*%cur_beta
-                    Covariance=c(rotate_%*%crossprodv_rcpp(t(cur_var*corZ[cur_clu,cur_clu])*cur_var,rotate_))
-                    Sample_size=rotate_%*%cur_size
-                    zpc=c(Coeff,Covariance,Sample_size,zpca$x[,1])
-                }else{
-                    Coeff=study_info[[cur_clu]]$Coeff
-                    Covariance=study_info[[cur_clu]]$Covariance
-                    Sample_size=study_info[[cur_clu]]$Sample_size
-                    zpc=c(Coeff,Covariance,Sample_size,Z[,cur_clu])
-                }
-                zpc
-            })
-        }else{
-            Z_clu<-sapply(1:length(clusters_list), function(j){
-                cur_clu<-clusters_list[[j]]
-                if(length(cur_clu)>1){
-                    cur_beta=sapply(cur_clu, function(i){study_info[[i]]$Coeff})
-                    cur_var=sapply(cur_clu, function(i){sqrt(study_info[[i]]$Covariance)})
-                    cur_size=sapply(cur_clu, function(i){study_info[[i]]$Sample_size})
-                    maxid = which.max(abs(cur_beta^2/cur_var))
-                    Coeff=cur_beta[maxid]
-                    Covariance=cur_var[maxid]
-                    Sample_size=cur_size[maxid]
-                    zpc=c(Coeff,Covariance,Sample_size,Z[,cur_clu[maxid]])
-                }else{
-                    Coeff=study_info[[cur_clu]]$Coeff
-                    Covariance=study_info[[cur_clu]]$Covariance
-                    Sample_size=study_info[[cur_clu]]$Sample_size
-                    zpc=c(Coeff,Covariance,Sample_size,Z[,cur_clu])
-                }
-                zpc
-            })
-        }
-        study_info_clu<-lapply(1:length(clusters_list), function(i){
-            list("Coeff"=Z_clu[1,i],
-                 "Covariance"=Z_clu[2,i],
-                 "Sample_size"=Z_clu[3,i]
-            )
-        })
-        Z_clu = Z_clu[-c(1,2,3),]
+    if(decor_method == "pip"){
 
-        beta_initial = NULL
-        res_clu<-fm.htlgmm.default(y,Z_clu,W,study_info_clu,A,penalty_type,
-                                   family,initial_with_type,beta_initial,
-                                   hat_thetaA,V_thetaA,remove_penalty_Z,
-                                   remove_penalty_W,inference,refine_C,
-                                   sqrt_matrix,use_cv,type_measure,nfolds,
-                                   fix_lambda,lambda_list,nlambda,lambda.min.ratio,
-                                   tune_ratio,fix_ratio,ratio_list,
-                                   gamma_adaptivelasso,
-                                   use_sparseC,seed.use)
-        c(res_clu,list("clusters_list"=clusters_list))
-    })
-    if(family == "gaussian"){
-        best_cor_id = which.min(sapply(1:ncor, function(i){min(res_clu_bycor[[i]]$cv_mse)}))
-    }else{
-        if(type_measure%in%c("default","dev")){
-            best_cor_id = which.min(sapply(1:ncor, function(i){min(res_clu_bycor[[i]]$cv_dev)}))
-        }else{
-            best_cor_id = which.max(sapply(1:ncor, function(i){max(res_clu_bycor[[i]]$cv_auc)}))
+
+        abscorZ = abs(corZ)
+        pZ = nrow(corZ)
+        qval_cutoff = qchisq(0.05/sqrt(pZ)/2,1,lower.tail = F)
+        #diag(abscorZ) = 0
+        s<-sapply(1:length(study_info), function(i){
+            c(study_info[[i]]$Coeff^2/study_info[[i]]$Covariance,i,T)
+        })
+        s = s[,order(s[1,],decreasing = T)]
+        s = rbind(s,1:ncol(s))
+        clusters_list=list()
+        cur_id = 1
+        cur_clu = 1
+        remain_ct = pZ
+        while(remain_ct>0 & cur_id < pZ){
+            message(cur_id)
+            if(qval_cutoff>s[1,cur_id]){break}
+            cur_cutoff = sqrt(1-qval_cutoff/s[1,cur_id])
+            if(cur_cutoff<min_cor){break}
+            stmp = s[,s[3,]==1]
+            cur_ids=which(abscorZ[s[2,cur_id],stmp[2,]]>cur_cutoff)
+            clusters_list[[cur_clu]] = stmp[2,cur_ids]
+            s[3,stmp[4,cur_ids]]=0
+            cur_clu = cur_clu+1
+            remain_ct=remain_ct-length(cur_ids)
+            while (s[3,cur_id] == 0 & cur_id < pZ) {
+                cur_id = cur_id+1
+            }
         }
+        if(remain_ct>0 & cur_id < pZ){
+            s=s[,s[3,]==1]
+            for(i in 1:ncol(s)){
+                clusters_list[[cur_clu+i]]=s[2,i]
+            }
+        }
+
+        Z_clu<-sapply(1:length(clusters_list), function(j){
+            cur_clu<-clusters_list[[j]]
+            if(length(cur_clu)>1){
+                cur_beta=sapply(cur_clu, function(i){study_info[[i]]$Coeff})
+                cur_var=sapply(cur_clu, function(i){sqrt(study_info[[i]]$Covariance)})
+                cur_size=sapply(cur_clu, function(i){study_info[[i]]$Sample_size})
+                maxid = which.max(abs(cur_beta^2/cur_var))
+                Coeff=cur_beta[maxid]
+                Covariance=cur_var[maxid]
+                Sample_size=cur_size[maxid]
+                zpc=c(Coeff,Covariance,Sample_size,Z[,cur_clu[maxid]])
+            }else{
+                Coeff=study_info[[cur_clu]]$Coeff
+                Covariance=study_info[[cur_clu]]$Covariance
+                Sample_size=study_info[[cur_clu]]$Sample_size
+                zpc=c(Coeff,Covariance,Sample_size,Z[,cur_clu])
+            }
+            zpc
+        })
+
+    }else{
+        dissimilarity=as.dist(1-abs(corZ))
+        hc=hclust(dissimilarity, method = "complete")
+        if(max_cor<=min_cor){
+            stop("We need max_cor > min_cor")
+        }
+        max_cor=min(max_cor,max(abs(corZ)[row(corZ)!=col(corZ)]))
+        min_cor=max(min_cor,min(abs(corZ)[row(corZ)!=col(corZ)]))
+        if(max_cor<=min_cor){
+            stop("The max cor in Z is smaller than preset min_cor or the min cor in Z is larger than preset max_cor")
+        }
+        cor_seq = c(seq(min_cor,max_cor,length.out=ncor))
+        res_clu_bycor=lapply(cor_seq, function(cur_cor){
+            message(cur_cor)
+            height_cutoff <- 1 - cur_cor
+            clusters <- cutree(hc, h = height_cutoff)
+            clusters_list <- split(1:length(clusters), clusters)
+            if(decor_method == "pca"){
+                Z_clu<-sapply(1:length(clusters_list), function(j){
+                    cur_clu<-clusters_list[[j]]
+                    if(length(cur_clu)>1){
+                        zpca=prcomp(Z[,cur_clu], rank. = 1)
+                        rotate_=c(zpca$rotation)
+                        cur_beta=sapply(cur_clu, function(i){study_info[[i]]$Coeff})
+                        cur_var=sapply(cur_clu, function(i){sqrt(study_info[[i]]$Covariance)})
+                        cur_size=sapply(cur_clu, function(i){study_info[[i]]$Sample_size})
+                        Coeff=rotate_%*%cur_beta
+                        Covariance=c(rotate_%*%crossprodv_rcpp(t(cur_var*corZ[cur_clu,cur_clu])*cur_var,rotate_))
+                        Sample_size=rotate_%*%cur_size
+                        zpc=c(Coeff,Covariance,Sample_size,zpca$x[,1])
+                    }else{
+                        Coeff=study_info[[cur_clu]]$Coeff
+                        Covariance=study_info[[cur_clu]]$Covariance
+                        Sample_size=study_info[[cur_clu]]$Sample_size
+                        zpc=c(Coeff,Covariance,Sample_size,Z[,cur_clu])
+                    }
+                    zpc
+                })
+            }else{
+                Z_clu<-sapply(1:length(clusters_list), function(j){
+                    cur_clu<-clusters_list[[j]]
+                    if(length(cur_clu)>1){
+                        cur_beta=sapply(cur_clu, function(i){study_info[[i]]$Coeff})
+                        cur_var=sapply(cur_clu, function(i){sqrt(study_info[[i]]$Covariance)})
+                        cur_size=sapply(cur_clu, function(i){study_info[[i]]$Sample_size})
+                        maxid = which.max(abs(cur_beta^2/cur_var))
+                        Coeff=cur_beta[maxid]
+                        Covariance=cur_var[maxid]
+                        Sample_size=cur_size[maxid]
+                        zpc=c(Coeff,Covariance,Sample_size,Z[,cur_clu[maxid]])
+                    }else{
+                        Coeff=study_info[[cur_clu]]$Coeff
+                        Covariance=study_info[[cur_clu]]$Covariance
+                        Sample_size=study_info[[cur_clu]]$Sample_size
+                        zpc=c(Coeff,Covariance,Sample_size,Z[,cur_clu])
+                    }
+                    zpc
+                })
+            }
+            study_info_clu<-lapply(1:length(clusters_list), function(i){
+                list("Coeff"=Z_clu[1,i],
+                     "Covariance"=Z_clu[2,i],
+                     "Sample_size"=Z_clu[3,i]
+                )
+            })
+            Z_clu = Z_clu[-c(1,2,3),]
+
+            beta_initial = NULL
+            res_clu<-fm.htlgmm.default(y,Z_clu,W,study_info_clu,A,penalty_type,
+                                       family,initial_with_type,beta_initial,
+                                       hat_thetaA,V_thetaA,remove_penalty_Z,
+                                       remove_penalty_W,inference,refine_C,
+                                       sqrt_matrix,use_cv,type_measure,nfolds,
+                                       fix_lambda,lambda_list,nlambda,lambda.min.ratio,
+                                       tune_ratio,fix_ratio,ratio_list,
+                                       gamma_adaptivelasso,
+                                       use_sparseC,seed.use)
+            c(res_clu,list("clusters_list"=clusters_list))
+        })
+        if(family == "gaussian"){
+            best_cor_id = which.min(sapply(1:ncor, function(i){min(res_clu_bycor[[i]]$cv_mse)}))
+        }else{
+            if(type_measure%in%c("default","dev")){
+                best_cor_id = which.min(sapply(1:ncor, function(i){min(res_clu_bycor[[i]]$cv_dev)}))
+            }else{
+                best_cor_id = which.max(sapply(1:ncor, function(i){max(res_clu_bycor[[i]]$cv_auc)}))
+            }
+        }
+        output=res_clu_bycor[[best_cor_id]]
     }
-    res_clu_bycor[[best_cor_id]]
+    output
 }
 
 
