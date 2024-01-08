@@ -372,11 +372,11 @@ gwas.htlgmm<-function(
 
 #' Fine-mapping for htlgmm.
 #'
-#' htlgmm.fm fits a generalized linear model via penalized generalized method of moments,
+#' fm.htlgmm fits a generalized linear model via penalized generalized method of moments,
 #' i.e. Heterogeneous Transfer Learning via Generalized Method of Moments,
 #' with special focus on fine-mapping, where fm stands for fine-mapping.
 #' The input requires main study and GWAS external studies.
-#' The htlgmm.fm support cross-validation.
+#' The fm.htlgmm support cross-validation.
 #'
 #'
 #' @details Fine-mapping for htlgmm.
@@ -521,6 +521,7 @@ fm.htlgmm<-function(
     return(res)
 }
 
+
 #' Expit Function from Rcpp
 #'
 #' @details expit(s)=exp(s)/{1+exp(s)}
@@ -541,5 +542,143 @@ expit<-function(x){
         expitx=expitm_rcpp(x)
     }
     expitx
+}
+
+
+
+#' Fine-mapping for htlgmm with group.
+#'
+#' group.fm.htlgmm fits a generalized linear model via penalized generalized method of moments,
+#' i.e. Heterogeneous Transfer Learning via Generalized Method of Moments,
+#' with special focus on fine-mapping, where fm stands for fine-mapping.
+#' The input requires main study and GWAS external studies.
+#' The htlgmm.fm.group support cross-validation.
+#'
+#'
+#' @details Group level fine-mapping for htlgmm.
+#'
+#' @param y The variable of interest, which can be continuous or binary.
+#' @param Z The overlapping features in both main and external studies.
+#' @param W The unmatched features only in main study, the default is NULL.
+#' @param study_info The trained model from external study, including estimate coefficients, estimated variance-covariance matrix and sample size.
+#' The 'study_info' is in the format of list. The first item is 'Coeff', the second iterm is 'Covariance', and the third item is 'Sample_size'.
+#' @param A The covariates for study-specific adjustment. The default is 'default', which is 'NULL' for 'gaussian' family, '1' for 'binomial' family.
+#' Other than c('default',NULL,1), A must be a matrix whose dimension is the same as the sample dimension or Z and W.
+#' For continuous variable, we suggest scaling the features Z, W to eliminate intercept term.  If 'A = NULL', there is no intercept term included.
+#' For binary variable, we use intercept term by 'A=1' to adjust for different binary trait ratios in main and external studies.
+#' If there is only intercept term in A, we use 'A=1'.
+#' A are the features working for adjustment in reduced model, but A is not summarized in summary statistics(input:study_info).
+#' @param penalty_type The penalty type for htlgmm, chosen from c("none","lasso","adaptivelasso","ridge"). The default is "adaptivelasso".
+#' If 'penalty_type = 'none' ', we use without penalty. (For continuous y, we use ordinary least square, and for binary y, we use logistic regression without penalty.)
+#' @param family The family is chosen from c("gaussian","binomial"). Linear regression for "gaussian" and logistic regression for "binomial".
+#' @param decor_method The method to decorrelate the variables. The default is "pca".
+#' @param max_cor The maximum correlation used to group variables. The default is 0.9.
+#' @param min_cor The minimum correlation used to group variables. The default is 0.5
+#' @param ncor The length of explored correlation list. The default is 5.
+#' @param ... Check the input list for fm.htlgmm.
+#'
+#' @return \itemize{
+#'  \item{beta:} The target coefficient estimation, the features will go in the order of (A,Z,W).
+#'  \item{lambda_list:} The lambda list for cross validation.
+#'  \item{ratio_list:} The ratio list for validation (cross validation or holdout validation).
+#'  \item{fix_lambda:} If the fix_lambda is not null, we output fix_lambda.
+#'  \item{fix_ratio:} If the fix_ratio is not null, we output fix_ratio.
+#'  \item{lambda_min:} The selected best lambda by cross validation.
+#'  \item{ratio_min:} The selected best ratio by cross validation.
+#'  \item{cv_mse:} The mean square error(mse) when family = "gaussian", and use_cv = TRUE.
+#'  \item{cv_dev:} The deviance(dev) when family = "binomial", and use_cv = TRUE.
+#'  \item{cv_auc:} The area under the curve of sensitivity specificity when family = "binomial", and use_cv = TRUE.
+#'  \item{selected_vars:} For inference or post-selection inference, we output the inference results by a list. \itemize{
+#'  \item{position:} The index of nonzero positions, the index comes from X = (A,Z,W).
+#'  \item{name:} The feature name of nonzero positions. If there is no default name, we name it after Ai, Zi, Wi.
+#'  \item{coef:} The coefficients of nonzero positions.
+#'  \item{variance:} The variances for features with glm inference, for selected features with post-selection inference.
+#'  \item{pval:} For p values for nonzero positions.
+#'  \item{FDR_adjust_position:} The FDR adjusted positions passing significant level 0.05 after BH adjustment (Benjamini & Hochberg).
+#'  \item{FDR_adjust_name:} The feature name based on FDR_adjust_position.
+#'  }
+#'  \item{group_list:} The group of variables to be assigned together.
+#'  }
+#'
+#'
+#'
+#' @import glmnet
+#' @import stats
+#' @importFrom caret createFolds createDataPartition
+#' @importFrom corpcor fast.svd
+#' @importFrom magic adiag
+#' @importFrom MASS ginv
+#' @importFrom pROC auc
+#' @importFrom speedglm speedglm speedlm
+#' @export
+#'
+#'
+group.fm.htlgmm<-function(
+        y,Z,W=NULL,
+        study_info=NULL,
+        A="default",
+        penalty_type = "adaptivelasso",
+        family = "gaussian",
+        decor_method = "pca",
+        max_cor = 0.9,
+        min_cor = 0.5,
+        ncor = 5,
+        ...
+){
+    if(!family %in% c("gaussian","binomial")){
+        stop("Select family from c('gaussian','binomial')")
+    }
+
+    if(is.null(dim(A)[1])){
+        if(length(A)==1){
+            if(A=='default'){if(family == "gaussian"){A=NULL}else{A=1}}else{
+                if(!is.null(A)){
+                    if(A!=1){warnings("If A is not a matrix, A should be selected from c('default',NULL,1).")}}
+            }}else{
+                warnings("If A is not selected from c('default',NULL,1), A must be a matrix.")
+            }}
+    if(length(study_info)!=ncol(Z)){
+        stop("When using htlgmm.finemapping, input Z as a matrix with size of sample*SNP, and study_info as a list of summary statistics. The columns of Z need to match the study_info.")
+    }
+    arg_list <- list(...)
+    arg_check<-function(cur_arg,default_v){
+        if(cur_arg%in%arg_list){
+            return(arg_list[[cur_arg]])
+        }else{return(default_v)}
+    }
+
+    initial_with_type = arg_check("initial_with_type","ridge")
+    beta_initial = NULL
+    hat_thetaA = arg_check("hat_thetaA",NULL)
+    V_thetaA = arg_check("V_thetaA",NULL)
+    remove_penalty_Z = arg_check("remove_penalty_Z",FALSE)
+    remove_penalty_W = arg_check("remove_penalty_W",FALSE)
+    inference = arg_check("inference",TRUE)
+    refine_C = arg_check("refine_C",TRUE)
+    sqrt_matrix =arg_check("sqrt_matrix","cholesky")
+    use_cv = arg_check("use_cv",TRUE)
+    type_measure = arg_check("type_measure","default")
+    nfolds = arg_check("nfolds",10)
+    fix_lambda = arg_check("fix_lambda",NULL)
+    lambda_list = arg_check("lambda_list",NULL)
+    nlambda = arg_check("nlambda",100)
+    lambda.min.ratio = arg_check("lambda.min.ratio",0.0001)
+    tune_ratio = arg_check("tune_ratio",FALSE)
+    fix_ratio = arg_check("fix_ratio",NULL)
+    ratio_list = arg_check("ratio_list",NULL)
+    gamma_adaptivelasso = arg_check("gamma_adaptivelasso",1/2)
+    use_sparseC = arg_check("use_sparseC",TRUE)
+    seed.use = arg_check("seed.use",97)
+    res<-group.fm.htlgmm.default(y,Z,W,study_info,A,penalty_type,
+                                 family,decor_method,max_cor,min_cor,ncor,
+                                 initial_with_type,#beta_initial,
+                                 hat_thetaA,V_thetaA,remove_penalty_Z,
+                                 remove_penalty_W,inference,refine_C,
+                                 sqrt_matrix,use_cv,type_measure,nfolds,
+                                 fix_lambda,lambda_list,nlambda,lambda.min.ratio,
+                                 tune_ratio,fix_ratio,ratio_list,
+                                 gamma_adaptivelasso,
+                                 use_sparseC,seed.use)
+    return(res)
 }
 

@@ -83,6 +83,9 @@ pseudo_Xy_binomial_finemapping<-function(
     list("pseudo_X"=pseudo_X,"pseudo_y"=pseudo_y)
 }
 
+
+
+
 fm.htlgmm.default<-function(
         y,Z,W=NULL,
         study_info=NULL,
@@ -110,7 +113,8 @@ fm.htlgmm.default<-function(
         ratio_list = NULL,
         gamma_adaptivelasso = 1/2,
         use_sparseC = TRUE,
-        seed.use = 97
+        seed.use = 97,
+        corZ = NULL
 ){
     set.seed(seed.use)
     if (is.null(study_info)){stop("Please input study_info as trained model")}
@@ -262,7 +266,7 @@ fm.htlgmm.default<-function(
         w_adaptive<-w_adaptive*fix_penalty
     }else{w_adaptive<-fix_penalty}
     # Estimation of C
-    corZ = cor(Z)
+    if(is.null(corZ)){corZ = cor(Z)}
     inv_C = Delta_opt_finemapping(y=y,Z=Z,W=W,
                                   family=family,
                                   study_info=study_info,
@@ -346,8 +350,12 @@ fm.htlgmm.default<-function(
         }
     }else{
         if(length(unique(y)) <= 2){
+            set.seed(seed.use)
             index_fold<-createFolds(as.numeric(y>0),k = nfolds)
-        }else{index_fold<-createFolds(y,k = nfolds)}
+        }else{
+            set.seed(seed.use)
+            index_fold<-createFolds(y,k = nfolds)
+        }
 
         if(tune_ratio){
             if(family == "gaussian"){
@@ -474,37 +482,155 @@ fm.htlgmm.default<-function(
                                      "FDR_adjust_name"=Xcolnames[selected_pos])
                        ))
         if(pA>0 & penalty_type != "none"){
-        if(Acolnames[1]=='intercept' & index_nonzero[1] == 1){
-        index_nonzero = index_nonzero[-1]
-        Sigsum_scaled_nonzero<-Sigsum_scaled[index_nonzero,index_nonzero]
-        inv_Sigsum_scaled_nonzero<-choinv_rcpp(Sigsum_scaled_nonzero)
-        final_v<-diag(inv_Sigsum_scaled_nonzero)/nZ
-        pval_final<-pchisq(beta[index_nonzero]^2/final_v,1,lower.tail = F)
-        pval_final1<-p.adjust(pval_final,method = "BH")
-        selected_pos<-index_nonzero[which(pval_final1<0.05)]
-        return_list<-c(return_list,
-                       list("selected_vars_nointercept"=
-                                list("position"=index_nonzero,
-                                     "name"=Xcolnames[index_nonzero],
-                                     "coef"=beta[index_nonzero],
-                                     "variance"=final_v,
-                                     "pval"=pval_final,
-                                     "FDR_adjust_position"=selected_pos,
-                                     "FDR_adjust_name"=Xcolnames[selected_pos])
-                       ))
-        }}
+            if(Acolnames[1]=='intercept' & index_nonzero[1] == 1){
+                index_nonzero = index_nonzero[-1]
+                Sigsum_scaled_nonzero<-Sigsum_scaled[index_nonzero,index_nonzero]
+                inv_Sigsum_scaled_nonzero<-choinv_rcpp(Sigsum_scaled_nonzero)
+                final_v<-diag(inv_Sigsum_scaled_nonzero)/nZ
+                pval_final<-pchisq(beta[index_nonzero]^2/final_v,1,lower.tail = F)
+                pval_final1<-p.adjust(pval_final,method = "BH")
+                selected_pos<-index_nonzero[which(pval_final1<0.05)]
+                return_list<-c(return_list,
+                               list("selected_vars_nointercept"=
+                                        list("position"=index_nonzero,
+                                             "name"=Xcolnames[index_nonzero],
+                                             "coef"=beta[index_nonzero],
+                                             "variance"=final_v,
+                                             "pval"=pval_final,
+                                             "FDR_adjust_position"=selected_pos,
+                                             "FDR_adjust_name"=Xcolnames[selected_pos])
+                               ))
+            }}
     }
     return(return_list)
 }
 
 
+group.fm.htlgmm.default<-function(
+        y,Z,W=NULL,
+        study_info=NULL,
+        A=1,
+        penalty_type = "adaptivelasso",
+        family = "gaussian",
+        decor_method = "pca",
+        max_cor = 0.9,
+        min_cor = 0.5,
+        ncor = 5,
+        initial_with_type = "ridge",
+        hat_thetaA = NULL,
+        V_thetaA = NULL,
+        remove_penalty_Z = FALSE,
+        remove_penalty_W = FALSE,
+        inference = TRUE,
+        refine_C = TRUE,
+        sqrt_matrix ="cholesky",
+        use_cv = TRUE,
+        type_measure = "default",
+        nfolds = 10,
+        fix_lambda = NULL,
+        lambda_list = NULL,
+        nlambda = 10,
+        lambda.min.ratio = 0.0001,
+        tune_ratio = FALSE,
+        fix_ratio = NULL,
+        ratio_list = NULL,
+        gamma_adaptivelasso = 1/2,
+        use_sparseC = TRUE,
+        seed.use = 97){
+    if(!decor_method%in%c("pca","top")){
+        stop("Select decor_method from c('pca','top')")
+    }
+    set.seed(seed.use)
+    if (is.null(study_info)){stop("Please input study_info as trained model")}
+    if(!penalty_type %in% c("none","adaptivelasso","lasso","ridge")){
+        stop("Select penalty type from c('none','adaptivelasso','lasso','ridge').")
+    }
+    if(!type_measure%in% c("default", "mse", "deviance", "auc")){
+        stop("Select type_measure from c('default','deviance','auc')")
+    }
+    if(!sqrt_matrix %in% c("cholesky","svd")){
+        stop("Select penalty type from c('cholesky','svd').")
+    }
+    if(is.null(dim(Z)[1])){
+        warning("Z is input as a vector, convert Z into matrix with size nZ*1")
+        Z=matrix(Z,ncol=1)
+    }
+    final_alpha = 1
+    if(penalty_type == "ridge"){final_alpha = 0}
 
+    if(!is.null(fix_ratio)){
+        if(tune_ratio){
+            stop("If ratio is fixed, please set tune_ratio as FALSE")
+        }else if(remove_penalty_Z | remove_penalty_W){
+            stop("If ratio is fixed, please set remove_penalty's as FALSE")
+        }
+    }
 
+    corZ = cor(Z)
+    dissimilarity=as.dist(1-abs(corZ))
+    hc=hclust(dissimilarity, method = "complete")
+    if(max_cor<=min_cor){
+        stop("We need max_cor > min_cor")
+    }
+    max_cor=min(max_cor,max(abs(corZ)[row(corZ)!=col(corZ)]))
+    min_cor=max(min_cor,min(abs(corZ)[row(corZ)!=col(corZ)]))
+    if(max_cor<=min_cor){
+        stop("The max cor in Z is smaller than preset min_cor or the min cor in Z is larger than preset max_cor")
+    }
+    cor_seq = c(seq(min_cor,max_cor,length.out=ncor))
+    print(cor_seq)
+    res_clu_bycor=lapply(cor_seq, function(cur_cor){
+        message(cur_cor)
+        height_cutoff <- 1 - cur_cor
+        clusters <- cutree(hc, h = height_cutoff)
+        clusters_list <- split(1:length(clusters), clusters)
+        Z_clu<-sapply(1:length(clusters_list), function(j){
+            cur_clu<-clusters_list[[j]]
+            if(length(cur_clu)>1){
+                zpca=prcomp(Z[,cur_clu], rank. = 1)
+                rotate_=c(zpca$rotation)
+                cur_beta=sapply(cur_clu, function(i){study_info[[i]]$Coeff})
+                cur_var=sapply(cur_clu, function(i){study_info[[i]]$Covariance})
+                cur_size=sapply(cur_clu, function(i){study_info[[i]]$Sample_size})
+                Coeff=rotate_%*%cur_beta
+                Covariance=c(rotate_%*%crossprodv_rcpp(t(cur_var*corZ[cur_clu,cur_clu])*cur_var,rotate_))
+                Sample_size=rotate_%*%cur_size
+                zpc=c(Coeff,Covariance,Sample_size,zpca$x[,1])
+            }else{
+                zpc=c(unlist(study_info[[cur_clu]]),Z[,cur_clu])
+            }
+            zpc
+        })
+        study_info_clu<-lapply(1:length(clusters_list), function(i){
+            list("Coeff"=Z_clu[1,i],
+                 "Covariance"=Z_clu[2,i],
+                 "Sample_size"=Z_clu[3,i]
+            )
+        })
+        Z_clu = Z_clu[-c(1,2,3),]
 
-
-
-
-
-
+        beta_initial = NULL
+        res_clu<-fm.htlgmm.default(y,Z_clu,W,study_info_clu,A,penalty_type,
+                                   family,initial_with_type,beta_initial,
+                                   hat_thetaA,V_thetaA,remove_penalty_Z,
+                                   remove_penalty_W,inference,refine_C,
+                                   sqrt_matrix,use_cv,type_measure,nfolds,
+                                   fix_lambda,lambda_list,nlambda,lambda.min.ratio,
+                                   tune_ratio,fix_ratio,ratio_list,
+                                   gamma_adaptivelasso,
+                                   use_sparseC,seed.use)
+        c(res_clu,list("clusters_list"=clusters_list))
+    })
+    if(family == "gaussian"){
+        best_cor_id = which.min(sapply(1:ncor, function(i){min(res_clu_bycor[[i]]$cv_mse)}))
+    }else{
+        if(type_measure%in%c("default","dev")){
+            best_cor_id = which.min(sapply(1:ncor, function(i){min(res_clu_bycor[[i]]$cv_dev)}))
+        }else{
+            best_cor_id = which.max(sapply(1:ncor, function(i){max(res_clu_bycor[[i]]$cv_auc)}))
+        }
+    }
+    res_clu_bycor[[best_cor_id]]
+}
 
 

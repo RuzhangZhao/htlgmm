@@ -139,11 +139,11 @@ When main study sample size is large enough, use_sparseC = FALSE is recommended.
  }
 }
 \description{
-htlgmm.fm fits a generalized linear model via penalized generalized method of moments,
+fm.htlgmm fits a generalized linear model via penalized generalized method of moments,
 i.e. Heterogeneous Transfer Learning via Generalized Method of Moments,
 with special focus on fine-mapping, where fm stands for fine-mapping.
 The input requires main study and GWAS external studies.
-The htlgmm.fm support cross-validation.
+The fm.htlgmm support cross-validation.
 }
 \details{
 Fine-mapping for htlgmm.
