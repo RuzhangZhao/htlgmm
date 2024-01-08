@@ -578,7 +578,6 @@ group.fm.htlgmm.default<-function(
         stop("The max cor in Z is smaller than preset min_cor or the min cor in Z is larger than preset max_cor")
     }
     cor_seq = c(seq(min_cor,max_cor,length.out=ncor))
-    print(cor_seq)
     res_clu_bycor=lapply(cor_seq, function(cur_cor){
         message(cur_cor)
         height_cutoff <- 1 - cur_cor
@@ -590,14 +589,17 @@ group.fm.htlgmm.default<-function(
                 zpca=prcomp(Z[,cur_clu], rank. = 1)
                 rotate_=c(zpca$rotation)
                 cur_beta=sapply(cur_clu, function(i){study_info[[i]]$Coeff})
-                cur_var=sapply(cur_clu, function(i){study_info[[i]]$Covariance})
+                cur_var=sapply(cur_clu, function(i){sqrt(study_info[[i]]$Covariance)})
                 cur_size=sapply(cur_clu, function(i){study_info[[i]]$Sample_size})
                 Coeff=rotate_%*%cur_beta
                 Covariance=c(rotate_%*%crossprodv_rcpp(t(cur_var*corZ[cur_clu,cur_clu])*cur_var,rotate_))
                 Sample_size=rotate_%*%cur_size
                 zpc=c(Coeff,Covariance,Sample_size,zpca$x[,1])
             }else{
-                zpc=c(unlist(study_info[[cur_clu]]),Z[,cur_clu])
+                Coeff=study_info[[cur_clu]]$Coeff
+                Covariance=study_info[[cur_clu]]$Covariance
+                Sample_size=study_info[[cur_clu]]$Sample_size
+                zpc=c(Coeff,Covariance,Sample_size,Z[,cur_clu])
             }
             zpc
         })
