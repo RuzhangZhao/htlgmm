@@ -26,7 +26,7 @@ Eigen::MatrixXd prod_rcpp(
 Eigen::VectorXd crossprodv_rcpp(
     Eigen::MatrixXd A, Eigen::VectorXd v) {
   // matrix-vector multiplication
-  Eigen::MatrixXd Av = A.transpose() * v;
+  Eigen::VectorXd Av = A.transpose() * v;
   // return
   return(Av);
 }
