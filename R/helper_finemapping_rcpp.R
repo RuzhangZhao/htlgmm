@@ -537,8 +537,8 @@ group.fm.htlgmm.default<-function(
         gamma_adaptivelasso = 1/2,
         use_sparseC = TRUE,
         seed.use = 97){
-    if(!decor_method%in%c("pca","top","pip")){
-        stop("Select decor_method from c('pca','top','pip')")
+    if(!decor_method%in%c("pca","top","pip","pippca")){
+        stop("Select decor_method from c('pca','top','pip','pippca')")
     }
     set.seed(seed.use)
     if (is.null(study_info)){stop("Please input study_info as trained model")}
@@ -577,7 +577,7 @@ group.fm.htlgmm.default<-function(
         stop("The max cor in Z is smaller than preset min_cor or the min cor in Z is larger than preset max_cor")
     }
     cor_seq = c(seq(min_cor,max_cor,length.out=ncor))
-    if(decor_method == "pip"){
+    if(decor_method %in%c("pip","pippca") ){
         pZ = nrow(corZ)
         qval_cutoff = qchisq(0.05/sqrt(pZ),1,lower.tail = F)
         #diag(abscorZ) = 0
@@ -617,14 +617,26 @@ group.fm.htlgmm.default<-function(
             Z_clu<-sapply(1:length(clusters_list), function(j){
                 cur_clu<-clusters_list[[j]]
                 if(length(cur_clu)>1){
-                    cur_beta=sapply(cur_clu, function(i){study_info[[i]]$Coeff})
-                    cur_var=sapply(cur_clu, function(i){sqrt(study_info[[i]]$Covariance)})
-                    cur_size=sapply(cur_clu, function(i){study_info[[i]]$Sample_size})
-                    maxid = which.max(abs(cur_beta^2/cur_var))
-                    Coeff=cur_beta[maxid]
-                    Covariance=cur_var[maxid]
-                    Sample_size=cur_size[maxid]
-                    zpc=c(Coeff,Covariance,Sample_size,Z[,cur_clu[maxid]])
+                    if(decor_method == "pip"){
+                        cur_beta=sapply(cur_clu, function(i){study_info[[i]]$Coeff})
+                        cur_var=sapply(cur_clu, function(i){sqrt(study_info[[i]]$Covariance)})
+                        cur_size=sapply(cur_clu, function(i){study_info[[i]]$Sample_size})
+                        maxid = which.max(abs(cur_beta^2/cur_var))
+                        Coeff=cur_beta[maxid]
+                        Covariance=cur_var[maxid]
+                        Sample_size=cur_size[maxid]
+                        zpc=c(Coeff,Covariance,Sample_size,Z[,cur_clu[maxid]])
+                    }else{
+                        zpca=prcomp(Z[,cur_clu], rank. = 1)
+                        rotate_=c(zpca$rotation)
+                        cur_beta=sapply(cur_clu, function(i){study_info[[i]]$Coeff})
+                        cur_var=sapply(cur_clu, function(i){sqrt(study_info[[i]]$Covariance)})
+                        cur_size=sapply(cur_clu, function(i){study_info[[i]]$Sample_size})
+                        Coeff=rotate_%*%cur_beta
+                        Covariance=c(rotate_%*%prodv_rcpp(t(cur_var*corZ[cur_clu,cur_clu])*cur_var,rotate_))
+                        Sample_size=rotate_%*%cur_size
+                        zpc=c(Coeff,Covariance,Sample_size,zpca$x[,1])
+                    }
                 }else{
                     Coeff=study_info[[cur_clu]]$Coeff
                     Covariance=study_info[[cur_clu]]$Covariance
@@ -663,8 +675,6 @@ group.fm.htlgmm.default<-function(
             }
         }
         output=res_clu_bycor[[best_cor_id]]
-
-        output=c(res_clu,list("clusters_list"=clusters_list))
     }else{
         dissimilarity=as.dist(1-abscorZ)
         hc=hclust(dissimilarity, method = "complete")
