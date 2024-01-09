@@ -588,7 +588,7 @@ group.fm.htlgmm.default<-function(
         s = rbind(s,1:ncol(s))
 
         res_clu_bycor=lapply(cor_seq, function(cur_cor){
-            message(cur_cor)
+            #message(cur_cor)
             clusters_list=list()
             cur_id = 1
             cur_clu = 1
@@ -652,7 +652,6 @@ group.fm.htlgmm.default<-function(
             Z_clu = Z_clu[-c(1,2,3),]
 
             beta_initial = NULL
-            print("check point before fm.htlgmm")
             res_clu<-fm.htlgmm.default(y,Z_clu,W,study_info_clu,A,penalty_type,
                                        family,initial_with_type,beta_initial,
                                        hat_thetaA,V_thetaA,remove_penalty_Z,
@@ -678,7 +677,7 @@ group.fm.htlgmm.default<-function(
         dissimilarity=as.dist(1-abscorZ)
         hc=hclust(dissimilarity, method = "complete")
         res_clu_bycor=lapply(cor_seq, function(cur_cor){
-            message(cur_cor)
+            #message(cur_cor)
             height_cutoff <- 1 - cur_cor
             clusters <- cutree(hc, h = height_cutoff)
             clusters_list <- split(1:length(clusters), clusters)
