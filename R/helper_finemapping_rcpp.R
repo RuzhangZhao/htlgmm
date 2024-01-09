@@ -633,7 +633,8 @@ group.fm.htlgmm.default<-function(
                         cur_var=sapply(cur_clu, function(i){sqrt(study_info[[i]]$Covariance)})
                         cur_size=sapply(cur_clu, function(i){study_info[[i]]$Sample_size})
                         Coeff=rotate_%*%cur_beta
-                        Covariance=c(rotate_%*%prodv_rcpp(t(cur_var*corZ[cur_clu,cur_clu])*cur_var,rotate_))
+                        #Covariance=c(rotate_%*%prodv_rcpp(t(cur_var*corZ[cur_clu,cur_clu])*cur_var,rotate_))
+                        Covariance=c(rotate_%*%(t(cur_var*corZ[cur_clu,cur_clu])*cur_var)%*%rotate_)
                         Sample_size=rotate_%*%cur_size
                         zpc=c(Coeff,Covariance,Sample_size,zpca$x[,1])
                     }
@@ -663,7 +664,7 @@ group.fm.htlgmm.default<-function(
                                        tune_ratio,fix_ratio,ratio_list,
                                        gamma_adaptivelasso,
                                        use_sparseC,seed.use)
-            c(res_clu,list("clusters_list"=clusters_list))
+            c(res_clu,list("clusters_list"=clusters_list,"cor_cutoff"=cur_cor))
         })
         if(family == "gaussian"){
             best_cor_id = which.min(sapply(1:ncor, function(i){min(res_clu_bycor[[i]]$cv_mse)}))
@@ -693,7 +694,8 @@ group.fm.htlgmm.default<-function(
                         cur_var=sapply(cur_clu, function(i){sqrt(study_info[[i]]$Covariance)})
                         cur_size=sapply(cur_clu, function(i){study_info[[i]]$Sample_size})
                         Coeff=rotate_%*%cur_beta
-                        Covariance=c(rotate_%*%prodv_rcpp(t(cur_var*corZ[cur_clu,cur_clu])*cur_var,rotate_))
+                        #Covariance=c(rotate_%*%prodv_rcpp(t(cur_var*corZ[cur_clu,cur_clu])*cur_var,rotate_))
+                        Covariance=c(rotate_%*%(t(cur_var*corZ[cur_clu,cur_clu])*cur_var)%*%rotate_)
                         Sample_size=rotate_%*%cur_size
                         zpc=c(Coeff,Covariance,Sample_size,zpca$x[,1])
                     }else{
@@ -743,7 +745,7 @@ group.fm.htlgmm.default<-function(
                                        tune_ratio,fix_ratio,ratio_list,
                                        gamma_adaptivelasso,
                                        use_sparseC,seed.use)
-            c(res_clu,list("clusters_list"=clusters_list))
+            c(res_clu,list("clusters_list"=clusters_list,"cor_cutoff"=cur_cor))
         })
         if(family == "gaussian"){
             best_cor_id = which.min(sapply(1:ncor, function(i){min(res_clu_bycor[[i]]$cv_mse)}))
