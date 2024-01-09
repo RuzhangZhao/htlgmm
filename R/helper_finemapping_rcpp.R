@@ -464,7 +464,7 @@ fm.htlgmm.default<-function(
         Sigsum_half<-pseudo_Xy_list$pseudo_X/nZ
 
         Sigsum_scaled<-self_crossprod_rcpp(Sigsum_half)
-        Sigsum_scaled_nonzero<-Sigsum_scaled[index_nonzero,index_nonzero]
+        Sigsum_scaled_nonzero<-Sigsum_scaled[index_nonzero,index_nonzero,drop=F]
         inv_Sigsum_scaled_nonzero<-choinv_rcpp(Sigsum_scaled_nonzero)
         final_v<-diag(inv_Sigsum_scaled_nonzero)/nZ
 
@@ -484,7 +484,7 @@ fm.htlgmm.default<-function(
         if(pA>0 & penalty_type != "none"){
             if(Acolnames[1]=='intercept' & index_nonzero[1] == 1){
                 index_nonzero = index_nonzero[-1]
-                Sigsum_scaled_nonzero<-Sigsum_scaled[index_nonzero,index_nonzero]
+                Sigsum_scaled_nonzero<-Sigsum_scaled[index_nonzero,index_nonzero,drop=F]
                 inv_Sigsum_scaled_nonzero<-choinv_rcpp(Sigsum_scaled_nonzero)
                 final_v<-diag(inv_Sigsum_scaled_nonzero)/nZ
                 pval_final<-pchisq(beta[index_nonzero]^2/final_v,1,lower.tail = F)
@@ -617,11 +617,11 @@ group.fm.htlgmm.default<-function(
             Z_clu<-sapply(1:length(clusters_list), function(j){
                 cur_clu<-clusters_list[[j]]
                 if(length(cur_clu)>1){
+                    cur_beta=sapply(cur_clu, function(i){study_info[[i]]$Coeff})
+                    cur_var=sapply(cur_clu, function(i){sqrt(study_info[[i]]$Covariance)})
+                    cur_size=sapply(cur_clu, function(i){study_info[[i]]$Sample_size})
                     if(decor_method == "pip"){
-                        cur_beta=sapply(cur_clu, function(i){study_info[[i]]$Coeff})
-                        cur_var=sapply(cur_clu, function(i){sqrt(study_info[[i]]$Covariance)})
-                        cur_size=sapply(cur_clu, function(i){study_info[[i]]$Sample_size})
-                        maxid = which.max(abs(cur_beta^2/cur_var))
+                        maxid = which.max(cur_beta^2/cur_var)
                         Coeff=cur_beta[maxid]
                         Covariance=cur_var[maxid]
                         Sample_size=cur_size[maxid]
@@ -629,12 +629,9 @@ group.fm.htlgmm.default<-function(
                     }else{
                         zpca=prcomp(Z[,cur_clu], rank. = 1)
                         rotate_=c(zpca$rotation)
-                        cur_beta=sapply(cur_clu, function(i){study_info[[i]]$Coeff})
-                        cur_var=sapply(cur_clu, function(i){sqrt(study_info[[i]]$Covariance)})
-                        cur_size=sapply(cur_clu, function(i){study_info[[i]]$Sample_size})
                         Coeff=rotate_%*%cur_beta
-                        #Covariance=c(rotate_%*%prodv_rcpp(t(cur_var*corZ[cur_clu,cur_clu])*cur_var,rotate_))
-                        Covariance=c(rotate_%*%(t(cur_var*corZ[cur_clu,cur_clu])*cur_var)%*%rotate_)
+                        Covariance=c(rotate_%*%prodv_rcpp(t(cur_var*corZ[cur_clu,cur_clu])*cur_var,rotate_))
+                        #Covariance=c(rotate_%*%(t(cur_var*corZ[cur_clu,cur_clu])*cur_var)%*%rotate_)
                         Sample_size=rotate_%*%cur_size
                         zpc=c(Coeff,Covariance,Sample_size,zpca$x[,1])
                     }
@@ -695,8 +692,8 @@ group.fm.htlgmm.default<-function(
                         cur_var=sapply(cur_clu, function(i){sqrt(study_info[[i]]$Covariance)})
                         cur_size=sapply(cur_clu, function(i){study_info[[i]]$Sample_size})
                         Coeff=rotate_%*%cur_beta
-                        #Covariance=c(rotate_%*%prodv_rcpp(t(cur_var*corZ[cur_clu,cur_clu])*cur_var,rotate_))
-                        Covariance=c(rotate_%*%(t(cur_var*corZ[cur_clu,cur_clu])*cur_var)%*%rotate_)
+                        Covariance=c(rotate_%*%prodv_rcpp(t(cur_var*corZ[cur_clu,cur_clu])*cur_var,rotate_))
+                        #Covariance=c(rotate_%*%(t(cur_var*corZ[cur_clu,cur_clu])*cur_var)%*%rotate_)
                         Sample_size=rotate_%*%cur_size
                         zpc=c(Coeff,Covariance,Sample_size,zpca$x[,1])
                     }else{
@@ -737,6 +734,7 @@ group.fm.htlgmm.default<-function(
             Z_clu = Z_clu[-c(1,2,3),]
 
             beta_initial = NULL
+            print("check point before fm.htlgmm")
             res_clu<-fm.htlgmm.default(y,Z_clu,W,study_info_clu,A,penalty_type,
                                        family,initial_with_type,beta_initial,
                                        hat_thetaA,V_thetaA,remove_penalty_Z,

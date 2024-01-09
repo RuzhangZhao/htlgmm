@@ -697,7 +697,7 @@ htlgmm.default<-function(
             Sigsum_half<-pseudo_Xy_list$pseudo_X/nZ
 
             Sigsum_scaled<-self_crossprod_rcpp(Sigsum_half)
-            Sigsum_scaled_nonzero<-Sigsum_scaled[index_nonzero,index_nonzero]
+            Sigsum_scaled_nonzero<-Sigsum_scaled[index_nonzero,index_nonzero,drop=F]
             inv_Sigsum_scaled_nonzero<-choinv_rcpp(Sigsum_scaled_nonzero)
             final_v<-diag(inv_Sigsum_scaled_nonzero)/nZ
 
