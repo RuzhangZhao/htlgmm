@@ -588,7 +588,7 @@ group.fm.htlgmm.default<-function(
         s = rbind(s,1:ncol(s))
 
         res_clu_bycor=lapply(cor_seq, function(cur_cor){
-            #message(cur_cor)
+            message(cur_cor)
             clusters_list=list()
             cur_id = 1
             cur_clu = 1
@@ -681,7 +681,7 @@ group.fm.htlgmm.default<-function(
         dissimilarity=as.dist(1-abscorZ)
         hc=hclust(dissimilarity, method = "complete")
         res_clu_bycor=lapply(cor_seq, function(cur_cor){
-            #message(cur_cor)
+            message(cur_cor)
             height_cutoff <- 1 - cur_cor
             clusters <- cutree(hc, h = height_cutoff)
             clusters_list <- split(1:length(clusters), clusters)
