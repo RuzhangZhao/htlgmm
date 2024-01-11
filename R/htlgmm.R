@@ -682,3 +682,26 @@ group.fm.htlgmm<-function(
     return(res)
 }
 
+
+
+#' Fast Matrix Inverse for Positive Definite Matrix by Cholesky Decomposition
+#'
+#' @details Implemented by RcppEigen
+#'
+#' @param X The positive definite matrix.
+#' @return The inverse of X.
+#'
+#'
+#' @useDynLib htlgmm
+#' @import Rcpp
+#' @export
+#'
+#'
+#'
+choinv<-function(X){
+    if(!is.matrix(X)){
+        stop("The input must be in matrix format")
+    }
+    choinv_rcpp(X)
+}
+
