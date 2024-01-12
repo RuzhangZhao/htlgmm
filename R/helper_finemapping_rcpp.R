@@ -665,7 +665,7 @@ if(0){
         })
 }
 
-
+        cur_cor = 0.9
         qval_cutoff_min = qchisq(0.05/sqrt(pZ),1,lower.tail = F)
         qval_cutoff_max = qchisq(0.05/pZ,1,lower.tail = F)
         qval_cutoff_seq = seq(qval_cutoff_min,qval_cutoff_max,length.out=ncor)
