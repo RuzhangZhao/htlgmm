@@ -236,10 +236,17 @@ fm.htlgmm.default<-function(
                 }
                 beta_initial=fit_initial$coefficients
             }else if(pA == 0){
-                fit_initial=cv.glmnet(x=X,y= y,
-                                      alpha = initial_alpha,
-                                      penalty.factor = fix_penalty,
-                                      family=family)
+                res <- susie(X,y,L=10)
+                beta_initial = coef(res)[-1]
+                w_adaptive<-1/abs(beta_initial)^(1/2)
+                w_adaptive[is.infinite(w_adaptive)]<-max(w_adaptive[!is.infinite(w_adaptive)])*100
+                fit_initial=cv.glmnet(x= X,y= y,alpha = initial_alpha,
+                            penalty.factor = w_adaptive,family=family)
+
+                #fit_initial=cv.glmnet(x=X,y= y,
+                #                      alpha = initial_alpha,
+                #                      penalty.factor = fix_penalty,
+                #                      family=family)
                 beta_initial=c(coef.glmnet(fit_initial,s="lambda.min")[-1])
             }else if(length(unique(A[,1]))==1){
                 if(unique(A[,1])==1){
@@ -252,7 +259,7 @@ fm.htlgmm.default<-function(
                     stop("The first column of A is constant, then it should be 1 for intercept.")
                 }
             }else{
-                fit_initial=cv.glmnet(x=X,y= y,
+                fit_initial=cv.glmnet(x=X,y=y,
                                       alpha = initial_alpha,
                                       penalty.factor = fix_penalty,
                                       family=family)
@@ -818,7 +825,6 @@ if(0){
             Z_clu = Z_clu[-c(1,2,3),]
 
             beta_initial = NULL
-            print("check point before fm.htlgmm")
             res_clu<-fm.htlgmm.default(y,Z_clu,W,study_info_clu,A,penalty_type,
                                        family,initial_with_type,beta_initial,
                                        hat_thetaA,V_thetaA,remove_penalty_Z,
