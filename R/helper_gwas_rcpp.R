@@ -158,16 +158,15 @@ htlgmm.gwas.default<-function(
                 Acolnames[1]='intercept'}}
         colnames(A)=Acolnames
     }
-    Zcolnames=colnames(Z)
-    Wcolnames=colnames(W)
-    if(is.null(Zcolnames[1])){
+
+    if(is.null(colnames(Z))){
         Zcolnames=paste0('Z',1:pZ)
         colnames(Z)=Zcolnames
-    }
-    if(is.null(Wcolnames[1])){
+    }else{Zcolnames=colnames(Z)}
+    if(pW>0 & is.null(colnames(W))){
         Wcolnames=paste0('W',1:pW)
         colnames(W)=Wcolnames
-    }
+    }else{Wcolnames=colnames(W)}
     Xcolnames<-c(Acolnames,Wcolnames,Zcolnames)
 
     # unique thetaA
@@ -234,6 +233,7 @@ htlgmm.gwas.default<-function(
                         fit_initial=speedlm(y~0+.,data = df)
                     }
                     beta_initial=c(fit_initial$coefficients)
+                    beta_initial1<<-beta_initial
                     X_beta = prodv_rcpp(X,beta_initial)
                 }else{
                     X_beta = AW_betaAW+Z_thetaZ
@@ -278,7 +278,6 @@ htlgmm.gwas.default<-function(
             }
 
             return_list<-list("beta"=beta)
-
             # refine C
             X_beta = prodv_rcpp(X,beta)
             if(refine_C){
