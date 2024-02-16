@@ -1,3 +1,4 @@
+if(0){
 # https://medium.com/analytics-vidhya/implementing-the-cox-model-in-r-b1292d6ab6d2
 # https://cran.r-project.org/web/packages/coxed/vignettes/simulating_survival_data.html
 # library(survival)
@@ -763,4 +764,5 @@ if(0){
         bias_vec<-rbind(bias_vec,c(bias_initial,bias_htlgmm))
     }
 
+}
 }

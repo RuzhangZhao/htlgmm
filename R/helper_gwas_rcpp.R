@@ -233,7 +233,6 @@ htlgmm.gwas.default<-function(
                         fit_initial=speedlm(y~0+.,data = df)
                     }
                     beta_initial=c(fit_initial$coefficients)
-                    beta_initial1<<-beta_initial
                     X_beta = prodv_rcpp(X,beta_initial)
                 }else{
                     X_beta = AW_betaAW+Z_thetaZ
