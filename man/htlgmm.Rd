@@ -27,7 +27,7 @@ htlgmm(
   lambda_list = NULL,
   fix_ratio = NULL,
   gamma_adaptivelasso = 1/2,
-  use_sparseC = TRUE,
+  use_sparseC = FALSE,
   seed.use = 97
 )
 }
@@ -88,7 +88,7 @@ The default is NULL, and main study is used for initial estimation according to 
 \item{gamma_adaptivelasso}{The gamma for adaptive lasso. Select from c(1/2,1,2). The default is 1/2.}
 
 \item{use_sparseC}{Whether to use approximate version of weighting matrix C.
-If approximation, use the diagonal of inverse of C(inv_C) to approximate the inv_C. The default is TRUE.
+If approximation, use the diagonal of inverse of C(inv_C) to approximate the inv_C. The default is FALSE.
 When main study sample size is limited, use_sparseC = TRUE is recommended.
 When main study sample size is large enough, use_sparseC = FALSE is recommended.}
 

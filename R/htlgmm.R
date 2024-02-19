@@ -41,7 +41,7 @@
 #' @param fix_ratio The fixed ratio for two-lambda strategy. The ratio is multiplied for Z features. The default is NULL. If it is NULL, select the best ratio via cross validation or holdout validation.
 #' @param gamma_adaptivelasso The gamma for adaptive lasso. Select from c(1/2,1,2). The default is 1/2.
 #' @param use_sparseC Whether to use approximate version of weighting matrix C.
-#' If approximation, use the diagonal of inverse of C(inv_C) to approximate the inv_C. The default is TRUE.
+#' If approximation, use the diagonal of inverse of C(inv_C) to approximate the inv_C. The default is FALSE.
 #' When main study sample size is limited, use_sparseC = TRUE is recommended.
 #' When main study sample size is large enough, use_sparseC = FALSE is recommended.
 #' @param seed.use The seed for  97.
@@ -94,7 +94,7 @@ htlgmm<-function(
         lambda_list = NULL,
         fix_ratio = NULL,
         gamma_adaptivelasso = 1/2,
-        use_sparseC = TRUE,
+        use_sparseC = FALSE,
         seed.use = 97
 ){
 
@@ -115,13 +115,16 @@ htlgmm<-function(
     tune_ratio = FALSE
     ratio_list = NULL
     type_measure = "default"
+    nlambda = 100
+    lambda.min.ratio = 0.0001
     res<-htlgmm.default(y,Z,W,study_info,A,penalty_type,
                         family,initial_with_type,beta_initial,
                         hat_thetaA,V_thetaA,use_offset,
                         V_thetaA_sandwich,remove_penalty_Z,
                         remove_penalty_W,inference,refine_C,
                         sqrt_matrix,use_cv,type_measure,nfolds,
-                        fix_lambda,lambda_list,tune_ratio,fix_ratio,
+                        fix_lambda,lambda_list,nlambda,
+                        lambda.min.ratio,tune_ratio,fix_ratio,
                         ratio_list,gamma_adaptivelasso,
                         use_sparseC,seed.use)
     return(res)
@@ -180,7 +183,7 @@ htlgmm<-function(
 #' @param ratio_list The ratio list if it is preset. The default is NULL and ratio list will be generated.
 #' @param gamma_adaptivelasso The gamma for adaptive lasso. Select from c(1/2,1,2). The default is 1/2.
 #' @param use_sparseC Whether to use approximate version of weighting matrix C.
-#' If approximation, use the diagonal of inverse of C(inv_C) to approximate the inv_C. The default is TRUE.
+#' If approximation, use the diagonal of inverse of C(inv_C) to approximate the inv_C. The default is FALSE.
 #' When main study sample size is limited, use_sparseC = TRUE is recommended.
 #' When main study sample size is large enough, use_sparseC = FALSE is recommended.
 #' @param seed.use The seed for  97.
@@ -235,7 +238,7 @@ cv.htlgmm<-function(
         remove_penalty_Z = FALSE,
         remove_penalty_W = FALSE,
         inference = TRUE,
-        refine_C = TRUE,
+        refine_C = FALSE,
         sqrt_matrix = 'cholesky',
         use_cv = TRUE,
         type_measure = "default",
@@ -248,7 +251,7 @@ cv.htlgmm<-function(
         fix_ratio = NULL,
         ratio_list = NULL,
         gamma_adaptivelasso = 1/2,
-        use_sparseC = TRUE,
+        use_sparseC = FALSE,
         seed.use = 97
 ){
     if(!family %in% c("gaussian","binomial")){
@@ -270,9 +273,9 @@ cv.htlgmm<-function(
                         V_thetaA_sandwich,remove_penalty_Z,
                         remove_penalty_W,inference,refine_C,
                         sqrt_matrix,use_cv,type_measure,nfolds,
-                        fix_lambda,lambda_list,nlambda,lambda.min.ratio,
-                        tune_ratio,fix_ratio,ratio_list,
-                        gamma_adaptivelasso,
+                        fix_lambda,lambda_list,nlambda,
+                        lambda.min.ratio,tune_ratio,fix_ratio,
+                        ratio_list,gamma_adaptivelasso,
                         use_sparseC,seed.use)
 
     return(res)

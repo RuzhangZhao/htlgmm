@@ -19,131 +19,142 @@ if(0){
 # betamax
 # beta1 <- coxph(Surv(t, c) ~ x, init = c(1), control=list('iter.max'=0))
 
-riskset <- function(t,times,events=NULL,entry=NULL) {
-    if(is.null(events)){events=rep(1,length(times))}
-    if(is.null(entry)){
-        return(which((times==t & events==1)|(times>t)))
-    }else{
-        return(which((t>=entry) &
-                         ((times==t & events==1)|(times>t))))
+## functions to compute riskset
+right_id<-function(times){
+    right_equal_id = c(NA,length(times))
+    record_i = length(times)
+    record_time = times[record_i]
+    for(i in length(times):1){
+        if (times[i]<record_time){
+            record_time=times[i]
+            record_i=i
+        }
+        right_equal_id[i]=record_i
     }
+    right_equal_id
 }
 
-cox_gradient<-function(beta,
-                       times,
-                       X,
-                       events=NULL,
-                       entry=NULL){
-    if(is.null(events)){events=rep(1,length(times))}
-    gradient <- rowSums(sapply(which(events==1), function(i){
-        ts = times[i]
-        xs = X[i,]
-        x_riskset = X[riskset(ts,times,events,entry),,drop=F]
-        if(nrow(x_riskset)>0){
-            exp_x_beta = exp(x_riskset%*%beta)
-            prop=crossprod(x_riskset,exp_x_beta)/sum(exp_x_beta)
-        }else{
-            prop=0
+left_id<-function(times){
+    left_equal_id = c(NA,length(times))
+    record_i = 1
+    record_time = times[1]
+    for(i in 1:length(times)){
+        if (times[i]>record_time){
+            record_time=times[i]
+            record_i=i
         }
-        -xs + prop
-    }))
-    return(gradient)
-}
-cox_hessian <- function(beta,
-                        times,
-                        X,
-                        events=NULL,
-                        entry=NULL) {
-
-    hessian <- lapply(1:length(times), function(i){
-        ts = times[i]
-        xs = X[i,]
-        x_riskset = X[riskset(ts,times,events,entry),,drop=F]
-        if(nrow(x_riskset)>0){
-            exp_x_beta = exp(x_riskset%*%beta)
-            sum_exp = sum(exp_x_beta)
-            mat1 = crossprod(x_riskset*c(exp_x_beta),x_riskset)
-            mat2 = crossprod(x_riskset,exp_x_beta)
-            mat2 = mat2%*%t(mat2)
-            hes = mat1/sum_exp - mat2/sum_exp^2
-        }else{
-            hes = matrix(0,nrow=ncol(X),ncol=ncol(X))
-        }
-        hes
-    })
-    Reduce('+',hessian)
+        left_equal_id[i]=record_i
+    }
+    left_equal_id
 }
 
-#cox_gradient(c(1,1),Ts,Xs,events = c)
-#cox_hessian(c(1,1),Ts,Xs,events = c)
-
-pseudo_Xy_cox = function(C_half,Z,W,A,times,events,
-                    beta,hat_thetaZ,
-                    hat_thetaA=NULL,
-                    entry=NULL){
-    X=cbind(A,Z,W)
-    XR=cbind(A,Z)
-    beta=matrix(beta,ncol=1)
+reorder_U1U2 = function(X,XR,times,events,
+                        beta,tilde_thetaZ,
+                        hat_thetaA,
+                        left_equal_id,
+                        right_equal_id){
     pX = ncol(X)
-    pXR = ncol(XR)
-    gradhessian <- lapply(which(events==1), function(i){
-        ts = times[i]
-        cur_riskset=riskset(ts,times,events,entry)
-        x_riskset = X[cur_riskset,,drop=F]
-        xr_riskset = XR[cur_riskset,,drop=F]
-        hat_theta = c(hat_thetaA,hat_thetaZ)
-        if(nrow(x_riskset)>0){
-            exp_x_beta = exp(prod_rcpp(x_riskset,beta))
-            mat2 = crossprod_rcpp(x_riskset,exp_x_beta)
-            mat3 = crossprod_rcpp(xr_riskset,exp_x_beta)
-            exp_x_beta = c(exp_x_beta)
-            sum_exp = sum(exp_x_beta)
-            mat1 = crossprod_rcpp(cbind(x_riskset,xr_riskset),exp_x_beta*x_riskset)
-            mat2 = prod_rcpp(rbind(mat2,mat3),t(mat2))
-            hes = mat1/sum_exp - mat2/sum_exp^2
-
-            prop=crossprodv_rcpp(x_riskset,exp_x_beta)/sum_exp
-            exp_xr_theta = exp(prodv_rcpp(xr_riskset,hat_theta))
-            prop1=crossprodv_rcpp(xr_riskset,exp_xr_theta)/sum(exp_xr_theta)
-            prop = c(prop,prop1)
-            hes = cbind(hes,prop)
-        }else{
-            hes = matrix(0,nrow=pX+pXR,ncol=pX+1)
-        }
-        hes
+    pXR = ncol(XR) # XR is the first several cols of X
+    nX = length(times)
+    tilde_theta = c(hat_thetaA,tilde_thetaZ)
+    # U1 section
+    s01 = sapply(which(events==1), function(i){
+        x_riskset = X[left_equal_id[i]:nX,,drop=F]
+        exp_x_beta = exp(prodv_rcpp(x_riskset,beta))
+        inv_sum_exp = 1/sum(exp_x_beta)
+        s1=crossprodv_rcpp(x_riskset,exp_x_beta)
+        c(inv_sum_exp,s1)
     })
-    gradhessian = Reduce('+',gradhessian)
+    H_T_x_beta=sapply(1:nX, function(j){
+        ind=sum(events[1:right_equal_id[j]])
+        inv_s0list=s01[1,1:ind]
+        s1list=s01[-1,1:ind,drop=F]
+        X[j,]*sum(inv_s0list)-colSums(t(s1list)*inv_s0list^2)
+    })
+    if(is.null(dim(H_T_x_beta)[1])){
+        H_T_x_beta = matrix(H_T_x_beta,nrow=1)
+    }
+    exp_H = t(H_T_x_beta)*exp(prodv_rcpp(X,beta))
+    delta_x_s = matrix(0,nrow=nX,ncol = ncol(X))
+    delta_x_s[events==1,] = t(s01[-1,])*s01[1,]
+    U1mat=-X*events+delta_x_s+exp_H
 
-    ps_X = prod_rcpp(C_half,gradhessian[,-c(pX+1)])
+    ## First section of U2
+    s01R <- sapply(which(events==1), function(i){
+        xr_riskset = XR[left_equal_id[i]:nX,,drop=F]
+        exp_xr_theta = exp(prodv_rcpp(xr_riskset,tilde_theta))
+        inv_sum_exp_xr = 1/sum(exp_xr_theta)
+        s1_r=crossprodv_rcpp(xr_riskset,exp_xr_theta)
+        c(inv_sum_exp_xr,s1_r)
+    })
 
-    # grad1 <- rowSums(sapply(1:length(times), function(i){
-    #     ts = times[i]
-    #     cur_riskset=riskset(ts,times,events,entry)
-    #     x_riskset = X[cur_riskset,,drop=F]
-    #     xr_riskset = XR[cur_riskset,,drop=F]
-    #     if(nrow(x_riskset)>0){
-    #         exp_x_beta = exp(x_riskset%*%beta)
-    #         prop=crossprod(x_riskset,exp_x_beta)/sum(exp_x_beta)
-    #         exp_xr_theta = exp(xr_riskset%*%theta)
-    #         prop1=crossprod(xr_riskset,exp_xr_theta)/sum(exp_xr_beta)
-    #         prop = c(prop,prop1)
-    #     }else{
-    #         prop=rep(0,ncol(X)+ncol(XR))
-    #     }
-    #     prop
-    # }))
-    grad0 = -crossprodv_rcpp(X,events)
-    grad1 = gradhessian[1:ncol(X),(pX+1)]
-    grad2 = -gradhessian[-c(1:ncol(X)),(pX+1)]
-    grad3 = gradhessian[c(1:ncol(XR)),(pX+1)]
-    grad = c(grad0+grad1,grad2+grad3)
-    ps_y = c(prod_rcpp(ps_X,beta) - prodv_rcpp(C_half,grad))
-    list("pseudo_X"=ps_X,"pseudo_y"=ps_y)
+    HR_T_x_theta<-sapply(1:nX, function(j){
+        ind=sum(events[1:right_equal_id[j]])
+        inv_s0Rlist=s01R[1,1:ind]
+        s1Rlist=s01R[-1,1:ind,drop=F]
+        XR[j,]*sum(inv_s0Rlist)-colSums(t(s1Rlist)*inv_s0Rlist^2)
+    })
+    if(is.null(dim(HR_T_x_theta)[1])){
+        HR_T_x_theta = matrix(HR_T_x_theta,nrow=1)
+    }
+    exp_HR = t(HR_T_x_theta)*exp(prodv_rcpp(XR,tilde_theta))
+    delta_xr_s = matrix(0,nrow=nX,ncol = ncol(XR))
+    delta_xr_s[events==1,] = t(s01R[-1,])*s01R[1,]
+
+    ## Second section of U2 : truncate from U1
+    H_X_XR_T_x_beta<-H_T_x_beta[1:pXR,,drop=F]
+    exp_H_X_XR = t(H_X_XR_T_x_beta)*exp(prodv_rcpp(X,beta))
+    delta_x_xr_s = delta_x_s[,1:pXR,drop=F]
+    U2mat = -(delta_xr_s+exp_HR)+delta_x_xr_s+exp_H_X_XR
+    Umat = cbind(U1mat,U2mat)
+}
+
+
+Delta_opt_cox_rcpp<-function(Z,W,A,times,events,
+                             beta,tilde_thetaZ,
+                             V_thetaZ,
+                             hat_thetaA=NULL,
+                             X=NULL,XR=NULL,
+                             left_equal_id=NULL,
+                             right_equal_id=NULL){
+    nX=length(times)
+    if(is.null(X)){X=cbind(A,Z,W)}
+    if(is.null(XR)){XR=cbind(A,Z)}
+    pX=ncol(X)
+    pXR=ncol(XR)
+    tilde_theta=c(hat_thetaA,tilde_thetaZ)
+    Umat = reorder_U1U2(X,XR,times,events,
+                        beta,tilde_thetaZ,
+                        hat_thetaA,
+                        left_equal_id,
+                        right_equal_id)
+    Delta_U=(1/nX)*self_crossprod_rcpp(Umat)
+
+    tilde_theta = as.matrix(tilde_theta,ncol=1)
+    dU2dtheta <- lapply(which(events==1), function(i){
+        xr_riskset = XR[left_equal_id[i]:nX,,drop=F]
+        exp_xr_theta = exp(prod_rcpp(xr_riskset,tilde_theta))
+        mat2r = crossprod_rcpp(xr_riskset,exp_xr_theta)
+        exp_xr_theta = c(exp_xr_theta)
+        sum_exp_xr = sum(exp_xr_theta)
+        mat1r = crossprod_rcpp(xr_riskset,exp_xr_theta*xr_riskset)
+        mat2r = prod_rcpp(mat2r,t(mat2r))
+        hes = mat1r/sum_exp_xr - mat2r/sum_exp_xr^2
+    })
+    dU2dtheta = Reduce('+',dU2dtheta)/nX
+
+    if(is.null(dim(V_thetaZ)[1])){V_thetaZ=as.matrix(V_thetaZ,nrow=pZ,ncol=pZ)}
+    Delta22_theta=prod_rcpp(prod_rcpp(dU2dtheta,(nX*V_thetaZ)),t(dU2dtheta))
+
+    Delta_theta = rbind(matrix(0,nrow=pX,ncol=pX+pXR),
+                        cbind(matrix(0,nrow=pXR,ncol=pX),Delta22_theta))
+
+    Delta_U+Delta_theta
 }
 
 cv_cox_lambda_func<-function(index_fold,Z,W,A,times,events,
                              C_half,beta_initial,lambda_list,
-                             hat_thetaZ,hat_thetaA=NULL,
+                             tilde_thetaZ,hat_thetaA=NULL,
                              type_measure = "deviance",
                              w_adaptive=NULL,final_alpha=1){
     fold_cox_lambda<-sapply(1:length(index_fold), function(cur_fold){
@@ -167,9 +178,13 @@ cv_cox_lambda_func<-function(index_fold,Z,W,A,times,events,
         eventstrain<-events[-index_test]
         eventstest<-events[index_test]
 
-        psXy<-pseudo_Xy_cox(C_half,Ztrain,Wtrain,Atrain,timestrain,eventstrain,
-                                            beta_initial,hat_thetaZ=hat_thetaZ,
-                                            hat_thetaA=hat_thetaA)
+        left_equal_id_train = left_id(timestrain)
+
+        psXy<-pseudo_Xy_cox(C_half,Ztrain,Wtrain,Atrain,timestrain,
+                            eventstrain,beta_initial,
+                            tilde_thetaZ=tilde_thetaZ,
+                            hat_thetaA=hat_thetaA,
+                            left_equal_id=left_equal_id_train)
         initial_sf<-nrow(Z)/sqrt(nrow(psXy$pseudo_X))
         pseudo_X_train = psXy$pseudo_X/initial_sf
         pseudo_y_train = psXy$pseudo_y/initial_sf
@@ -181,10 +196,10 @@ cv_cox_lambda_func<-function(index_fold,Z,W,A,times,events,
                            alpha = final_alpha,lambda = cur_lam)#penalty.factor = w_adaptive,
             cur_beta<-coef.glmnet(cv_fit)[-1]
             if(type_measure == "C"){
-            tmp=Cindex(pred=prodv_rcpp(cbind(Atest,Ztest,Wtest),cur_beta),y=cbind(time=timestest,status=eventstest))
+              tmp=Cindex(pred=prodv_rcpp(cbind(Atest,Ztest,Wtest),cur_beta),y=cbind(time=timestest,status=eventstest))
               #tmp=iAUC(timestest,eventstest,prodv_rcpp(cbind(Atest,Ztest,Wtest),cur_beta))
             }else{
-              tmp=partial_likelihood(timestest,eventstest,cbind(Atest,Ztest,Wtest),cur_beta)
+              tmp=partial_likelihood(timestest,eventstest,cbind(Atest,Ztest,Wtest),cur_beta,left_equal_id_train)
             }
             tmp
         })
@@ -200,39 +215,107 @@ iAUC<-function(times,events,predict_risk){
     mean(roc_results$AUC,na.rm = T)
 }
 
-partial_likelihood<-function(times,events,X,beta,entry=NULL){
-    #fit1 <- coxph(y ~.,data= data.frame(y=Surv(times, events),X), init = beta, iter.max=0)
-    #fit1$loglik
+partial_likelihood<-function(times,events,X,beta,left_equal_id){
     likelihood1=sum(X[events==1,]%*%beta)
     likelihood2=sum(sapply(which(events==1), function(i){
-        ts = times[i]
-        x_riskset = X[riskset(ts,times,events,entry),,drop=F]
-        if(nrow(x_riskset)>0){
-            exp_x_beta = exp(prodv_rcpp(x_riskset,beta))
-            prop=log(sum(exp_x_beta))
-        }else{
-            prop=0
-        }
+        x_riskset = X[left_equal_id[i]:nrow(X),,drop=F]
+        exp_x_beta = exp(prodv_rcpp(x_riskset,beta))
+        prop=log(sum(exp_x_beta))
         prop
     }))
     likelihood1-likelihood2
 }
 
 library(caret)
-cv.htlgmm.cox<-function(times,events,Z,W,hat_thetaZ,
+pseudo_Xy_cox = function(C_half,Z,W,A,times,events,
+                         beta,tilde_thetaZ,
+                         hat_thetaA=NULL,
+                         X=NULL,XR=NULL,
+                         left_equal_id=NULL){
+    if(is.null(X)) X=cbind(A,Z,W)
+    if(is.null(XR)) XR=cbind(A,Z)
+    beta=matrix(beta,ncol=1)
+    tilde_theta = c(hat_thetaA,tilde_thetaZ)
+    pX = ncol(X)
+    pXR = ncol(XR)
+    nX = nrow(X)
+    gradhessian <- lapply(which(events==1), function(i){
+        cur_riskset=left_equal_id[i]:nX
+        x_riskset = X[cur_riskset,,drop=F]
+        xr_riskset = XR[cur_riskset,,drop=F]
+
+        exp_x_beta = exp(prod_rcpp(x_riskset,beta))
+        mat2 = crossprod_rcpp(x_riskset,exp_x_beta)
+        mat3 = crossprod_rcpp(xr_riskset,exp_x_beta)
+        exp_x_beta = c(exp_x_beta)
+        sum_exp = sum(exp_x_beta)
+        mat1 = crossprod_rcpp(cbind(x_riskset,xr_riskset),exp_x_beta*x_riskset)
+        mat2 = prod_rcpp(rbind(mat2,mat3),t(mat2))
+        hes = mat1/sum_exp - mat2/sum_exp^2
+
+        prop=crossprodv_rcpp(x_riskset,exp_x_beta)/sum_exp
+        exp_xr_theta = exp(prodv_rcpp(xr_riskset,tilde_theta))
+        prop1=crossprodv_rcpp(xr_riskset,exp_xr_theta)/sum(exp_xr_theta)
+        prop = c(prop,prop1)
+        cbind(hes,prop)
+    })
+    gradhessian = Reduce('+',gradhessian)
+
+    ps_X = prod_rcpp(C_half,gradhessian[,-c(pX+1)])
+
+    grad0 = -crossprodv_rcpp(X,events)
+    grad1 = gradhessian[1:ncol(X),(pX+1)]
+    grad2 = -gradhessian[-c(1:ncol(X)),(pX+1)]
+    grad3 = gradhessian[c(1:ncol(XR)),(pX+1)]
+    grad = c(grad0+grad1,grad2+grad3)
+    ps_y = c(prod_rcpp(ps_X,beta) - prodv_rcpp(C_half,grad))
+    list("pseudo_X"=ps_X,"pseudo_y"=ps_y)
+}
+cv.htlgmm.cox<-function(times,events,Z,W,tilde_thetaZ,
                         A=NULL,
                         hat_thetaA=NULL,
                         beta_initial=NULL,
+                        V_thetaZ=NULL,
                         type_measure = "deviance",
                         C_half=NULL,
                         nopenalty = FALSE,
                         nfolds = 10,
                         lambda_list = NULL,
                         nlambda = 100,
-                        lambda.min.ratio = 0.0001){
+                        lambda.min.ratio = 0.0001,
+                        seed.use = 97){
+    set.seed(seed.use)
+    timesorder=order(times)
+    times=times[timesorder]
+    events=events[timesorder]
+    Z=Z[timesorder,,drop=F]
+    if(!is.null(W)){W=W[timesorder,,drop=F]}
+    if(!is.null(A)){A=A[timesorder,,drop=F]}
+    X=cbind(A,Z,W)
+    XR=cbind(A,Z)
+
+    nX = length(times)
+
+    right_equal_id = right_id(times)
+    left_equal_id = left_id(times)
+
+    if(is.null(C_half)){
+        inv_C = Delta_opt_cox_rcpp(Z,W,A,times,events,
+                                   beta=beta_initial,
+                                   tilde_thetaZ=tilde_thetaZ,
+                                   V_thetaZ=V_thetaZ,
+                                   hat_thetaA=NULL,
+                                   X=X,XR=XR,
+                                   left_equal_id=left_equal_id,
+                                   right_equal_id=right_equal_id)
+
+        C_half<-sqrtchoinv_rcpp(inv_C+diag(1e-15,nrow(inv_C)))
+    }
+
     psXy = pseudo_Xy_cox(C_half,Z,W,A,times,events,
-                         beta_initial,hat_thetaZ=hat_thetaZ,
-                         hat_thetaA=NULL)
+                         beta_initial,tilde_thetaZ=tilde_thetaZ,
+                         hat_thetaA=NULL,X=X,XR=XR,
+                         left_equal_id=left_equal_id)
     initial_sf<-nrow(Z)/sqrt(nrow(psXy$pseudo_X))
     psX = psXy$pseudo_X/initial_sf
     psy = psXy$pseudo_y/initial_sf
@@ -247,7 +330,7 @@ cv.htlgmm.cox<-function(times,events,Z,W,hat_thetaZ,
     index_fold = createFolds(events,k = nfolds)
     cv_res=cv_cox_lambda_func(index_fold,Z,W,A,times,events,
                               C_half,beta_initial,lambda_list,
-                              hat_thetaZ,hat_thetaA,type_measure)
+                              tilde_thetaZ,hat_thetaA,type_measure)
     final.lambda.min=lambda_list[which.max(cv_res)]
     fit_final=glmnet(x= psX,y= psy,standardize=F,
                      intercept=F,lambda = final.lambda.min)
@@ -370,7 +453,7 @@ beta_initial=fit$coefficients
 
 surv_dataE <- Surv(time = observed_timesE, event = eventE)
 fitE <- coxph(surv_dataE ~., data=data.frame(surv_dataE,ZE))
-hat_thetaZ=fitE$coefficients
+tilde_thetaZ=fitE$coefficients
 
 library(glmnet)
 glmnet_res =cv.glmnet(x=cbind(Z,W),y=surv_data,family="cox",alpha=1)
@@ -382,8 +465,8 @@ beta_initial_ridge=as.vector(coef(glmnet_res,s="lambda.min"))
 
 C_half = magic::adiag(diag(1,nrow=ncol(Z)+ncol(W)),diag(1,nrow=ncol(Z)))
 
-htlgmm_res = cv.htlgmm.cox(observed_times,event,Z,W,hat_thetaZ,beta_initial = beta_initial,C_half =C_half,type_measure = "C")
-htlgmm_res2 = cv.htlgmm.cox(observed_times,event,Z,W,hat_thetaZ,beta_initial = beta_initial_ridge,C_half =C_half)
+htlgmm_res = cv.htlgmm.cox(observed_times,event,Z,W,tilde_thetaZ,beta_initial = beta_initial,C_half =C_half,type_measure = "C")
+htlgmm_res2 = cv.htlgmm.cox(observed_times,event,Z,W,tilde_thetaZ,beta_initial = beta_initial_ridge,C_half =C_half)
 
 print("-------- Sum of Square between true coefficient and estimators -------------")
 print(paste0("Main study coxph :",round(sum((beta_initial-coef)^2),4)))
@@ -458,7 +541,7 @@ beta_initial=fit$coefficients
 
 surv_dataE <- Surv(time = observed_timesE, event = eventE)
 fitE <- coxph(surv_dataE ~., data=data.frame(surv_dataE,ZE))
-hat_thetaZ=fitE$coefficients
+tilde_thetaZ=fitE$coefficients
 
 library(glmnet)
 glmnet_res =cv.glmnet(x=cbind(Z,W),y=surv_data,family="cox",alpha=1)
@@ -470,8 +553,8 @@ beta_initial_ridge=as.vector(coef(glmnet_res,s="lambda.min"))
 
 C_half = magic::adiag(diag(1,nrow=ncol(Z)+ncol(W)),diag(1,nrow=ncol(Z)))
 
-htlgmm_res = cv.htlgmm.cox(observed_times,event,Z,W,hat_thetaZ,beta_initial = beta_initial,C_half =C_half,type_measure = "deviance")
-htlgmm_res2 = cv.htlgmm.cox(observed_times,event,Z,W,hat_thetaZ,beta_initial = beta_initial_ridge,C_half =C_half)
+htlgmm_res = cv.htlgmm.cox(observed_times,event,Z,W,tilde_thetaZ,beta_initial = beta_initial,C_half =C_half,type_measure = "deviance")
+htlgmm_res2 = cv.htlgmm.cox(observed_times,event,Z,W,tilde_thetaZ,beta_initial = beta_initial_ridge,C_half =C_half)
 
 print("-------- Sum of Square between true coefficient and estimators -------------")
 print(paste0("Main study coxph :",round(sum((-beta_initial-coef)^2),4)))
@@ -555,7 +638,7 @@ beta_initial=fit$coefficients
 
 surv_dataE <- Surv(time = observed_timesE, event = eventE)
 fitE <- coxph(surv_dataE ~., data=data.frame(surv_dataE,ZE))
-hat_thetaZ=fitE$coefficients
+tilde_thetaZ=fitE$coefficients
 
 library(glmnet)
 glmnet_res =cv.glmnet(x=cbind(Z,W),y=surv_data,family="cox",alpha=1)
@@ -567,11 +650,11 @@ beta_initial_ridge=as.vector(coef(glmnet_res,s="lambda.min"))
 
 C_half = magic::adiag(diag(1,nrow=ncol(Z)+ncol(W)),diag(1,nrow=ncol(Z)))
 
-#htlgmm_res = cv.htlgmm.cox(observed_times,event,Z,W,hat_thetaZ,beta_initial = beta_initial,C_half =C_half,type_measure = "C")
-#htlgmm_res2 = cv.htlgmm.cox(observed_times,event,Z,W,hat_thetaZ,beta_initial = beta_initial_ridge,C_half =C_half,type_measure = "C")
+#htlgmm_res = cv.htlgmm.cox(observed_times,event,Z,W,tilde_thetaZ,beta_initial = beta_initial,C_half =C_half,type_measure = "C")
+#htlgmm_res2 = cv.htlgmm.cox(observed_times,event,Z,W,tilde_thetaZ,beta_initial = beta_initial_ridge,C_half =C_half,type_measure = "C")
 
-htlgmm_res_dev = cv.htlgmm.cox(observed_times,event,Z,W,hat_thetaZ,beta_initial = beta_initial,C_half =C_half,type_measure = "deviance")
-htlgmm_res_dev2 = cv.htlgmm.cox(observed_times,event,Z,W,hat_thetaZ,beta_initial = beta_initial_ridge,C_half =C_half,type_measure = "deviance")
+htlgmm_res_dev = cv.htlgmm.cox(observed_times,event,Z,W,tilde_thetaZ,beta_initial = beta_initial,C_half =C_half,type_measure = "deviance")
+htlgmm_res_dev2 = cv.htlgmm.cox(observed_times,event,Z,W,tilde_thetaZ,beta_initial = beta_initial_ridge,C_half =C_half,type_measure = "deviance")
 
 
 print("-------- Sum of Square between true coefficient and estimators -------------")
@@ -622,10 +705,10 @@ fit <- coxph(surv_data ~., data=data.frame(surv_data,Z,W))
 beta_initial=fit$coefficients
 surv_dataE <- Surv(time = observed_timesE, event = eventE)
 fitE <- coxph(surv_dataE ~., data=data.frame(surv_dataE,ZE))
-hat_thetaZ=fitE$coefficients
+tilde_thetaZ=fitE$coefficients
 C_half = magic::adiag(diag(1,nrow=pZ+pW),diag(1,nrow=pZ))
 
-htlgmm_res = cv.htlgmm.cox(observed_times,event,Z,W,hat_thetaZ,beta_initial = beta_initial,nopenalty = T,C_half =C_half)
+htlgmm_res = cv.htlgmm.cox(observed_times,event,Z,W,tilde_thetaZ,beta_initial = beta_initial,nopenalty = T,C_half =C_half)
 beta_htlgmm = htlgmm_res$beta_nopenalty
 bias_initial = beta_initial - coef
 bias_initial
@@ -647,7 +730,7 @@ nE=2000
 n_joint=n+nE
 main_index<-1:n
 
-set.seed(11092014)
+set.seed(2)
 Z_joint<-matrix(rnorm(n_joint*pZ),n_joint,pZ)
 colnames(Z_joint)<-paste0("Z",1:pZ)
 W_joint<-matrix(rnorm(n_joint*pW),n_joint,pW)
@@ -680,36 +763,37 @@ beta_initial=fit$coefficients
 
 surv_dataE <- Surv(time = observed_timesE, event = eventE)
 fitE <- coxph(surv_dataE ~., data=data.frame(surv_dataE,ZE))
-hat_thetaZ=fitE$coefficients
-
+tilde_thetaZ=fitE$coefficients
+V_thetaZ = fitE$var
 library(glmnet)
 glmnet_res =cv.glmnet(x=cbind(Z,W),y=surv_data,family="cox",alpha=1)
 beta_initial_lasso=as.vector(coef(glmnet_res,s="lambda.min"))
 
-glmnet_res =cv.glmnet(x=cbind(Z,W),y=surv_data,family="cox",alpha=0)
-beta_initial_ridge=as.vector(coef(glmnet_res,s="lambda.min"))
-
+#glmnet_res =cv.glmnet(x=cbind(Z,W),y=surv_data,family="cox",alpha=0)
+#beta_initial_ridge=as.vector(coef(glmnet_res,s="lambda.min"))
 
 C_half = magic::adiag(diag(1,nrow=ncol(Z)+ncol(W)),diag(1,nrow=ncol(Z)))
 
-#htlgmm_res = cv.htlgmm.cox(observed_times,event,Z,W,hat_thetaZ,beta_initial = beta_initial,C_half =C_half,type_measure = "C")
-#htlgmm_res2 = cv.htlgmm.cox(observed_times,event,Z,W,hat_thetaZ,beta_initial = beta_initial_ridge,C_half =C_half,type_measure = "C")
+#htlgmm_res = cv.htlgmm.cox(observed_times,event,Z,W,tilde_thetaZ,beta_initial = beta_initial,C_half =C_half,type_measure = "C")
+#htlgmm_res2 = cv.htlgmm.cox(observed_times,event,Z,W,tilde_thetaZ,beta_initial = beta_initial_ridge,C_half =C_half,type_measure = "C")
 
-htlgmm_res_dev = cv.htlgmm.cox(observed_times,event,Z,W,hat_thetaZ,beta_initial = beta_initial,C_half =C_half,type_measure = "deviance")
-htlgmm_res_dev2 = cv.htlgmm.cox(observed_times,event,Z,W,hat_thetaZ,beta_initial = beta_initial_ridge,C_half =C_half,type_measure = "deviance")
-
+htlgmm_res_dev = cv.htlgmm.cox(observed_times,event,Z,W,tilde_thetaZ,beta_initial = beta_initial,C_half =C_half,type_measure = "deviance")
+#htlgmm_res_dev2 = cv.htlgmm.cox(observed_times,event,Z,W,tilde_thetaZ,beta_initial = beta_initial_ridge,C_half =C_half,type_measure = "deviance")
 
 print("-------- Sum of Square between true coefficient and estimators -------------")
 print(paste0("Main study coxph :",round(sum((beta_initial-coef)^2),4)))
 print(paste0("Main study coxph lasso :",round(sum((beta_initial_lasso-coef)^2),4)))
-print(paste0("Main study coxph ridge :",round(sum((beta_initial_ridge-coef)^2),4)))
-print(paste0("HTLGMM no penalty: coxph as initial :",round(sum((htlgmm_res_dev$beta_nopenalty-coef)^2),4)))
-print(paste0("HTLGMM lasso: coxph as initial; deviance :",round(sum((htlgmm_res_dev$beta-coef)^2),4)))
-print(paste0("HTLGMM lasso: coxph ridge as initial; deviance :",round(sum((htlgmm_res_dev2$beta-coef)^2),4)))
+#print(paste0("Main study coxph ridge :",round(sum((beta_initial_ridge-coef)^2),4)))
+print(paste0("HTLGMM no penalty:",round(sum((htlgmm_res_dev$beta_nopenalty-coef)^2),4)))
+print(paste0("HTLGMM lasso:",round(sum((htlgmm_res_dev$beta-coef)^2),4)))
+#print(paste0("HTLGMM lasso: coxph as initial:",round(sum((htlgmm_res_dev$beta-coef)^2),4)))
+#print(paste0("HTLGMM lasso: coxph ridge as initial; deviance :",round(sum((htlgmm_res_dev2$beta-coef)^2),4)))
 
+htlgmm_res_dev_opt = cv.htlgmm.cox(observed_times,event,Z,W,tilde_thetaZ,beta_initial = beta_initial,
+                                       V_thetaZ=V_thetaZ,type_measure = "deviance")
 
-
-
+print(paste0("HTLGMM opt no penalty:",round(sum((htlgmm_res_dev_opt$beta_nopenalty-coef)^2),4)))
+print(paste0("HTLGMM opt lasso:",round(sum((htlgmm_res_dev_opt$beta-coef)^2),4)))
 
 
 if(0){
@@ -754,10 +838,10 @@ if(0){
         beta_initial=fit$coefficients
         surv_dataE <- Surv(time = observed_timesE, event = eventE)
         fitE <- coxph(surv_dataE ~., data=data.frame(surv_dataE,ZE))
-        hat_thetaZ=fitE$coefficients
+        tilde_thetaZ=fitE$coefficients
         C_half = magic::adiag(diag(1,nrow=pZ+pW),diag(1,nrow=pZ))
 
-        htlgmm_res = cv.htlgmm.cox(observed_times,event,Z,W,hat_thetaZ,beta_initial = beta_initial,nopenalty = T,C_half =C_half)
+        htlgmm_res = cv.htlgmm.cox(observed_times,event,Z,W,tilde_thetaZ,beta_initial = beta_initial,nopenalty = T,C_half =C_half)
         beta_htlgmm = htlgmm_res$beta_nopenalty
         bias_initial = beta_initial - coef
         bias_htlgmm = beta_htlgmm - coef

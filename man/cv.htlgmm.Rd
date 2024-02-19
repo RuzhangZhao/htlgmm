@@ -21,7 +21,7 @@ cv.htlgmm(
   remove_penalty_Z = FALSE,
   remove_penalty_W = FALSE,
   inference = TRUE,
-  refine_C = TRUE,
+  refine_C = FALSE,
   sqrt_matrix = "cholesky",
   use_cv = TRUE,
   type_measure = "default",
@@ -34,7 +34,7 @@ cv.htlgmm(
   fix_ratio = NULL,
   ratio_list = NULL,
   gamma_adaptivelasso = 1/2,
-  use_sparseC = TRUE,
+  use_sparseC = FALSE,
   seed.use = 97
 )
 }
@@ -109,7 +109,7 @@ The default is NULL, and main study is used for initial estimation according to 
 \item{gamma_adaptivelasso}{The gamma for adaptive lasso. Select from c(1/2,1,2). The default is 1/2.}
 
 \item{use_sparseC}{Whether to use approximate version of weighting matrix C.
-If approximation, use the diagonal of inverse of C(inv_C) to approximate the inv_C. The default is TRUE.
+If approximation, use the diagonal of inverse of C(inv_C) to approximate the inv_C. The default is FALSE.
 When main study sample size is limited, use_sparseC = TRUE is recommended.
 When main study sample size is large enough, use_sparseC = FALSE is recommended.}
 
