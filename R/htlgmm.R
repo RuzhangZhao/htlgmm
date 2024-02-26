@@ -7,11 +7,11 @@
 #'
 #' @details htlgmm: Heterogeneous Transfer Learning via generalized method of moments(GMM).
 #'
-#' @param y The variable of interest, which can be continuous or binary.
+#' @param y The variable of interest, which can be continuous or binary. For coxph model, y should be a list with two items including 'time' and 'event'.
 #' @param Z The overlapping features in both main and external studies.
-#' @param W The unmatched features only in main study, the default is NULL.
+#' @param W The unmatched features only in main study, the default is NULL. Without W, the problem is degenerated to problem similar to meta-analysis.
 #' @param study_info The trained model from external study, including estimate coefficients, estimated variance-covariance matrix and sample size.
-#' The 'study_info' is in the format of list. The first item is 'Coeff', the second iterm is 'Covariance', and the third item is 'Sample_size'.
+#' The 'study_info' is in the format of list. The first item is 'Coeff', the second iterm is 'Covariance', and the third item (optional) is 'Sample_size'.
 #' @param A The covariates for study-specific adjustment. The default is 'default', which is 'NULL' for 'gaussian' family, '1' for 'binomial' family.
 #' Other than c('default',NULL,1), A must be a matrix whose dimension is the same as the sample dimension or Z and W.
 #' For continuous variable, we suggest scaling the features Z, W to eliminate intercept term.  If 'A = NULL', there is no intercept term included.
@@ -30,11 +30,13 @@
 #' @param hat_thetaA If A is not NULL, one can provide hat_thetaA as the input. If 'hat_thetaA = NULL', we estimate hat_thetaA with glm by main study.
 #' @param V_thetaA If A is not NULL, one can provide V_thetaA as the input. If 'V_thetaA = NULL', we estimate V_thetaA with glm by main study.
 #' @param use_offset Whether to use offset regarding the external model estimated coefficient. The default is TRUE.
-#' @param V_thetaA_sandwich Whether to apply sandwich formula to compute the variance-covariance matrix if hat_thetaA.The default is TRUE.
+#' @param robust Whether to apply sandwich formula to compute the variance-covariance matrix of hat_thetaA.The default is TRUE.
+#' For coxph model, robust is also about whether we apply the robust variance for the estimating equations.
 #' @param remove_penalty_Z Not penalize Z if it is TRUE. The default is FALSE.
 #' @param remove_penalty_W Not penalize W if it is TRUE. The default is FALSE.
 #' @param inference Whether to do inference without penalty or post-selection inference with adaptive lasso penalty. The default is TRUE.
-#' @param refine_C When computing the variance, whether recompute the weighting matrix C using final estimated beta.
+#' @param fix_C When fix_C = NULL, the optimal C is computed. When user wants to customize the fix_C, please match its dimension as dim(A)+2*dim(Z)+dim(W) and make sure it is positive definite.
+#' @param refine_C When computing the variance, whether recompute the weighting matrix C using final estimated beta. The default is FALSE.
 #' @param sqrt_matrix The method to split weighting matrix into square root matrix. Select from c('svd','cholesky'), where 'cholesky' generates faster computation.
 #' @param fix_lambda Without cross validation, fix the lambda. The default is NULL.
 #' @param lambda_list Customize the input lambda list for validation. The default is NULL to generate lambda list according to glmnet.
@@ -42,7 +44,7 @@
 #' @param gamma_adaptivelasso The gamma for adaptive lasso. Select from c(1/2,1,2). The default is 1/2.
 #' @param use_sparseC Whether to use approximate version of weighting matrix C.
 #' If approximation, use the diagonal of inverse of C(inv_C) to approximate the inv_C. The default is FALSE.
-#' When main study sample size is limited, use_sparseC = TRUE is recommended.
+#' When main study sample size is really limited, use_sparseC = TRUE is recommended.
 #' When main study sample size is large enough, use_sparseC = FALSE is recommended.
 #' @param seed.use The seed for  97.
 #'
@@ -84,11 +86,12 @@ htlgmm<-function(
         hat_thetaA = NULL,
         V_thetaA = NULL,
         use_offset = TRUE,
-        V_thetaA_sandwich = TRUE,
+        robust = TRUE,
         remove_penalty_Z = FALSE,
         remove_penalty_W = FALSE,
         inference = TRUE,
-        refine_C = TRUE,
+        fix_C = NULL,
+        refine_C = FALSE,
         sqrt_matrix ="cholesky",
         fix_lambda = NULL,
         lambda_list = NULL,
@@ -98,13 +101,13 @@ htlgmm<-function(
         seed.use = 97
 ){
 
-    if(!family %in% c("gaussian","binomial")){
-        stop("Select family from c('gaussian','binomial')")
+    if(!family %in% c("gaussian","binomial","cox")){
+        stop("Select family from c('gaussian','binomial','cox')")
     }
-
+    if(family)
     if(is.null(dim(A)[1])){
     if(length(A)==1){
-    if(A=='default'){if(family == "gaussian"){A=NULL}else{A=1}}else{
+    if(A=='default'){if(family == "binomial"){A=1}else{A=NULL}}else{
         if(!is.null(A)){
             if(A!=1){warnings("If A is not a matrix, A should be selected from c('default',NULL,1).")}}
     }}else{
@@ -117,16 +120,27 @@ htlgmm<-function(
     type_measure = "default"
     nlambda = 100
     lambda.min.ratio = 0.0001
-    res<-htlgmm.default(y,Z,W,study_info,A,penalty_type,
-                        family,initial_with_type,beta_initial,
-                        hat_thetaA,V_thetaA,use_offset,
-                        V_thetaA_sandwich,remove_penalty_Z,
-                        remove_penalty_W,inference,refine_C,
-                        sqrt_matrix,use_cv,type_measure,nfolds,
-                        fix_lambda,lambda_list,nlambda,
-                        lambda.min.ratio,tune_ratio,fix_ratio,
-                        ratio_list,gamma_adaptivelasso,
-                        use_sparseC,seed.use)
+    if(family == 'cox'){
+        res<-htlgmm.cox.default(y,Z,W,study_info,A,penalty_type,
+                                family,initial_with_type,beta_initial,
+                                hat_thetaA,V_thetaA,robust,remove_penalty_Z,
+                                remove_penalty_W,inference,fix_C,refine_C,
+                                use_cv,type_measure,nfolds,fix_lambda,
+                                lambda_list,nlambda,lambda.min.ratio,
+                                gamma_adaptivelasso,seed.use)
+    }else{
+        V_thetaA_sandwich=robust
+        res<-htlgmm.default(y,Z,W,study_info,A,penalty_type,
+                            family,initial_with_type,beta_initial,
+                            hat_thetaA,V_thetaA,use_offset,
+                            V_thetaA_sandwich,remove_penalty_Z,
+                            remove_penalty_W,inference,fix_C,refine_C,
+                            sqrt_matrix,use_cv,type_measure,nfolds,
+                            fix_lambda,lambda_list,nlambda,
+                            lambda.min.ratio,tune_ratio,fix_ratio,
+                            ratio_list,gamma_adaptivelasso,
+                            use_sparseC,seed.use)
+    }
     return(res)
 }
 
@@ -165,10 +179,12 @@ htlgmm<-function(
 #' @param hat_thetaA If A is not NULL, one can provide hat_thetaA as the input. If 'hat_thetaA = NULL', we estimate hat_thetaA with glm by main study.
 #' @param V_thetaA If A is not NULL, one can provide V_thetaA as the input. If 'V_thetaA = NULL', we estimate V_thetaA with glm by main study.
 #' @param use_offset Whether to use offset regarding the external model estimated coefficient. The default is TRUE.
-#' @param V_thetaA_sandwich Whether to apply sandwich formula to compute the variance-covariance matrix if hat_thetaA.The default is TRUE.
+#' @param robust Whether to apply sandwich formula to compute the variance-covariance matrix of hat_thetaA.The default is TRUE.
+#' For coxph model, robust is also about whether we apply the robust variance for the estimating equations.
 #' @param remove_penalty_Z Not penalize Z if it is TRUE. The default is FALSE.
 #' @param remove_penalty_W Not penalize W if it is TRUE. The default is FALSE.
 #' @param inference Whether to do inference without penalty or post-selection inference with adaptive lasso penalty. The default is TRUE.
+#' @param fix_C When fix_C = NULL, the optimal C is computed. When user wants to customize the fix_C, please match its dimension as dim(A)+2*dim(Z)+dim(W) and make sure it is positive definite.
 #' @param refine_C When computing the variance, whether recompute the weighting matrix C using final estimated beta.
 #' @param sqrt_matrix The method to split weighting matrix into square root matrix. Select from c('svd','cholesky'), where 'cholesky' generates faster computation.
 #' @param use_cv Whether to use cross validation to determine the best lambda (or ratio).
@@ -178,8 +194,8 @@ htlgmm<-function(
 #' @param lambda_list Customize the input lambda list for validation. The default is NULL to generate lambda list according to glmnet.
 #' @param nlambda The number of lambda values - default is 100.
 #' @param lambda.min.ratio Smallest value for lambda, as a fraction of lambda.max. The default is 0.0001.
-#' @param tune_ratio Whether to use two-lambda stratgey. The default is TRUE.
-#' @param fix_ratio The fixed ratio for two-lambda strategy. The ratio is multiplied for Z features. The default is NULL. If it is NULL, select the best ratio via cross validation or holdout validation.
+#' @param tune_ratio Whether to use two-lambda stratgey. The default is FALSE. This is not applied to coxph model.
+#' @param fix_ratio The fixed ratio for two-lambda strategy. The ratio is multiplied for Z features. The default is NULL. If it is NULL, select the best ratio via cross validation.
 #' @param ratio_list The ratio list if it is preset. The default is NULL and ratio list will be generated.
 #' @param gamma_adaptivelasso The gamma for adaptive lasso. Select from c(1/2,1,2). The default is 1/2.
 #' @param use_sparseC Whether to use approximate version of weighting matrix C.
@@ -220,6 +236,7 @@ htlgmm<-function(
 #' @importFrom MASS ginv
 #' @importFrom pROC auc
 #' @importFrom speedglm speedglm speedlm
+#' @importFrom survival coxph Surv
 #' @export
 #'
 #'
@@ -234,9 +251,10 @@ cv.htlgmm<-function(
         hat_thetaA = NULL,
         V_thetaA = NULL,
         use_offset = TRUE,
-        V_thetaA_sandwich = TRUE,
+        robust = TRUE,
         remove_penalty_Z = FALSE,
         remove_penalty_W = FALSE,
+        fix_C = NULL,
         inference = TRUE,
         refine_C = FALSE,
         sqrt_matrix = 'cholesky',
@@ -254,29 +272,43 @@ cv.htlgmm<-function(
         use_sparseC = FALSE,
         seed.use = 97
 ){
-    if(!family %in% c("gaussian","binomial")){
-        stop("Select family from c('gaussian','binomial')")
+    if(!family %in% c("gaussian","binomial","cox")){
+        stop("Select family from c('gaussian','binomial','cox')")
     }
 
     if(is.null(dim(A)[1])){
     if(length(A)==1){
-    if(A=='default'){if(family == "gaussian"){A=NULL}else{A=1}}else{
+        if(A=='default'){if(family == "binomial"){A=1}else{A=NULL}}else{
         if(!is.null(A)){
             if(A!=1){warnings("If A is not a matrix, A should be selected from c('default',NULL,1).")}}
     }}else{
         warnings("If A is not selected from c('default',NULL,1), A must be a matrix.")
     }}
+    if(A == 1 & family == 'cox'){
+        warnings("Coxph model usually does not include intercept term.")
+    }
 
-    res<-htlgmm.default(y,Z,W,study_info,A,penalty_type,
-                        family,initial_with_type,beta_initial,
-                        hat_thetaA,V_thetaA,use_offset,
-                        V_thetaA_sandwich,remove_penalty_Z,
-                        remove_penalty_W,inference,refine_C,
-                        sqrt_matrix,use_cv,type_measure,nfolds,
-                        fix_lambda,lambda_list,nlambda,
-                        lambda.min.ratio,tune_ratio,fix_ratio,
-                        ratio_list,gamma_adaptivelasso,
-                        use_sparseC,seed.use)
+    if(family == 'cox'){
+        res<-htlgmm.cox.default(y,Z,W,study_info,A,penalty_type,
+                                family,initial_with_type,beta_initial,
+                                hat_thetaA,V_thetaA,robust,remove_penalty_Z,
+                                remove_penalty_W,inference,fix_C,refine_C,
+                                use_cv,type_measure,nfolds,fix_lambda,
+                                lambda_list,nlambda,lambda.min.ratio,
+                                gamma_adaptivelasso,seed.use)
+    }else{
+        V_thetaA_sandwich=robust
+        res<-htlgmm.default(y,Z,W,study_info,A,penalty_type,
+                            family,initial_with_type,beta_initial,
+                            hat_thetaA,V_thetaA,use_offset,
+                            V_thetaA_sandwich,remove_penalty_Z,
+                            remove_penalty_W,inference,fix_C,refine_C,
+                            sqrt_matrix,use_cv,type_measure,nfolds,
+                            fix_lambda,lambda_list,nlambda,
+                            lambda.min.ratio,tune_ratio,fix_ratio,
+                            ratio_list,gamma_adaptivelasso,
+                            use_sparseC,seed.use)
+    }
 
     return(res)
 }
@@ -393,7 +425,7 @@ gwas.htlgmm<-function(
 #' @param hat_thetaA If A is not NULL, one can provide hat_thetaA as the input. If 'hat_thetaA = NULL', we estimate hat_thetaA with glm by main study.
 #' @param V_thetaA If A is not NULL, one can provide V_thetaA as the input. If 'V_thetaA = NULL', we estimate V_thetaA with glm by main study.
 #' @param use_offset Whether to use offset regarding the external model estimated coefficient. The default is TRUE.
-#' @param V_thetaA_sandwich Whether to apply sandwich formula to compute the variance-covariance matrix if hat_thetaA.The default is TRUE.
+#' @param V_thetaA_sandwich Whether to apply sandwich formula to compute the variance-covariance matrix if hat_thetaA.The default is FALSE.
 #' @param remove_penalty_Z Not penalize Z if it is TRUE. The default is FALSE.
 #' @param remove_penalty_W Not penalize W if it is TRUE. The default is FALSE.
 #' @param inference Whether to do inference without penalty or post-selection inference with adaptive lasso penalty. The default is TRUE.
@@ -406,8 +438,8 @@ gwas.htlgmm<-function(
 #' @param lambda_list Customize the input lambda list for validation. The default is NULL to generate lambda list according to glmnet.
 #' @param nlambda The number of lambda values - default is 100.
 #' @param lambda.min.ratio Smallest value for lambda, as a fraction of lambda.max. The default is 0.0001.
-#' @param tune_ratio Whether to use two-lambda stratgey. The default is TRUE.
-#' @param fix_ratio The fixed ratio for two-lambda strategy. The ratio is multiplied for Z features. The default is NULL. If it is NULL, select the best ratio via cross validation or holdout validation.
+#' @param tune_ratio Whether to use two-lambda stratgey. The default is FALSE. This is not applied to coxph model.
+#' @param fix_ratio The fixed ratio for two-lambda strategy. The ratio is multiplied for Z features. The default is NULL. If it is NULL, select the best ratio via cross validation.
 #' @param ratio_list The ratio list if it is preset. The default is NULL and ratio list will be generated.
 #' @param gamma_adaptivelasso The gamma for adaptive lasso. Select from c(1/2,1,2). The default is 1/2.
 #' @param use_sparseC Whether to use approximate version of weighting matrix C.
@@ -462,7 +494,7 @@ fm.htlgmm<-function(
         hat_thetaA = NULL,
         V_thetaA = NULL,
         use_offset = TRUE,
-        V_thetaA_sandwich = TRUE,
+        V_thetaA_sandwich = FALSE,
         remove_penalty_Z = FALSE,
         remove_penalty_W = FALSE,
         inference = TRUE,

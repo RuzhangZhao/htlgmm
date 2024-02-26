@@ -145,3 +145,22 @@ Eigen::MatrixXd choinv_rcpp(const Eigen::MatrixXd& matrix) {
 }
 
 
+// [[Rcpp::export]]
+Eigen::MatrixXd sqrtcho_rcpp(const Eigen::MatrixXd& matrix) {
+  // Check if the matrix is square
+  if (matrix.rows() != matrix.cols()) {
+    Rcpp::stop("Matrix must be square.");
+  }
+
+  // Compute the Cholesky decomposition
+  Eigen::LLT<Eigen::MatrixXd> llt(matrix);
+  if (llt.info() != Eigen::Success) {
+    Rcpp::stop("Cholesky decomposition failed.");
+  }
+  // Compute the inverse of L
+  Eigen::MatrixXd L_inv = llt.matrixL().transpose();
+
+  // The square root of A is L^{T}
+  return L_inv;
+}
+

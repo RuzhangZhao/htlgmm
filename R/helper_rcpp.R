@@ -309,10 +309,11 @@ htlgmm.default<-function(
         hat_thetaA = NULL,
         V_thetaA = NULL,
         use_offset = TRUE,
-        V_thetaA_sandwich = TRUE,
+        V_thetaA_sandwich = FALSE,
         remove_penalty_Z = FALSE,
         remove_penalty_W = FALSE,
         inference = TRUE,
+        fix_C = NULL,
         refine_C = TRUE,
         sqrt_matrix ="cholesky",
         use_cv = TRUE,
@@ -333,7 +334,7 @@ htlgmm.default<-function(
     if(sum(is.na(y))>0){stop("y includes NA")}
     if(sum(is.na(Z))>0){stop("Z includes NA")}
     if(!is.null(W)&sum(is.na(W))>0){stop("W includes NA")}
-
+    if(!is.null(A)&sum(is.na(A))>0){stop("A includes NA")}
     if (is.null(study_info)){stop("Please input study_info as trained model")}
     if(!penalty_type %in% c("none","adaptivelasso","lasso","ridge")){
         stop("Select penalty type from c('none','adaptivelasso','lasso','ridge').")
@@ -360,7 +361,9 @@ htlgmm.default<-function(
     }
 
     nZ=nrow(Z)
-    nZext=study_info[[1]]$Sample_size
+    if(length(study_info[[1]])==3){
+        nZext=study_info[[1]]$Sample_size
+    }else{nZext=NULL}
     pZ=ncol(Z)
     if(is.null(W)){pW=0}else{pW=ncol(W)}
     if(is.null(A)){pA=0}else{
@@ -376,9 +379,8 @@ htlgmm.default<-function(
     if(family == "gaussian"){pseudo_Xy=pseudo_Xy_gaussian_rcpp
     }else if(family == "binomial"){pseudo_Xy=pseudo_Xy_binomial_rcpp}
 
-    Aid<-1:pA
     Zid<-(pA+1):(pA+pZ)
-    if(pW>0){Wid<-(pA+pZ+1):(pA+pZ+pW)}else{pW=0}
+    if(pW>0){Wid<-(pA+pZ+1):(pA+pZ+pW)}else{Wid=NULL}
     Acolnames=NULL
     if(pA>0){
         Acolnames=colnames(A)
@@ -508,25 +510,32 @@ htlgmm.default<-function(
         w_adaptive<-w_adaptive*fix_penalty
     }else{w_adaptive<-fix_penalty}
     # Estimation of C
-    inv_C = Delta_opt_rcpp(y=y,Z=Z,W=W,
-                      family=family,
-                      study_info=study_info,
-                      A=A,pA=pA,pZ=pZ,beta=beta_initial,
-                      hat_thetaA=hat_thetaA,
-                      V_thetaA=V_thetaA,
-                      use_offset = use_offset,
-                      X=X,XR=XR)
 
-    if(use_sparseC){
-        C_half<-diag(1/sqrt(diag(inv_C)))
-    }else{
-        if(sqrt_matrix =="svd"){
-            inv_C_svd=fast.svd(inv_C+diag(1e-15,nrow(inv_C)))
-            C_half=prod_rcpp(inv_C_svd$v,(t(inv_C_svd$u)*1/sqrt(inv_C_svd$d)))
-            #C_half<-inv_C_svd$v%*%diag(1/sqrt(inv_C_svd$d))%*%t(inv_C_svd$u)
-        }else if(sqrt_matrix =="cholesky"){
-            C_half<-sqrtchoinv_rcpp(inv_C+diag(1e-15,nrow(inv_C)))
+    if(is.null(fix_C)){
+        inv_C = Delta_opt_rcpp(y=y,Z=Z,W=W,
+                               family=family,
+                               study_info=study_info,
+                               A=A,pA=pA,pZ=pZ,beta=beta_initial,
+                               hat_thetaA=hat_thetaA,
+                               V_thetaA=V_thetaA,
+                               use_offset = use_offset,
+                               X=X,XR=XR)
+
+        if(use_sparseC){
+            C_half<-diag(1/sqrt(diag(inv_C)))
+        }else{
+            if(sqrt_matrix =="svd"){
+                inv_C_svd=fast.svd(inv_C+diag(1e-15,nrow(inv_C)))
+                C_half=prod_rcpp(inv_C_svd$v,(t(inv_C_svd$u)*1/sqrt(inv_C_svd$d)))
+                #C_half<-inv_C_svd$v%*%diag(1/sqrt(inv_C_svd$d))%*%t(inv_C_svd$u)
+            }else if(sqrt_matrix =="cholesky"){
+                C_half<-sqrtchoinv_rcpp(inv_C+diag(1e-15,nrow(inv_C)))
+            }
         }
+    }else{
+        if(nrow(fix_C)!=pA+pZ+pW+pZ){
+            stop("Input fix_C dimension is wrong!")}
+        C_half<-sqrtcho_rcpp(fix_C+diag(1e-15,nrow(fix_C)))
     }
 
     # Prepare for final model
@@ -559,6 +568,10 @@ htlgmm.default<-function(
 
     if(tune_ratio & !remove_penalty_Z & !remove_penalty_W){
         if(is.null(ratio_list)){
+            if(is.null(nZext)){
+                warning("No sample size is in study_info, ratio estimation will be bad.")
+                nZext=nZ
+            }
             ratio_lower<-sqrt(nZ/(nZ+nZext))/2
             ratio_upper<-(nZ)^(1/3)/2
             ratio_count<-10

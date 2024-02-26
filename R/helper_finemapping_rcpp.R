@@ -160,7 +160,6 @@ fm.htlgmm.default<-function(
     }else if(family == "binomial"){pseudo_Xy=pseudo_Xy_binomial_finemapping}
 
 
-    Aid<-1:pA
     Zid<-(pA+1):(pA+pZ)
     if(pW>0){Wid<-(pA+pZ+1):(pA+pZ+pW)}else{Wid=NULL}
     Acolnames=NULL
