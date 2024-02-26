@@ -72,6 +72,7 @@
 #' @importFrom magic adiag
 #' @importFrom MASS ginv
 #' @importFrom speedglm speedglm speedlm
+#' @importFrom survival coxph Surv
 #' @export
 #'
 #'

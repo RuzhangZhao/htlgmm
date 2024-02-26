@@ -17,9 +17,10 @@ cv.htlgmm(
   hat_thetaA = NULL,
   V_thetaA = NULL,
   use_offset = TRUE,
-  V_thetaA_sandwich = TRUE,
+  robust = TRUE,
   remove_penalty_Z = FALSE,
   remove_penalty_W = FALSE,
+  fix_C = NULL,
   inference = TRUE,
   refine_C = FALSE,
   sqrt_matrix = "cholesky",
@@ -74,11 +75,14 @@ The default is NULL, and main study is used for initial estimation according to 
 
 \item{use_offset}{Whether to use offset regarding the external model estimated coefficient. The default is TRUE.}
 
-\item{V_thetaA_sandwich}{Whether to apply sandwich formula to compute the variance-covariance matrix if hat_thetaA.The default is TRUE.}
+\item{robust}{Whether to apply sandwich formula to compute the variance-covariance matrix of hat_thetaA.The default is TRUE.
+For coxph model, robust is also about whether we apply the robust variance for the estimating equations.}
 
 \item{remove_penalty_Z}{Not penalize Z if it is TRUE. The default is FALSE.}
 
 \item{remove_penalty_W}{Not penalize W if it is TRUE. The default is FALSE.}
+
+\item{fix_C}{When fix_C = NULL, the optimal C is computed. When user wants to customize the fix_C, please match its dimension as dim(A)+2*dim(Z)+dim(W) and make sure it is positive definite.}
 
 \item{inference}{Whether to do inference without penalty or post-selection inference with adaptive lasso penalty. The default is TRUE.}
 
@@ -100,9 +104,9 @@ The default is NULL, and main study is used for initial estimation according to 
 
 \item{lambda.min.ratio}{Smallest value for lambda, as a fraction of lambda.max. The default is 0.0001.}
 
-\item{tune_ratio}{Whether to use two-lambda stratgey. The default is TRUE.}
+\item{tune_ratio}{Whether to use two-lambda stratgey. The default is FALSE. This is not applied to coxph model.}
 
-\item{fix_ratio}{The fixed ratio for two-lambda strategy. The ratio is multiplied for Z features. The default is NULL. If it is NULL, select the best ratio via cross validation or holdout validation.}
+\item{fix_ratio}{The fixed ratio for two-lambda strategy. The ratio is multiplied for Z features. The default is NULL. If it is NULL, select the best ratio via cross validation.}
 
 \item{ratio_list}{The ratio list if it is preset. The default is NULL and ratio list will be generated.}
 

@@ -53,3 +53,7 @@ choinv_rcpp <- function(matrix) {
     .Call('_htlgmm_choinv_rcpp', PACKAGE = 'htlgmm', matrix)
 }
 
+sqrtcho_rcpp <- function(matrix) {
+    .Call('_htlgmm_sqrtcho_rcpp', PACKAGE = 'htlgmm', matrix)
+}
+

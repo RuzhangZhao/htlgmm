@@ -17,11 +17,12 @@ htlgmm(
   hat_thetaA = NULL,
   V_thetaA = NULL,
   use_offset = TRUE,
-  V_thetaA_sandwich = TRUE,
+  robust = TRUE,
   remove_penalty_Z = FALSE,
   remove_penalty_W = FALSE,
   inference = TRUE,
-  refine_C = TRUE,
+  fix_C = NULL,
+  refine_C = FALSE,
   sqrt_matrix = "cholesky",
   fix_lambda = NULL,
   lambda_list = NULL,
@@ -32,14 +33,14 @@ htlgmm(
 )
 }
 \arguments{
-\item{y}{The variable of interest, which can be continuous or binary.}
+\item{y}{The variable of interest, which can be continuous or binary. For coxph model, y should be a list with two items including 'time' and 'event'.}
 
 \item{Z}{The overlapping features in both main and external studies.}
 
-\item{W}{The unmatched features only in main study, the default is NULL.}
+\item{W}{The unmatched features only in main study, the default is NULL. Without W, the problem is degenerated to problem similar to meta-analysis.}
 
 \item{study_info}{The trained model from external study, including estimate coefficients, estimated variance-covariance matrix and sample size.
-The 'study_info' is in the format of list. The first item is 'Coeff', the second iterm is 'Covariance', and the third item is 'Sample_size'.}
+The 'study_info' is in the format of list. The first item is 'Coeff', the second iterm is 'Covariance', and the third item (optional) is 'Sample_size'.}
 
 \item{A}{The covariates for study-specific adjustment. The default is 'default', which is 'NULL' for 'gaussian' family, '1' for 'binomial' family.
 Other than c('default',NULL,1), A must be a matrix whose dimension is the same as the sample dimension or Z and W.
@@ -67,7 +68,8 @@ The default is NULL, and main study is used for initial estimation according to 
 
 \item{use_offset}{Whether to use offset regarding the external model estimated coefficient. The default is TRUE.}
 
-\item{V_thetaA_sandwich}{Whether to apply sandwich formula to compute the variance-covariance matrix if hat_thetaA.The default is TRUE.}
+\item{robust}{Whether to apply sandwich formula to compute the variance-covariance matrix of hat_thetaA.The default is TRUE.
+For coxph model, robust is also about whether we apply the robust variance for the estimating equations.}
 
 \item{remove_penalty_Z}{Not penalize Z if it is TRUE. The default is FALSE.}
 
@@ -75,7 +77,9 @@ The default is NULL, and main study is used for initial estimation according to 
 
 \item{inference}{Whether to do inference without penalty or post-selection inference with adaptive lasso penalty. The default is TRUE.}
 
-\item{refine_C}{When computing the variance, whether recompute the weighting matrix C using final estimated beta.}
+\item{fix_C}{When fix_C = NULL, the optimal C is computed. When user wants to customize the fix_C, please match its dimension as dim(A)+2*dim(Z)+dim(W) and make sure it is positive definite.}
+
+\item{refine_C}{When computing the variance, whether recompute the weighting matrix C using final estimated beta. The default is FALSE.}
 
 \item{sqrt_matrix}{The method to split weighting matrix into square root matrix. Select from c('svd','cholesky'), where 'cholesky' generates faster computation.}
 
@@ -89,7 +93,7 @@ The default is NULL, and main study is used for initial estimation according to 
 
 \item{use_sparseC}{Whether to use approximate version of weighting matrix C.
 If approximation, use the diagonal of inverse of C(inv_C) to approximate the inv_C. The default is FALSE.
-When main study sample size is limited, use_sparseC = TRUE is recommended.
+When main study sample size is really limited, use_sparseC = TRUE is recommended.
 When main study sample size is large enough, use_sparseC = FALSE is recommended.}
 
 \item{seed.use}{The seed for  97.}

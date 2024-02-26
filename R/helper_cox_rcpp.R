@@ -220,13 +220,6 @@ cv_cox_lambda_func<-function(index_fold,Z,W,A,times,events,
     rowSums(fold_cox_lambda)
 }
 
-
-iAUC<-function(times,events,predict_risk){
-    time_points <- seq(min(times), max(times), by = (max(times)-min(times))/length(times)/2)
-    roc_results <- timeROC::timeROC(times,events,predict_risk,cause = 1,times = time_points)
-    mean(roc_results$AUC,na.rm = T)
-}
-
 partial_likelihood<-function(times,events,X,beta,left_equal_id){
     likelihood1=sum(X[events==1,]%*%beta)
     likelihood2=sum(sapply(which(events==1), function(i){
@@ -337,6 +330,11 @@ htlgmm.cox.default<-function(y,Z,W=NULL,
     tilde_thetaZ = study_info[[1]]$Coeff
     V_thetaZ = study_info[[1]]$Covariance
     surv_data = Surv(time=times,event=events)
+
+    pZ=ncol(Z)
+    if(is.null(W)){pW=0}else{pW=ncol(W)}
+    if(is.null(A)){pA=0}else{pA=ncol(A)}
+
     if(pA!=0){
         if(is.null(hat_thetaA)){
             if(!is.null(V_thetaA)){
@@ -362,7 +360,7 @@ htlgmm.cox.default<-function(y,Z,W=NULL,
     X=cbind(A,Z,W)
     XR=cbind(A,Z)
 
-    nX = length(times)
+    nX=nZ=length(times)
 
     right_equal_id = right_id(times)
     left_equal_id = left_id(times)
@@ -418,7 +416,6 @@ htlgmm.cox.default<-function(y,Z,W=NULL,
                 fit_initial <- coxph(surv_data ~., data=data.frame(surv_data,A,Z,W))
                 beta_initial=fit_initial$coefficients
             }else{
-                library(glmnet)
                 fit_initial=cv.glmnet(x=X,y=surv_data,
                                       family="cox",alpha=initial_alpha,
                                       penalty.factor = fix_penalty)
@@ -568,6 +565,13 @@ htlgmm.cox.default<-function(y,Z,W=NULL,
 
 
 if(0){
+    iAUC<-function(times,events,predict_risk){
+        time_points <- seq(min(times), max(times), by = (max(times)-min(times))/length(times)/2)
+        roc_results <- timeROC::timeROC(times,events,predict_risk,cause = 1,times = time_points)
+        mean(roc_results$AUC,na.rm = T)
+    }
+
+    pacman::p_load(glmnet,Rcpp,caret,survival)
 surv.simulate<-function(foltime,
                         dist.ev, anc.ev, beta0.ev,
                         dist.cens, anc.cens, beta0.cens,

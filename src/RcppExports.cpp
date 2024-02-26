@@ -160,6 +160,17 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// sqrtcho_rcpp
+Eigen::MatrixXd sqrtcho_rcpp(const Eigen::MatrixXd& matrix);
+RcppExport SEXP _htlgmm_sqrtcho_rcpp(SEXP matrixSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< const Eigen::MatrixXd& >::type matrix(matrixSEXP);
+    rcpp_result_gen = Rcpp::wrap(sqrtcho_rcpp(matrix));
+    return rcpp_result_gen;
+END_RCPP
+}
 
 static const R_CallMethodDef CallEntries[] = {
     {"_htlgmm_crossprod_rcpp", (DL_FUNC) &_htlgmm_crossprod_rcpp, 2},
@@ -175,6 +186,7 @@ static const R_CallMethodDef CallEntries[] = {
     {"_htlgmm_expitm_rcpp", (DL_FUNC) &_htlgmm_expitm_rcpp, 1},
     {"_htlgmm_sqrtchoinv_rcpp", (DL_FUNC) &_htlgmm_sqrtchoinv_rcpp, 1},
     {"_htlgmm_choinv_rcpp", (DL_FUNC) &_htlgmm_choinv_rcpp, 1},
+    {"_htlgmm_sqrtcho_rcpp", (DL_FUNC) &_htlgmm_sqrtcho_rcpp, 1},
     {NULL, NULL, 0}
 };
 
