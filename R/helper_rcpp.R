@@ -330,6 +330,10 @@ htlgmm.default<-function(
         seed.use = 97
 ){
     set.seed(seed.use)
+    if(sum(is.na(y))>0){stop("y includes NA")}
+    if(sum(is.na(Z))>0){stop("Z includes NA")}
+    if(!is.null(W)&sum(is.na(W))>0){stop("W includes NA")}
+
     if (is.null(study_info)){stop("Please input study_info as trained model")}
     if(!penalty_type %in% c("none","adaptivelasso","lasso","ridge")){
         stop("Select penalty type from c('none','adaptivelasso','lasso','ridge').")

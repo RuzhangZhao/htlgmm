@@ -12,13 +12,8 @@ gwas.htlgmm(
   A = "default",
   family = "gaussian",
   beta_initial = NULL,
-  initial_fit = FALSE,
-  AW_betaAW = NULL,
-  A_thetaA = NULL,
-  V_thetaA = NULL,
-  inv_GammaAA = NULL,
-  refine_C = TRUE,
-  sqrt_matrix = "none",
+  repeated_term = NULL,
+  refine_C = FALSE,
   output_SNP_only = TRUE,
   seed.use = 97,
   verbose = FALSE,
@@ -45,24 +40,11 @@ A are the features working for adjustment in reduced model, but A is not summari
 \item{family}{The family is chosen from c("gaussian","binomial"). Linear regression for "gaussian" and logistic regression for "binomial".}
 
 \item{beta_initial}{The beta_initial list matching study_info, which provides the initial value of beta, e.g. fitting full model using plink2. If there is only one SNP, the beta_initial can be a vector.
-The default is NULL. The beta_initial should go in the order of (A,W,Z), where Z is for each SNP.
-There are four options: 1. beta_initial provided; 2. When beta_initial is NULL, fit beta_initial internally by setting initial_fit to be TRUE.
-3. When beta_initial is NULL, initial_fit is FALSE, AW_betaAW is NULL we fit full model without SNP only using (A,W) to generate AW_betaAW.
-4. When beta_initial is NULL, initial_fit is FALSE, we use the provided AW_betaAW.}
+The default is NULL. The beta_initial should go in the order of (A,W,Z), where Z is for each SNP.}
 
-\item{initial_fit}{Whether we fit the main study for the initial value of beta. The default is NULL.}
-
-\item{AW_betaAW}{Default is NULL.}
-
-\item{A_thetaA}{Default is NULL.}
-
-\item{V_thetaA}{Default is NULL.}
-
-\item{inv_GammaAA}{Default is NULL.}
+\item{repeated_term}{Default is NULL.}
 
 \item{refine_C}{When computing the variance, whether recompute the weighting matrix C using final estimated beta.}
-
-\item{sqrt_matrix}{The method to split weighting matrix into square root matrix. Select from c('svd','cholesky','none'), where 'cholesky' generates faster computation. When there is no penalty, no need to split the weighting matrix.}
 
 \item{output_SNP_only}{Default is TRUE.}
 

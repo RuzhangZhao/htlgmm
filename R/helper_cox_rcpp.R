@@ -48,12 +48,17 @@ left_id<-function(times){
     left_equal_id
 }
 
-reorder_U1U2 = function(X,XR,times,events,
-                        beta,tilde_thetaZ,
-                        hat_thetaA,
-                        left_equal_id,
-                        right_equal_id){
+reorder_U1U2U3 = function(Z,W,A,times,events,
+                          beta,tilde_thetaZ,
+                          hat_thetaA,
+                          left_equal_id,
+                          right_equal_id,X=NULL,XR=NULL){
+    if(is.null(X)){X=cbind(A,Z,W)}
+    if(is.null(XR)){XR=cbind(A,Z)}
     pX = ncol(X)
+    if(!is.null(A)){pA=ncol(A)}else{pA=0}
+    if(!is.null(W)){pW=ncol(W)}else{pW=0}
+    pZ=ncol(Z)
     pXR = ncol(XR) # XR is the first several cols of X
     nX = length(times)
     tilde_theta = c(hat_thetaA,tilde_thetaZ)
@@ -67,7 +72,8 @@ reorder_U1U2 = function(X,XR,times,events,
     })
     H_T_x_beta=sapply(1:nX, function(j){
         ind=sum(events[1:right_equal_id[j]])
-        inv_s0list=s01[1,1:ind]
+        if(ind==0){inv_s0list=0}else{
+            inv_s0list=s01[1,1:ind]}
         s1list=s01[-1,1:ind,drop=F]
         X[j,]*sum(inv_s0list)-colSums(t(s1list)*inv_s0list^2)
     })
@@ -79,7 +85,7 @@ reorder_U1U2 = function(X,XR,times,events,
     delta_x_s[events==1,] = t(s01[-1,])*s01[1,]
     U1mat=-X*events+delta_x_s+exp_H
 
-    ## First section of U2
+    ## General format for U2 and U3
     s01R <- sapply(which(events==1), function(i){
         xr_riskset = XR[left_equal_id[i]:nX,,drop=F]
         exp_xr_theta = exp(prodv_rcpp(xr_riskset,tilde_theta))
@@ -90,7 +96,8 @@ reorder_U1U2 = function(X,XR,times,events,
 
     HR_T_x_theta<-sapply(1:nX, function(j){
         ind=sum(events[1:right_equal_id[j]])
-        inv_s0Rlist=s01R[1,1:ind]
+        if(ind==0){inv_s0Rlist=0}else{
+            inv_s0Rlist=s01R[1,1:ind]}
         s1Rlist=s01R[-1,1:ind,drop=F]
         XR[j,]*sum(inv_s0Rlist)-colSums(t(s1Rlist)*inv_s0Rlist^2)
     })
@@ -101,37 +108,51 @@ reorder_U1U2 = function(X,XR,times,events,
     delta_xr_s = matrix(0,nrow=nX,ncol = ncol(XR))
     delta_xr_s[events==1,] = t(s01R[-1,])*s01R[1,]
 
-    ## Second section of U2 : truncate from U1
-    H_X_XR_T_x_beta<-H_T_x_beta[1:pXR,,drop=F]
-    exp_H_X_XR = t(H_X_XR_T_x_beta)*exp(prodv_rcpp(X,beta))
-    delta_x_xr_s = delta_x_s[,1:pXR,drop=F]
-    U2mat = -(delta_xr_s+exp_HR)+delta_x_xr_s+exp_H_X_XR
-    Umat = cbind(U1mat,U2mat)
-}
+    ## First section of U2 : truncate from above
+    exp_H_XR_Z = exp_HR[,(pA+1):(pA+pZ),drop=F]
+    delta_xr_z_s = delta_xr_s[,(pA+1):(pA+pZ),drop=F]
 
+    ## Second section of U2 : truncate from U1
+    exp_H_X_Z = exp_H[,(pA+1):(pA+pZ),drop=F]
+    delta_x_z_s = delta_x_s[,(pA+1):(pA+pZ),drop=F]
+    U2mat = -(delta_xr_z_s+exp_H_XR_Z)+delta_x_z_s+exp_H_X_Z
+    Umat = cbind(U1mat,U2mat)
+    return_list=list("Umat"=Umat)
+    if(pA>0){
+        exp_H_XR_A = exp_HR[,1:pA,drop=F]
+        delta_xr_a_s = delta_xr_s[,1:pA,drop=F]
+        U3mat = -A*events+delta_xr_a_s+exp_H_XR_A
+        return_list=c(return_list,list("U3mat"=U3mat))
+    }
+    return_list
+}
 
 Delta_opt_cox_rcpp<-function(Z,W,A,times,events,
                              beta,tilde_thetaZ,
                              V_thetaZ,
+                             left_equal_id,
+                             right_equal_id,
                              hat_thetaA=NULL,
-                             X=NULL,XR=NULL,
-                             left_equal_id=NULL,
-                             right_equal_id=NULL){
+                             V_thetaA=NULL,
+                             X=NULL,XR=NULL){
     nX=length(times)
     if(is.null(X)){X=cbind(A,Z,W)}
     if(is.null(XR)){XR=cbind(A,Z)}
     pX=ncol(X)
     pXR=ncol(XR)
+    if(!is.null(A)){pA=ncol(A)}else{pA=0}
+    if(!is.null(W)){pW=ncol(W)}else{pW=0}
+    pZ=ncol(Z)
     tilde_theta=c(hat_thetaA,tilde_thetaZ)
-    Umat = reorder_U1U2(X,XR,times,events,
-                        beta,tilde_thetaZ,
-                        hat_thetaA,
-                        left_equal_id,
-                        right_equal_id)
+    Umatlist = reorder_U1U2U3(Z,W,A,times,events,
+                              beta,tilde_thetaZ,
+                              hat_thetaA,
+                              left_equal_id,
+                              right_equal_id,X,XR)
+    Umat=Umatlist$Umat
     Delta_U=(1/nX)*self_crossprod_rcpp(Umat)
-
     tilde_theta = as.matrix(tilde_theta,ncol=1)
-    dU2dtheta <- lapply(which(events==1), function(i){
+    dU2U3dtheta <- lapply(which(events==1), function(i){
         xr_riskset = XR[left_equal_id[i]:nX,,drop=F]
         exp_xr_theta = exp(prod_rcpp(xr_riskset,tilde_theta))
         mat2r = crossprod_rcpp(xr_riskset,exp_xr_theta)
@@ -141,16 +162,30 @@ Delta_opt_cox_rcpp<-function(Z,W,A,times,events,
         mat2r = prod_rcpp(mat2r,t(mat2r))
         hes = mat1r/sum_exp_xr - mat2r/sum_exp_xr^2
     })
-    dU2dtheta = Reduce('+',dU2dtheta)/nX
+    dU2U3dtheta = Reduce('+',dU2U3dtheta)/nX
+    GammaZZ=dU2U3dtheta[(pA+1):(pA+pZ),(pA+1):(pA+pZ),drop=F]
 
     if(is.null(dim(V_thetaZ)[1])){V_thetaZ=as.matrix(V_thetaZ,nrow=pZ,ncol=pZ)}
-    Delta22_theta=prod_rcpp(prod_rcpp(dU2dtheta,(nX*V_thetaZ)),t(dU2dtheta))
-
-    Delta_theta = rbind(matrix(0,nrow=pX,ncol=pX+pXR),
-                        cbind(matrix(0,nrow=pXR,ncol=pX),Delta22_theta))
-
+    Delta22_theta=prod_rcpp(prod_rcpp(GammaZZ,(nX*V_thetaZ)),t(GammaZZ))
+    Delta_theta = rbind(matrix(0,nrow=pX,ncol=pX+pZ),
+                        cbind(matrix(0,nrow=pZ,ncol=pX),Delta22_theta))
+    if(pA>0){
+        U3mat=Umatlist$U3mat
+        GammaZA=dU2U3dtheta[(pA+1):(pA+pZ),1:pA,drop=F]
+        inv_GammaAA=choinv_rcpp(dU2U3dtheta[1:pA,1:pA,drop=F]+diag(1e-15,pA))
+        DDA=prod_rcpp(U3mat,prod_rcpp(inv_GammaAA,t(GammaZA)))
+        Cov_Utheta=(1/nX)*crossprod_rcpp(Umat,DDA)
+        Cov_U1theta=Cov_Utheta[1:pX,,drop=F]
+        Cov_U2theta=Cov_Utheta[-c(1:pX),,drop=F]
+        Delta22_thetaA = prod_rcpp(prod_rcpp(GammaZA,(nX*V_thetaA)),t(GammaZA))
+        +Cov_U2theta+t(Cov_U2theta)
+        Delta12_thetaA = Cov_U1theta
+        Delta_theta = Delta_theta+rbind(cbind(matrix(0,nrow=pX,ncol=pX),Delta12_thetaA),
+                                        cbind(t(Delta12_thetaA),Delta22_thetaA))
+    }
     Delta_U+Delta_theta
 }
+
 
 cv_cox_lambda_func<-function(index_fold,Z,W,A,times,events,
                              C_half,beta_initial,lambda_list,
@@ -188,8 +223,6 @@ cv_cox_lambda_func<-function(index_fold,Z,W,A,times,events,
         initial_sf<-nrow(Z)/sqrt(nrow(psXy$pseudo_X))
         pseudo_X_train = psXy$pseudo_X/initial_sf
         pseudo_y_train = psXy$pseudo_y/initial_sf
-        pseudo_X_train<<-pseudo_X_train
-        pseudo_y_train<<-pseudo_y_train
         cox_lam<-sapply(lambda_list,function(cur_lam){
             cv_fit<-glmnet(x= (pseudo_X_train),y= (pseudo_y_train),
                            standardize=F,intercept=F,
@@ -197,7 +230,6 @@ cv_cox_lambda_func<-function(index_fold,Z,W,A,times,events,
             cur_beta<-coef.glmnet(cv_fit)[-1]
             if(type_measure == "C"){
               tmp=Cindex(pred=prodv_rcpp(cbind(Atest,Ztest,Wtest),cur_beta),y=cbind(time=timestest,status=eventstest))
-              #tmp=iAUC(timestest,eventstest,prodv_rcpp(cbind(Atest,Ztest,Wtest),cur_beta))
             }else{
               tmp=partial_likelihood(timestest,eventstest,cbind(Atest,Ztest,Wtest),cur_beta,left_equal_id_train)
             }
@@ -226,7 +258,7 @@ partial_likelihood<-function(times,events,X,beta,left_equal_id){
     likelihood1-likelihood2
 }
 
-library(caret)
+
 pseudo_Xy_cox = function(C_half,Z,W,A,times,events,
                          beta,tilde_thetaZ,
                          hat_thetaA=NULL,
@@ -237,25 +269,28 @@ pseudo_Xy_cox = function(C_half,Z,W,A,times,events,
     beta=matrix(beta,ncol=1)
     tilde_theta = c(hat_thetaA,tilde_thetaZ)
     pX = ncol(X)
+    if(!is.null(A)){pA=ncol(A)}else{pA=0}
+    if(!is.null(W)){pW=ncol(W)}else{pW=0}
+    pZ=ncol(Z)
     pXR = ncol(XR)
     nX = nrow(X)
     gradhessian <- lapply(which(events==1), function(i){
         cur_riskset=left_equal_id[i]:nX
         x_riskset = X[cur_riskset,,drop=F]
         xr_riskset = XR[cur_riskset,,drop=F]
-
+        z_riskset = Z[cur_riskset,,drop=F]
         exp_x_beta = exp(prod_rcpp(x_riskset,beta))
         mat2 = crossprod_rcpp(x_riskset,exp_x_beta)
-        mat3 = crossprod_rcpp(xr_riskset,exp_x_beta)
+        mat3 = crossprod_rcpp(z_riskset,exp_x_beta)
         exp_x_beta = c(exp_x_beta)
         sum_exp = sum(exp_x_beta)
-        mat1 = crossprod_rcpp(cbind(x_riskset,xr_riskset),exp_x_beta*x_riskset)
+        mat1 = crossprod_rcpp(cbind(x_riskset,z_riskset),exp_x_beta*x_riskset)
         mat2 = prod_rcpp(rbind(mat2,mat3),t(mat2))
         hes = mat1/sum_exp - mat2/sum_exp^2
 
         prop=crossprodv_rcpp(x_riskset,exp_x_beta)/sum_exp
         exp_xr_theta = exp(prodv_rcpp(xr_riskset,tilde_theta))
-        prop1=crossprodv_rcpp(xr_riskset,exp_xr_theta)/sum(exp_xr_theta)
+        prop1=crossprodv_rcpp(z_riskset,exp_xr_theta)/sum(exp_xr_theta)
         prop = c(prop,prop1)
         cbind(hes,prop)
     })
@@ -263,19 +298,24 @@ pseudo_Xy_cox = function(C_half,Z,W,A,times,events,
 
     ps_X = prod_rcpp(C_half,gradhessian[,-c(pX+1)])
 
-    grad0 = -crossprodv_rcpp(X,events)
-    grad1 = gradhessian[1:ncol(X),(pX+1)]
-    grad2 = -gradhessian[-c(1:ncol(X)),(pX+1)]
-    grad3 = gradhessian[c(1:ncol(XR)),(pX+1)]
+    grad0 = -crossprodv_rcpp(X,events) ## sum -delta_i*x_i
+    grad1 = gradhessian[1:pX,(pX+1)] ## sum delta_i*sum_j exp(x_j beta)x_j / sum_j exp(x_j beta)
+    grad2 = -gradhessian[-c(1:pX),(pX+1)] ## sum delta_i*sum_j exp(xr_j theta)z_j / sum_j exp(xr_j theta)
+    grad3 = gradhessian[(1+pA):(pA+pZ),(pX+1)] ## sum delta_i*sum_j exp(x_j beta)z_j / sum_j exp(x_j beta)
     grad = c(grad0+grad1,grad2+grad3)
     ps_y = c(prod_rcpp(ps_X,beta) - prodv_rcpp(C_half,grad))
     list("pseudo_X"=ps_X,"pseudo_y"=ps_y)
 }
+
+library(caret)
+library(survival)
+library(glmnet)
 cv.htlgmm.cox<-function(times,events,Z,W,tilde_thetaZ,
                         A=NULL,
                         hat_thetaA=NULL,
                         beta_initial=NULL,
                         V_thetaZ=NULL,
+                        V_thetaA=NULL,
                         type_measure = "deviance",
                         C_half=NULL,
                         nopenalty = FALSE,
@@ -304,17 +344,17 @@ cv.htlgmm.cox<-function(times,events,Z,W,tilde_thetaZ,
                                    beta=beta_initial,
                                    tilde_thetaZ=tilde_thetaZ,
                                    V_thetaZ=V_thetaZ,
-                                   hat_thetaA=NULL,
-                                   X=X,XR=XR,
-                                   left_equal_id=left_equal_id,
-                                   right_equal_id=right_equal_id)
-
+                                   left_equal_id,
+                                   right_equal_id,
+                                   hat_thetaA=hat_thetaA,
+                                   V_thetaA=V_thetaA,
+                                   X=X,XR=XR)
         C_half<-sqrtchoinv_rcpp(inv_C+diag(1e-15,nrow(inv_C)))
     }
 
     psXy = pseudo_Xy_cox(C_half,Z,W,A,times,events,
                          beta_initial,tilde_thetaZ=tilde_thetaZ,
-                         hat_thetaA=NULL,X=X,XR=XR,
+                         hat_thetaA=hat_thetaA,X=X,XR=XR,
                          left_equal_id=left_equal_id)
     initial_sf<-nrow(Z)/sqrt(nrow(psXy$pseudo_X))
     psX = psXy$pseudo_X/initial_sf
@@ -805,7 +845,7 @@ if(0){
         pZ=1
         pW=1
         coef<-c(rep(0,pZ+pW))
-        coef<- c(0.5,0.5)
+        coef<- c(0.2,0.2)
         n=400
         nE=2000
         n_joint=n+nE
@@ -813,16 +853,22 @@ if(0){
         Z_joint<-matrix(rnorm(n_joint*pZ),n_joint,pZ)
         colnames(Z_joint)<-paste0("Z",1:pZ)
         W_joint<-matrix(rnorm(n_joint*pW),n_joint,pW)
-        W_joint = W_joint+0.3*Z_joint
+        W_joint = W_joint+0*Z_joint
         W_joint = scale(W_joint)
         colnames(W_joint)<-paste0("W",1:pW)
         X_joint<-cbind(Z_joint,W_joint)
         covs <- data.frame(id = 1:n_joint, X_joint)
         names(coef)=colnames(X_joint)
         s1 <- simsurv::simsurv(dist = c("weibull"),lambdas = 0.1, gammas = 1.5,
-                               betas = coef,x = covs, maxt = 5)
+                              betas = coef,x = covs, maxt = 5)
         observed_times_joint = s1$eventtime
         event_joint = s1$status
+        # simple.ev.dat<-surv.simulate(foltime = 365,
+        #                              dist.ev =  "weibull", anc.ev = 1, beta0.ev = 4.268,
+        #                              dist.cens = "weibull", anc.cens = 1,beta0.cens = 5.368,
+        #                              beta = coef, X = X_joint)
+        # observed_times_joint = simple.ev.dat$stop-simple.ev.dat$start
+        # event_joint = simple.ev.dat$status
         Z=Z_joint[main_index,,drop=F]  # separate main and external study for Z
         ZE=Z_joint[-main_index,,drop=F]
         W=W_joint[main_index,,drop=F]
@@ -834,18 +880,22 @@ if(0){
 
         library(survival)
         surv_data <- Surv(time = observed_times, event = event)
-        fit <- coxph(surv_data ~., data=data.frame(surv_data,Z,W))
+        fit <- coxph(surv_data ~., data=data.frame(surv_data,Z,W),robust=T)
         beta_initial=fit$coefficients
+        fitvar=fit$var
         surv_dataE <- Surv(time = observed_timesE, event = eventE)
         fitE <- coxph(surv_dataE ~., data=data.frame(surv_dataE,ZE))
         tilde_thetaZ=fitE$coefficients
         C_half = magic::adiag(diag(1,nrow=pZ+pW),diag(1,nrow=pZ))
 
         htlgmm_res = cv.htlgmm.cox(observed_times,event,Z,W,tilde_thetaZ,beta_initial = beta_initial,nopenalty = T,C_half =C_half)
-        beta_htlgmm = htlgmm_res$beta_nopenalty
+        htlgmm_res2 = cv.htlgmm.cox(observed_times,event,Z,W,tilde_thetaZ,V_thetaZ=fitvar,beta_initial = beta_initial,nopenalty = T)
+        beta_htlgmm = htlgmm_res$beta#_nopenalty
+        beta_htlgmm2 = htlgmm_res2$beta#_nopenalty
         bias_initial = beta_initial - coef
         bias_htlgmm = beta_htlgmm - coef
-        bias_vec<-rbind(bias_vec,c(bias_initial,bias_htlgmm))
+        bias_htlgmm2 = beta_htlgmm2 - coef
+        bias_vec<-rbind(bias_vec,c(bias_initial,bias_htlgmm,bias_htlgmm2))
     }
 
 }

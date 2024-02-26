@@ -303,16 +303,8 @@ cv.htlgmm<-function(
 #' @param family The family is chosen from c("gaussian","binomial"). Linear regression for "gaussian" and logistic regression for "binomial".
 #' @param beta_initial The beta_initial list matching study_info, which provides the initial value of beta, e.g. fitting full model using plink2. If there is only one SNP, the beta_initial can be a vector.
 #' The default is NULL. The beta_initial should go in the order of (A,W,Z), where Z is for each SNP.
-#' There are four options: 1. beta_initial provided; 2. When beta_initial is NULL, fit beta_initial internally by setting initial_fit to be TRUE.
-#' 3. When beta_initial is NULL, initial_fit is FALSE, AW_betaAW is NULL we fit full model without SNP only using (A,W) to generate AW_betaAW.
-#' 4. When beta_initial is NULL, initial_fit is FALSE, we use the provided AW_betaAW.
-#' @param initial_fit Whether we fit the main study for the initial value of beta. The default is NULL.
-#' @param AW_betaAW Default is NULL.
-#' @param A_thetaA Default is NULL.
-#' @param V_thetaA Default is NULL.
-#' @param inv_GammaAA Default is NULL.
+#' @param repeated_term Default is NULL.
 #' @param refine_C When computing the variance, whether recompute the weighting matrix C using final estimated beta.
-#' @param sqrt_matrix The method to split weighting matrix into square root matrix. Select from c('svd','cholesky','none'), where 'cholesky' generates faster computation. When there is no penalty, no need to split the weighting matrix.
 #' @param output_SNP_only Default is TRUE.
 #' @param seed.use The seed for  97.
 #' @param verbose Default is FALSE.
@@ -340,13 +332,8 @@ gwas.htlgmm<-function(
         A='default',
         family = "gaussian",
         beta_initial=NULL,
-        initial_fit=FALSE,
-        AW_betaAW=NULL,
-        A_thetaA=NULL,
-        V_thetaA=NULL,
-        inv_GammaAA=NULL,
-        refine_C = TRUE,
-        sqrt_matrix = "none",
+        repeated_term = NULL,
+        refine_C = FALSE,
         output_SNP_only=TRUE,
         seed.use = 97,
         verbose = FALSE,
@@ -366,8 +353,7 @@ gwas.htlgmm<-function(
             }}
 
     res<-htlgmm.gwas.default(y,Z,W,study_info,A,family,beta_initial,
-                             initial_fit,AW_betaAW,A_thetaA,V_thetaA,
-                             inv_GammaAA,refine_C,sqrt_matrix,
+                             repeated_term,refine_C,
                              output_SNP_only,seed.use,
                              verbose,output_tmp)
     return(res)
