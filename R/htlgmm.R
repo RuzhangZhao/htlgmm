@@ -42,9 +42,9 @@
 #' @param lambda_list Customize the input lambda list for validation. The default is NULL to generate lambda list according to glmnet.
 #' @param fix_ratio The fixed ratio for two-lambda strategy. The ratio is multiplied for Z features. The default is NULL. If it is NULL, select the best ratio via cross validation or holdout validation.
 #' @param gamma_adaptivelasso The gamma for adaptive lasso. Select from c(1/2,1,2). The default is 1/2.
-#' @param use_sparseC Whether to use approximate version of weighting matrix C.
-#' If approximation, use the diagonal of inverse of C(inv_C) to approximate the inv_C. The default is FALSE.
-#' When main study sample size is really limited, use_sparseC = TRUE is recommended.
+#' @param use_sparseC Whether to use approximate version of weighting matrix C using only diagonal terms as nonzeros.
+#' If approximation, use the diagonal of inverse of C(inv_C) to approximate the inv_C. The default is TRUE.
+#' When main study sample size is limited, use_sparseC = TRUE is recommended.
 #' When main study sample size is large enough, use_sparseC = FALSE is recommended.
 #' @param seed.use The seed for  97.
 #'
@@ -98,7 +98,7 @@ htlgmm<-function(
         lambda_list = NULL,
         fix_ratio = NULL,
         gamma_adaptivelasso = 1/2,
-        use_sparseC = FALSE,
+        use_sparseC = TRUE,
         seed.use = 97
 ){
 
@@ -128,7 +128,7 @@ htlgmm<-function(
                                 remove_penalty_W,inference,fix_C,refine_C,
                                 use_cv,type_measure,nfolds,fix_lambda,
                                 lambda_list,nlambda,lambda.min.ratio,
-                                gamma_adaptivelasso,seed.use)
+                                gamma_adaptivelasso,use_sparseC,seed.use)
     }else{
         V_thetaA_sandwich=robust
         res<-htlgmm.default(y,Z,W,study_info,A,penalty_type,
@@ -200,7 +200,7 @@ htlgmm<-function(
 #' @param ratio_list The ratio list if it is preset. The default is NULL and ratio list will be generated.
 #' @param gamma_adaptivelasso The gamma for adaptive lasso. Select from c(1/2,1,2). The default is 1/2.
 #' @param use_sparseC Whether to use approximate version of weighting matrix C.
-#' If approximation, use the diagonal of inverse of C(inv_C) to approximate the inv_C. The default is FALSE.
+#' If approximation, use the diagonal of inverse of C(inv_C) to approximate the inv_C. The default is TRUE.
 #' When main study sample size is limited, use_sparseC = TRUE is recommended.
 #' When main study sample size is large enough, use_sparseC = FALSE is recommended.
 #' @param seed.use The seed for  97.
@@ -270,7 +270,7 @@ cv.htlgmm<-function(
         fix_ratio = NULL,
         ratio_list = NULL,
         gamma_adaptivelasso = 1/2,
-        use_sparseC = FALSE,
+        use_sparseC = TRUE,
         seed.use = 97
 ){
     if(!family %in% c("gaussian","binomial","cox")){
@@ -295,7 +295,7 @@ cv.htlgmm<-function(
                                 remove_penalty_W,inference,fix_C,refine_C,
                                 use_cv,type_measure,nfolds,fix_lambda,
                                 lambda_list,nlambda,lambda.min.ratio,
-                                gamma_adaptivelasso,seed.use)
+                                gamma_adaptivelasso,use_sparseC,seed.use)
     }else{
         V_thetaA_sandwich=robust
         res<-htlgmm.default(y,Z,W,study_info,A,penalty_type,
@@ -335,7 +335,7 @@ cv.htlgmm<-function(
 #' @param family The family is chosen from c("gaussian","binomial"). Linear regression for "gaussian" and logistic regression for "binomial".
 #' @param beta_initial The beta_initial list matching study_info, which provides the initial value of beta, e.g. fitting full model using plink2. If there is only one SNP, the beta_initial can be a vector.
 #' The default is NULL. The beta_initial should go in the order of (A,W,Z), where Z is for each SNP.
-#' @param repeated_term Default is NULL.
+#' @param repeated_term Default is NULL, which includes A%*%hat_thetaA, V_thetaA, and inv_GammaAA.
 #' @param refine_C When computing the variance, whether recompute the weighting matrix C using final estimated beta.
 #' @param output_SNP_only Default is TRUE.
 #' @param seed.use The seed for  97.

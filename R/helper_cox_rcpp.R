@@ -302,6 +302,7 @@ htlgmm.cox.default<-function(y,Z,W=NULL,
                              nlambda = 100,
                              lambda.min.ratio = 0.0001,
                              gamma_adaptivelasso = 1/2,
+                             use_sparseC = FALSE,
                              seed.use = 97){
 
     set.seed(seed.use)
@@ -439,7 +440,12 @@ htlgmm.cox.default<-function(y,Z,W=NULL,
                                    hat_thetaA=hat_thetaA,
                                    V_thetaA=V_thetaA,
                                    X=X,XR=XR)
-        C_half<-sqrtchoinv_rcpp(inv_C+diag(1e-15,nrow(inv_C)))
+        if(use_sparseC){
+            C_half<-diag(1/sqrt(diag(inv_C)))
+            C_half0<-sqrtchoinv_rcpp(inv_C+diag(1e-15,nrow(inv_C)))
+        }else{
+            C_half<-sqrtchoinv_rcpp(inv_C+diag(1e-15,nrow(inv_C)))
+        }
     }else{
         if(nrow(fix_C)!=pA+pZ+pW+pZ){
             stop("Input fix_C dimension is wrong!")}
@@ -519,6 +525,7 @@ htlgmm.cox.default<-function(y,Z,W=NULL,
                 warning("Current penalty is lasso, please turn to adaptivelasso for inference")
             }
             # refine C
+            if(use_sparseC){C_half=C_half0}
             if(refine_C){
                 inv_C = Delta_opt_cox_rcpp(Z,W,A,times,events,
                                            beta=beta_initial,

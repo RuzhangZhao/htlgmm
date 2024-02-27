@@ -35,7 +35,7 @@ cv.htlgmm(
   fix_ratio = NULL,
   ratio_list = NULL,
   gamma_adaptivelasso = 1/2,
-  use_sparseC = FALSE,
+  use_sparseC = TRUE,
   seed.use = 97
 )
 }
@@ -113,7 +113,7 @@ For coxph model, robust is also about whether we apply the robust variance for t
 \item{gamma_adaptivelasso}{The gamma for adaptive lasso. Select from c(1/2,1,2). The default is 1/2.}
 
 \item{use_sparseC}{Whether to use approximate version of weighting matrix C.
-If approximation, use the diagonal of inverse of C(inv_C) to approximate the inv_C. The default is FALSE.
+If approximation, use the diagonal of inverse of C(inv_C) to approximate the inv_C. The default is TRUE.
 When main study sample size is limited, use_sparseC = TRUE is recommended.
 When main study sample size is large enough, use_sparseC = FALSE is recommended.}
 

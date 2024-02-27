@@ -523,6 +523,7 @@ htlgmm.default<-function(
 
         if(use_sparseC){
             C_half<-diag(1/sqrt(diag(inv_C)))
+            C_half0<-sqrtchoinv_rcpp(inv_C+diag(1e-15,nrow(inv_C)))
         }else{
             if(sqrt_matrix =="svd"){
                 inv_C_svd=fast.svd(inv_C+diag(1e-15,nrow(inv_C)))
@@ -688,6 +689,7 @@ htlgmm.default<-function(
                 warning("Current penalty is lasso, please turn to adaptivelasso for inference")
             }
             # refine C
+            if(use_sparseC){C_half=C_half0}
             if(refine_C){
                 inv_C = Delta_opt_rcpp(y=y,Z=Z,W=W,
                                        family=family,
