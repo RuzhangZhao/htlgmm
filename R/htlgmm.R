@@ -108,8 +108,9 @@ htlgmm<-function(
     if(is.null(dim(A)[1])){
     if(length(A)==1){
         if(A=='default'){if(family == "binomial"){A=1}else{A=NULL}}else{
-            if(A!=1){warning("If A is not a matrix, A should be selected from c('default',NULL,1).")}}
-        if(A==1&family=='cox'){warning("Coxph model usually does not include intercept term.")}
+            if(A!=1){warning("If A is not a matrix, A should be selected from c('default',NULL,1).")}
+            if(A==1&family=='cox'){warning("Coxph model usually does not include intercept term.")}
+        }
     }else{
         warning("If A is not selected from c('default',NULL,1), A must be a matrix.")
     }}
@@ -279,8 +280,10 @@ cv.htlgmm<-function(
     if(is.null(dim(A)[1])){
     if(length(A)==1){
         if(A=='default'){if(family == "binomial"){A=1}else{A=NULL}}else{
-        if(A!=1){warning("If A is not a matrix, A should be selected from c('default',NULL,1).")}}
+        if(A!=1){warning("If A is not a matrix, A should be selected from c('default',NULL,1).")}
         if(A==1&family=='cox'){warning("Coxph model usually does not include intercept term.")}
+        }
+
     }else{
         warning("If A is not selected from c('default',NULL,1), A must be a matrix.")
     }}
