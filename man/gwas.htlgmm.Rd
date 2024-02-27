@@ -42,7 +42,7 @@ A are the features working for adjustment in reduced model, but A is not summari
 \item{beta_initial}{The beta_initial list matching study_info, which provides the initial value of beta, e.g. fitting full model using plink2. If there is only one SNP, the beta_initial can be a vector.
 The default is NULL. The beta_initial should go in the order of (A,W,Z), where Z is for each SNP.}
 
-\item{repeated_term}{Default is NULL.}
+\item{repeated_term}{Default is NULL, which includes A%*%hat_thetaA, V_thetaA, and inv_GammaAA.}
 
 \item{refine_C}{When computing the variance, whether recompute the weighting matrix C using final estimated beta.}
 

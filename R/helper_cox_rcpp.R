@@ -414,7 +414,7 @@ htlgmm.cox.default<-function(y,Z,W=NULL,
         if(initial_with_type %in% c("coxph","ridge","lasso")){
             if(initial_with_type == "ridge"){initial_alpha=0}else{initial_alpha=1}
             if(initial_with_type == "coxph"){
-                fit_initial <- coxph(surv_data ~., data=data.frame(surv_data,A,Z,W))
+                fit_initial <- coxph(surv_data ~., data=data.frame(surv_data,X))
                 beta_initial=fit_initial$coefficients
             }else{
                 fit_initial=cv.glmnet(x=X,y=surv_data,
