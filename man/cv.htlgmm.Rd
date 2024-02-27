@@ -16,12 +16,12 @@ cv.htlgmm(
   beta_initial = NULL,
   hat_thetaA = NULL,
   V_thetaA = NULL,
-  use_offset = TRUE,
+  use_offset = FALSE,
   robust = TRUE,
   remove_penalty_Z = FALSE,
   remove_penalty_W = FALSE,
-  fix_C = NULL,
   inference = TRUE,
+  fix_C = NULL,
   refine_C = FALSE,
   sqrt_matrix = "cholesky",
   use_cv = TRUE,
@@ -82,9 +82,9 @@ For coxph model, robust is also about whether we apply the robust variance for t
 
 \item{remove_penalty_W}{Not penalize W if it is TRUE. The default is FALSE.}
 
-\item{fix_C}{When fix_C = NULL, the optimal C is computed. When user wants to customize the fix_C, please match its dimension as dim(A)+2*dim(Z)+dim(W) and make sure it is positive definite.}
-
 \item{inference}{Whether to do inference without penalty or post-selection inference with adaptive lasso penalty. The default is TRUE.}
+
+\item{fix_C}{When fix_C = NULL, the optimal C is computed. When user wants to customize the fix_C, please match its dimension as dim(A)+2*dim(Z)+dim(W) and make sure it is positive definite.}
 
 \item{refine_C}{When computing the variance, whether recompute the weighting matrix C using final estimated beta.}
 
