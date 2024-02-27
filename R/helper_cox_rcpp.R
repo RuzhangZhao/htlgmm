@@ -31,7 +31,8 @@ reorder_U1U2U3 = function(Z,W,A,times,events,
                           beta,tilde_thetaZ,
                           hat_thetaA,
                           left_equal_id,
-                          right_equal_id,X=NULL,XR=NULL){
+                          right_equal_id,X=NULL,XR=NULL,
+                          robust=TRUE){
     if(is.null(X)){X=cbind(A,Z,W)}
     if(is.null(XR)){XR=cbind(A,Z)}
     pX = ncol(X)
@@ -62,7 +63,8 @@ reorder_U1U2U3 = function(Z,W,A,times,events,
     exp_H = t(H_T_x_beta)*exp(prodv_rcpp(X,beta))
     delta_x_s = matrix(0,nrow=nX,ncol = ncol(X))
     delta_x_s[events==1,] = t(s01[-1,])*s01[1,]
-    U1mat=-X*events+delta_x_s+exp_H
+    U1mat=-X*events+delta_x_s
+    if(robust)U1mat=U1mat+exp_H
 
     ## General format for U2 and U3
     s01R <- sapply(which(events==1), function(i){
@@ -94,13 +96,15 @@ reorder_U1U2U3 = function(Z,W,A,times,events,
     ## Second section of U2 : truncate from U1
     exp_H_X_Z = exp_H[,(pA+1):(pA+pZ),drop=F]
     delta_x_z_s = delta_x_s[,(pA+1):(pA+pZ),drop=F]
-    U2mat = -(delta_xr_z_s+exp_H_XR_Z)+delta_x_z_s+exp_H_X_Z
+    U2mat = -(delta_xr_z_s)+delta_x_z_s
+    if(robust){U2mat = U2mat -(exp_H_XR_Z)+exp_H_X_Z}
     Umat = cbind(U1mat,U2mat)
     return_list=list("Umat"=Umat)
     if(pA>0){
         exp_H_XR_A = exp_HR[,1:pA,drop=F]
         delta_xr_a_s = delta_xr_s[,1:pA,drop=F]
-        U3mat = -A*events+delta_xr_a_s+exp_H_XR_A
+        U3mat = -A*events+delta_xr_a_s
+        if(robust)U3mat =U3mat+exp_H_XR_A
         return_list=c(return_list,list("U3mat"=U3mat))
     }
     return_list
@@ -113,7 +117,8 @@ Delta_opt_cox_rcpp<-function(Z,W,A,times,events,
                              right_equal_id,
                              hat_thetaA=NULL,
                              V_thetaA=NULL,
-                             X=NULL,XR=NULL){
+                             X=NULL,XR=NULL,
+                             robust=TRUE){
     nX=length(times)
     if(is.null(X)){X=cbind(A,Z,W)}
     if(is.null(XR)){XR=cbind(A,Z)}
@@ -127,7 +132,8 @@ Delta_opt_cox_rcpp<-function(Z,W,A,times,events,
                               beta,tilde_thetaZ,
                               hat_thetaA,
                               left_equal_id,
-                              right_equal_id,X,XR)
+                              right_equal_id,X,XR,
+                              robust)
     Umat=Umatlist$Umat
     Delta_U=(1/nX)*self_crossprod_rcpp(Umat)
     tilde_theta = as.matrix(tilde_theta,ncol=1)
@@ -291,8 +297,8 @@ htlgmm.cox.default<-function(y,Z,W=NULL,
                              robust = TRUE,
                              remove_penalty_Z = FALSE,
                              remove_penalty_W = FALSE,
-                             fix_C=NULL,
                              inference = TRUE,
+                             fix_C=NULL,
                              refine_C = FALSE,
                              use_cv = TRUE,
                              type_measure = "deviance",
@@ -438,7 +444,7 @@ htlgmm.cox.default<-function(y,Z,W=NULL,
                                    right_equal_id,
                                    hat_thetaA=hat_thetaA,
                                    V_thetaA=V_thetaA,
-                                   X=X,XR=XR)
+                                   X=X,XR=XR,robust=robust)
         C_half<-sqrtchoinv_rcpp(inv_C+diag(1e-15,nrow(inv_C)))
     }else{
         if(nrow(fix_C)!=pA+pZ+pW+pZ){
@@ -487,7 +493,7 @@ htlgmm.cox.default<-function(y,Z,W=NULL,
                                              lambda = lambda_list)
                 return_list<-list("beta"=fit_final_lambda_list$beta,
                                   "lambda_list"=fit_final_lambda_list$lambda)
-                if(inference){warnings("When use_cv=F,fix_lambda is NULL, no inference will be done")}
+                if(inference){warning("When use_cv=F,fix_lambda is NULL, no inference will be done")}
                 inference=FALSE
             }
         }
@@ -528,7 +534,7 @@ htlgmm.cox.default<-function(y,Z,W=NULL,
                                            right_equal_id,
                                            hat_thetaA=hat_thetaA,
                                            V_thetaA=V_thetaA,
-                                           X=X,XR=XR)
+                                           X=X,XR=XR,robust=robust)
                 C_half<-sqrtchoinv_rcpp(inv_C+diag(1e-15,nrow(inv_C)))
             }
 

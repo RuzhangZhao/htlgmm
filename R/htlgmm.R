@@ -105,14 +105,13 @@ htlgmm<-function(
     if(!family %in% c("gaussian","binomial","cox")){
         stop("Select family from c('gaussian','binomial','cox')")
     }
-    if(family)
     if(is.null(dim(A)[1])){
     if(length(A)==1){
-    if(A=='default'){if(family == "binomial"){A=1}else{A=NULL}}else{
-        if(!is.null(A)){
-            if(A!=1){warnings("If A is not a matrix, A should be selected from c('default',NULL,1).")}}
-    }}else{
-        warnings("If A is not selected from c('default',NULL,1), A must be a matrix.")
+        if(A=='default'){if(family == "binomial"){A=1}else{A=NULL}}else{
+            if(A!=1){warning("If A is not a matrix, A should be selected from c('default',NULL,1).")}}
+        if(A==1&family=='cox'){warning("Coxph model usually does not include intercept term.")}
+    }else{
+        warning("If A is not selected from c('default',NULL,1), A must be a matrix.")
     }}
     use_cv = FALSE
     nfolds = 10
@@ -255,8 +254,8 @@ cv.htlgmm<-function(
         robust = TRUE,
         remove_penalty_Z = FALSE,
         remove_penalty_W = FALSE,
-        fix_C = NULL,
         inference = TRUE,
+        fix_C = NULL,
         refine_C = FALSE,
         sqrt_matrix = 'cholesky',
         use_cv = TRUE,
@@ -280,14 +279,11 @@ cv.htlgmm<-function(
     if(is.null(dim(A)[1])){
     if(length(A)==1){
         if(A=='default'){if(family == "binomial"){A=1}else{A=NULL}}else{
-        if(!is.null(A)){
-            if(A!=1){warnings("If A is not a matrix, A should be selected from c('default',NULL,1).")}}
-    }}else{
-        warnings("If A is not selected from c('default',NULL,1), A must be a matrix.")
+        if(A!=1){warning("If A is not a matrix, A should be selected from c('default',NULL,1).")}}
+        if(A==1&family=='cox'){warning("Coxph model usually does not include intercept term.")}
+    }else{
+        warning("If A is not selected from c('default',NULL,1), A must be a matrix.")
     }}
-    if(A == 1 & family == 'cox'){
-        warnings("Coxph model usually does not include intercept term.")
-    }
 
     if(family == 'cox'){
         res<-htlgmm.cox.default(y,Z,W,study_info,A,penalty_type,
@@ -380,9 +376,9 @@ gwas.htlgmm<-function(
         if(length(A)==1){
             if(A=='default'){if(family == "gaussian"){A=NULL}else{A=1}}else{
                 if(!is.null(A)){
-                    if(A!=1){warnings("If A is not a matrix, A should be selected from c('default',NULL,1).")}}
+                    if(A!=1){warning("If A is not a matrix, A should be selected from c('default',NULL,1).")}}
             }}else{
-                warnings("If A is not selected from c('default',NULL,1), A must be a matrix.")
+                warning("If A is not selected from c('default',NULL,1), A must be a matrix.")
             }}
 
     res<-htlgmm.gwas.default(y,Z,W,study_info,A,family,beta_initial,
@@ -523,9 +519,9 @@ fm.htlgmm<-function(
         if(length(A)==1){
             if(A=='default'){if(family == "gaussian"){A=NULL}else{A=1}}else{
                 if(!is.null(A)){
-                    if(A!=1){warnings("If A is not a matrix, A should be selected from c('default',NULL,1).")}}
+                    if(A!=1){warning("If A is not a matrix, A should be selected from c('default',NULL,1).")}}
             }}else{
-                warnings("If A is not selected from c('default',NULL,1), A must be a matrix.")
+                warning("If A is not selected from c('default',NULL,1), A must be a matrix.")
             }}
     if(length(study_info)!=ncol(Z)){
         stop("When using htlgmm.finemapping, input Z as a matrix with size of sample*SNP, and study_info as a list of summary statistics. The columns of Z need to match the study_info.")
@@ -655,9 +651,9 @@ group.fm.htlgmm<-function(
         if(length(A)==1){
             if(A=='default'){if(family == "gaussian"){A=NULL}else{A=1}}else{
                 if(!is.null(A)){
-                    if(A!=1){warnings("If A is not a matrix, A should be selected from c('default',NULL,1).")}}
+                    if(A!=1){warning("If A is not a matrix, A should be selected from c('default',NULL,1).")}}
             }}else{
-                warnings("If A is not selected from c('default',NULL,1), A must be a matrix.")
+                warning("If A is not selected from c('default',NULL,1), A must be a matrix.")
             }}
     if(length(study_info)!=ncol(Z)){
         stop("When using htlgmm.finemapping, input Z as a matrix with size of sample*SNP, and study_info as a list of summary statistics. The columns of Z need to match the study_info.")

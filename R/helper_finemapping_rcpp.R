@@ -346,7 +346,7 @@ fm.htlgmm.default<-function(
                                               lambda = lambda_list)
                 return_list<-list("beta"=fit_final_lambda_list$beta,
                                   "lambda_list"=fit_final_lambda_list$lambda)
-                if(inference){warnings("When use_cv=F,fix_lambda is NULL, no inference will be done")}
+                if(inference){warning("When use_cv=F,fix_lambda is NULL, no inference will be done")}
                 inference=FALSE
             }
             if(!is.null(fix_ratio)){
