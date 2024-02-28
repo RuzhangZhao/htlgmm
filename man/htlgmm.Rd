@@ -66,7 +66,7 @@ The default is NULL, and main study is used for initial estimation according to 
 
 \item{V_thetaA}{If A is not NULL, one can provide V_thetaA as the input. If 'V_thetaA = NULL', we estimate V_thetaA with glm by main study.}
 
-\item{use_offset}{Whether to use offset regarding the external model estimated coefficient. The default is TRUE.}
+\item{use_offset}{Whether to use offset regarding the external model estimated coefficient. The default is FALSE.}
 
 \item{robust}{Whether to apply sandwich formula to compute the variance-covariance matrix of hat_thetaA.The default is TRUE.
 For coxph model, robust is also about whether we apply the robust variance for the estimating equations.}
