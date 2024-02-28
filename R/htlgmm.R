@@ -29,7 +29,7 @@
 #' The default is NULL, and main study is used for initial estimation according to 'initial_with_type'.
 #' @param hat_thetaA If A is not NULL, one can provide hat_thetaA as the input. If 'hat_thetaA = NULL', we estimate hat_thetaA with glm by main study.
 #' @param V_thetaA If A is not NULL, one can provide V_thetaA as the input. If 'V_thetaA = NULL', we estimate V_thetaA with glm by main study.
-#' @param use_offset Whether to use offset regarding the external model estimated coefficient. The default is TRUE.
+#' @param use_offset Whether to use offset regarding the external model estimated coefficient. The default is FALSE.
 #' @param robust Whether to apply sandwich formula to compute the variance-covariance matrix of hat_thetaA.The default is TRUE.
 #' For coxph model, robust is also about whether we apply the robust variance for the estimating equations.
 #' @param remove_penalty_Z Not penalize Z if it is TRUE. The default is FALSE.
@@ -123,7 +123,7 @@ htlgmm<-function(
     lambda.min.ratio = 0.0001
     if(family == 'cox'){
         res<-htlgmm.cox.default(y,Z,W,study_info,A,penalty_type,
-                                family,initial_with_type,beta_initial,
+                                initial_with_type,beta_initial,
                                 hat_thetaA,V_thetaA,robust,remove_penalty_Z,
                                 remove_penalty_W,inference,fix_C,refine_C,
                                 use_cv,type_measure,nfolds,fix_lambda,
@@ -179,7 +179,7 @@ htlgmm<-function(
 #' The default is NULL, and main study is used for initial estimation according to 'initial_with_type'.
 #' @param hat_thetaA If A is not NULL, one can provide hat_thetaA as the input. If 'hat_thetaA = NULL', we estimate hat_thetaA with glm by main study.
 #' @param V_thetaA If A is not NULL, one can provide V_thetaA as the input. If 'V_thetaA = NULL', we estimate V_thetaA with glm by main study.
-#' @param use_offset Whether to use offset regarding the external model estimated coefficient. The default is TRUE.
+#' @param use_offset Whether to use offset regarding the external model estimated coefficient. The default is FALSE.
 #' @param robust Whether to apply sandwich formula to compute the variance-covariance matrix of hat_thetaA.The default is TRUE.
 #' For coxph model, robust is also about whether we apply the robust variance for the estimating equations.
 #' @param remove_penalty_Z Not penalize Z if it is TRUE. The default is FALSE.
@@ -290,7 +290,7 @@ cv.htlgmm<-function(
 
     if(family == 'cox'){
         res<-htlgmm.cox.default(y,Z,W,study_info,A,penalty_type,
-                                family,initial_with_type,beta_initial,
+                                initial_with_type,beta_initial,
                                 hat_thetaA,V_thetaA,robust,remove_penalty_Z,
                                 remove_penalty_W,inference,fix_C,refine_C,
                                 use_cv,type_measure,nfolds,fix_lambda,
@@ -424,7 +424,7 @@ gwas.htlgmm<-function(
 #' The default is NULL, and main study is used for initial estimation according to 'initial_with_type'.
 #' @param hat_thetaA If A is not NULL, one can provide hat_thetaA as the input. If 'hat_thetaA = NULL', we estimate hat_thetaA with glm by main study.
 #' @param V_thetaA If A is not NULL, one can provide V_thetaA as the input. If 'V_thetaA = NULL', we estimate V_thetaA with glm by main study.
-#' @param use_offset Whether to use offset regarding the external model estimated coefficient. The default is TRUE.
+#' @param use_offset Whether to use offset regarding the external model estimated coefficient. The default is FALSE.
 #' @param V_thetaA_sandwich Whether to apply sandwich formula to compute the variance-covariance matrix if hat_thetaA.The default is FALSE.
 #' @param remove_penalty_Z Not penalize Z if it is TRUE. The default is FALSE.
 #' @param remove_penalty_W Not penalize W if it is TRUE. The default is FALSE.
@@ -493,7 +493,7 @@ fm.htlgmm<-function(
         beta_initial = NULL,
         hat_thetaA = NULL,
         V_thetaA = NULL,
-        use_offset = TRUE,
+        use_offset = FALSE,
         V_thetaA_sandwich = FALSE,
         remove_penalty_Z = FALSE,
         remove_penalty_W = FALSE,

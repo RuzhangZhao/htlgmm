@@ -142,7 +142,7 @@ Delta_opt_cox_rcpp<-function(Z,W,A,times,events,
         hes = mat1r/sum_exp_xr - mat2r/sum_exp_xr^2
     })
     dU2U3dtheta = Reduce('+',dU2U3dtheta)/nX
-    GammaZZ=dU2U3dtheta[(pA+1):(pA+pZ),(pA+1):(pA+pZ),drop=F]
+    GammaZZ=dU2U3dtheta[(pA+1):(pA+pZ),(pA+1):(pA+pZ),drop=F]*(-1)
 
     if(is.null(dim(V_thetaZ)[1])){V_thetaZ=as.matrix(V_thetaZ,nrow=pZ,ncol=pZ)}
     Delta22_theta=prod_rcpp(prod_rcpp(GammaZZ,(nX*V_thetaZ)),t(GammaZZ))
@@ -283,7 +283,6 @@ htlgmm.cox.default<-function(y,Z,W=NULL,
                              study_info=NULL,
                              A=NULL,
                              penalty_type = "lasso",
-                             family = "gaussian",
                              initial_with_type = "ridge",
                              beta_initial = NULL,
                              hat_thetaA = NULL,
@@ -528,7 +527,7 @@ htlgmm.cox.default<-function(y,Z,W=NULL,
             if(use_sparseC){C_half=C_half0}
             if(refine_C){
                 inv_C = Delta_opt_cox_rcpp(Z,W,A,times,events,
-                                           beta=beta_initial,
+                                           beta=beta,
                                            tilde_thetaZ=tilde_thetaZ,
                                            V_thetaZ=V_thetaZ,
                                            left_equal_id,
@@ -1054,10 +1053,11 @@ if(0){
         X_joint<-cbind(Z_joint,W_joint)
         covs <- data.frame(id = 1:n_joint, X_joint)
         names(coef)=colnames(X_joint)
-        s1 <- simsurv::simsurv(dist = c("weibull"),lambdas = 0.1, gammas = 1.5,
-                              betas = coef,x = covs, maxt = 5)
+        s1 <- simsurv::simsurv(dist = c("weibull"),lambdas = .2, gammas = .1,
+                              betas = coef,x = covs, maxt = 365)
         observed_times_joint = s1$eventtime
         event_joint = s1$status
+        mean(event_joint)
         # simple.ev.dat<-surv.simulate(foltime = 365,
         #                              dist.ev =  "weibull", anc.ev = 1, beta0.ev = 4.268,
         #                              dist.cens = "weibull", anc.cens = 1,beta0.cens = 5.368,
