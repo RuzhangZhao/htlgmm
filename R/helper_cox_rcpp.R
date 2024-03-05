@@ -193,6 +193,7 @@ cv_cox_lambda_func<-function(index_fold,Z,W,A,times,events,
         eventstest<-events[index_test]
 
         left_equal_id_train = left_id(timestrain)
+        left_equal_id_test = left_id(timestest)
 
         psXy<-pseudo_Xy_cox(C_half,Ztrain,Wtrain,Atrain,timestrain,
                             eventstrain,beta_initial,
@@ -211,7 +212,7 @@ cv_cox_lambda_func<-function(index_fold,Z,W,A,times,events,
             if(type_measure == "C"){
               tmp=Cindex(pred=prodv_rcpp(cbind(Atest,Ztest,Wtest),cur_beta),y=cbind(time=timestest,status=eventstest))
             }else{
-              tmp=partial_likelihood(timestest,eventstest,cbind(Atest,Ztest,Wtest),cur_beta,left_equal_id_train)
+              tmp=partial_likelihood(timestest,eventstest,cbind(Atest,Ztest,Wtest),cur_beta,left_equal_id_test)
             }
             tmp
         })
@@ -515,7 +516,17 @@ htlgmm.cox.default<-function(y,Z,W=NULL,
             return_list = c(return_list,list("cv_Cindex"=cv_res))
         }else{return_list = c(return_list,list("cv_dev"=cv_res))}
     }
-
+    # C_half<<-C_half
+    # cu=prodv_rcpp(C_half,Ucompute(Z,W,A,times,events,
+    #                                    beta,tilde_thetaZ,
+    #                                    hat_thetaA,
+    #                                    left_equal_id=left_equal_id))
+    # cu<<-cu
+    # grad<<-Ucompute(Z,W,A,times,events,
+    #                 beta,tilde_thetaZ,
+    #                 hat_thetaA,
+    #                 left_equal_id=left_equal_id)
+    # print(c(cu%*%cu,cu[1:pX]%*%cu[1:pX]))
 
     if(inference){
         index_nonzero<-which(beta!=0)
