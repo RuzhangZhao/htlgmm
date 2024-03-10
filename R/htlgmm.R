@@ -1,18 +1,19 @@
 #' htlgmm:
 #'
-#' htlgmm fits a generalized linear model via penalized generalized method of moments,
+#' htlgmm fits a generalized linear model or cox proportional hazard model via penalized generalized method of moments,
 #' i.e. Heterogeneous Transfer Learning via Generalized Method of Moments.
-#' The input requires main study and external study.
+#' The input requires a main study and an external study.
 #'
 #'
 #' @details htlgmm: Heterogeneous Transfer Learning via generalized method of moments(GMM).
 #'
-#' @param y The variable of interest, which can be continuous or binary. For coxph model, y should be a list with two items including 'time' and 'event'.
+#' @param y The outcome variable, which can be continuous, binary or time-to-event data. For coxph model, y should be a list with two items including 'time' and 'event'.
 #' @param Z The overlapping features in both main and external studies.
 #' @param W The unmatched features only in main study, the default is NULL. Without W, the problem is degenerated to problem similar to meta-analysis.
-#' @param study_info The trained model from external study, including estimate coefficients, estimated variance-covariance matrix and sample size.
-#' The 'study_info' is in the format of list. The first item is 'Coeff', the second iterm is 'Covariance', and the third item (optional) is 'Sample_size'.
-#' @param A The covariates for study-specific adjustment. The default is 'default', which is 'NULL' for 'gaussian' family, '1' for 'binomial' family.
+#' @param study_info The trained model from external study, including estimated coefficients, estimated variance-covariance matrix and sample size.
+#' The 'study_info' is in the format of list. The first item is 'Coeff', the second item is 'Covariance', and the third item (optional) is 'Sample_size'.
+#' E.g. study_info = list(list("Coeff"=coeff,"Covariance"=covariance,"Sample_size"=sample_size))
+#' @param A The covariates for study-specific adjustment. The default is 'default', which is 'NULL' for 'gaussian' family or 'cox' family, '1' for 'binomial' family.
 #' Other than c('default',NULL,1), A must be a matrix whose dimension is the same as the sample dimension or Z and W.
 #' For continuous variable, we suggest scaling the features Z, W to eliminate intercept term.  If 'A = NULL', there is no intercept term included.
 #' For binary variable, we use intercept term by 'A=1' to adjust for different binary trait ratios in main and external studies.

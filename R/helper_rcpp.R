@@ -668,11 +668,18 @@ htlgmm.default<-function(
                                     lambda = final.lambda.min)
 
         beta<-coef.glmnet(fit_final_lam_ratio)[-1]
+
+        fit_final_lam_ratio_allbeta<-glmnet(x= pseudo_X,y= pseudo_y,standardize=F,
+                                    intercept=F,alpha = final_alpha,
+                                    penalty.factor = w_adaptive_ratio,
+                                    lambda = lambda_list)
+
         return_list<-list("beta"=beta,
                           "lambda_list"=lambda_list,
                           "ratio_list"=ratio_list,
                           "lambda_min"=final.lambda.min,
-                          "ratio_min"=final.ratio.min)
+                          "ratio_min"=final.ratio.min,
+                          "allbetas"=coef(fit_final_lam_ratio_allbeta))
         if(family == "gaussian"){
             return_list<-c(return_list,
                            list("cv_mse"=cv_mse/nfolds))
