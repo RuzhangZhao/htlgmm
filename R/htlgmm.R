@@ -48,6 +48,7 @@
 #' When main study sample size is limited, use_sparseC = TRUE is recommended.
 #' When main study sample size is large enough, use_sparseC = FALSE is recommended.
 #' @param seed.use The seed for  97.
+#' @param output_all_betas Output all betas.
 #'
 #' @return \itemize{
 #'  \item{beta:} The target coefficient estimation, the features will go in the order of (A,Z,W).
@@ -100,7 +101,8 @@ htlgmm<-function(
         fix_ratio = NULL,
         gamma_adaptivelasso = 1/2,
         use_sparseC = TRUE,
-        seed.use = 97
+        seed.use = 97,
+        output_all_betas=FALSE
 ){
 
     if(!family %in% c("gaussian","binomial","cox")){
@@ -141,7 +143,7 @@ htlgmm<-function(
                             fix_lambda,lambda_list,nlambda,
                             lambda.min.ratio,tune_ratio,fix_ratio,
                             ratio_list,gamma_adaptivelasso,
-                            use_sparseC,seed.use)
+                            use_sparseC,seed.use,output_all_betas)
     }
     return(res)
 }
@@ -205,6 +207,7 @@ htlgmm<-function(
 #' When main study sample size is limited, use_sparseC = TRUE is recommended.
 #' When main study sample size is large enough, use_sparseC = FALSE is recommended.
 #' @param seed.use The seed for  97.
+#' @param output_all_betas output_all_betas
 #'
 #' @return \itemize{
 #'  \item{beta:} The target coefficient estimation, the features will go in the order of (A,Z,W).
@@ -272,7 +275,8 @@ cv.htlgmm<-function(
         ratio_list = NULL,
         gamma_adaptivelasso = 1/2,
         use_sparseC = TRUE,
-        seed.use = 97
+        seed.use = 97,
+        output_all_betas=FALSE
 ){
     if(!family %in% c("gaussian","binomial","cox")){
         stop("Select family from c('gaussian','binomial','cox')")
@@ -308,7 +312,7 @@ cv.htlgmm<-function(
                             fix_lambda,lambda_list,nlambda,
                             lambda.min.ratio,tune_ratio,fix_ratio,
                             ratio_list,gamma_adaptivelasso,
-                            use_sparseC,seed.use)
+                            use_sparseC,seed.use,output_all_betas)
     }
 
     return(res)

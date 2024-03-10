@@ -328,7 +328,8 @@ htlgmm.default<-function(
         ratio_list = NULL,
         gamma_adaptivelasso = 1/2,
         use_sparseC = TRUE,
-        seed.use = 97
+        seed.use = 97,
+        output_all_betas=FALSE
 ){
     set.seed(seed.use)
     if(sum(is.na(y))>0){stop("y includes NA")}
@@ -669,17 +670,19 @@ htlgmm.default<-function(
 
         beta<-coef.glmnet(fit_final_lam_ratio)[-1]
 
-        fit_final_lam_ratio_allbeta<-glmnet(x= pseudo_X,y= pseudo_y,standardize=F,
-                                    intercept=F,alpha = final_alpha,
-                                    penalty.factor = w_adaptive_ratio,
-                                    lambda = lambda_list)
-
         return_list<-list("beta"=beta,
                           "lambda_list"=lambda_list,
                           "ratio_list"=ratio_list,
                           "lambda_min"=final.lambda.min,
-                          "ratio_min"=final.ratio.min,
-                          "allbetas"=coef(fit_final_lam_ratio_allbeta))
+                          "ratio_min"=final.ratio.min)
+        if(output_all_betas){
+            fit_final_lam_ratio_allbeta<-glmnet(x= pseudo_X,y= pseudo_y,standardize=F,
+                                                intercept=F,alpha = final_alpha,
+                                                penalty.factor = w_adaptive_ratio,
+                                                lambda = lambda_list)
+            return_list<-c(return_list,
+            list("allbetas"=coef(fit_final_lam_ratio_allbeta)))
+        }
         if(family == "gaussian"){
             return_list<-c(return_list,
                            list("cv_mse"=cv_mse/nfolds))

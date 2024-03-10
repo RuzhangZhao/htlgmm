@@ -29,7 +29,8 @@ htlgmm(
   fix_ratio = NULL,
   gamma_adaptivelasso = 1/2,
   use_sparseC = TRUE,
-  seed.use = 97
+  seed.use = 97,
+  output_all_betas = FALSE
 )
 }
 \arguments{
@@ -98,6 +99,8 @@ When main study sample size is limited, use_sparseC = TRUE is recommended.
 When main study sample size is large enough, use_sparseC = FALSE is recommended.}
 
 \item{seed.use}{The seed for  97.}
+
+\item{output_all_betas}{Output all betas.}
 }
 \value{
 \itemize{
