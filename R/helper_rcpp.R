@@ -233,7 +233,14 @@ cv_dev_lambda_func<-function(index_fold,Z,W,A,y,
         dev_lam
     })
     sum_dev_lam<-Reduce(`+`, dev_fold)
-    list("deviance"=sum_dev_lam[1,],"auc"=sum_dev_lam[2,])
+    sum_dev_lam=sum_dev_lam/length(index_fold)
+    for(i in 1:length(dev_fold)){dev_fold[[i]]=dev_fold[[i]]^2}
+    sum_dev_lam_sq<-Reduce(`+`, dev_fold)
+    sum_dev_lam_sq=sum_dev_lam_sq/length(index_fold)
+    sum_dev_lam_sq=sum_dev_lam_sq-sum_dev_lam^2
+    sum_dev_lam_sd=sqrt(sum_dev_lam_sq)
+    list("deviance"=sum_dev_lam[1,],"auc"=sum_dev_lam[2,],
+         "deviance_sd"=sum_dev_lam_sd[1,],"auc_sd"=sum_dev_lam_sd[2,])
 }
 
 ## cross validation function for continuous y with lambda and ratio
@@ -651,13 +658,42 @@ htlgmm.default<-function(
                                            C_half,beta_initial,hat_thetaA,
                                            study_info,lambda_list,
                                            w_adaptive,final_alpha,pseudo_Xy)
-                if(type_measure == "auc"){
-                    cv_dev1<-cv_dev$auc
-                    final.lambda.min<-lambda_list[which.max(cv_dev1)]
-                }else{
+                # if(type_measure == "auc"){
+                    cv_auc1<-cv_dev$auc
+                    cv_auc1_sd<-cv_dev$auc_sd
+                    max_id=which.max(cv_auc1)
+                    max_id1=min(which(cv_auc1 >= cv_auc1[max_id]-cv_auc1_sd[max_id]))
+                    max_id12=min(which(cv_auc1 >= cv_auc1[max_id]-2*cv_auc1_sd[max_id]))
+                    max_id3=as.integer((max_id+max_id1)/2)
+                    max_id2=as.integer((max_id1+max_id3)/2)
+                    max_id4=as.integer((max_id+max_id3)/2)
+                    print("bestAUCid")
+                    print(c(max_id1,max_id12,max_id2,max_id3,max_id4,max_id))
+
+                    final.lambda.auc.min<-lambda_list[max_id]
+                    final.lambda.auc.1se<-lambda_list[max_id1]
+                    final.lambda.auc.2se<-lambda_list[max_id12]
+                    final.lambda.auc.2nd<-lambda_list[max_id2]
+                    final.lambda.auc.3rd<-lambda_list[max_id3]
+                    final.lambda.auc.4th<-lambda_list[max_id4]
+                # }else{
                     cv_dev1<-cv_dev$deviance
-                    final.lambda.min<-lambda_list[which.min(cv_dev1)]
-                }
+                    cv_dev1_sd<-cv_dev$deviance_sd
+                    min_id=which.min(cv_dev1)
+                    min_id1=min(which(cv_dev1 <= cv_dev1[min_id]+cv_dev1_sd[min_id]))
+                    min_id12=min(which(cv_dev1 <= cv_dev1[min_id]+2*cv_dev1_sd[min_id]))
+                    min_id3=as.integer((min_id+min_id1)/2)
+                    min_id2=as.integer((min_id1+min_id3)/2)
+                    min_id4=as.integer((min_id+min_id3)/2)
+                    print("bestdevianceid")
+                    print(c(min_id1,min_id12,min_id2,min_id3,min_id4,min_id))
+                    final.lambda.min<-lambda_list[min_id]
+                    final.lambda.1se<-lambda_list[min_id1]
+                    final.lambda.2se<-lambda_list[min_id12]
+                    final.lambda.2nd<-lambda_list[min_id2]
+                    final.lambda.3rd<-lambda_list[min_id3]
+                    final.lambda.4th<-lambda_list[min_id4]
+                # }
             }
             final.ratio.min<-1
         }
@@ -669,11 +705,36 @@ htlgmm.default<-function(
                                     lambda = final.lambda.min)
 
         beta<-coef.glmnet(fit_final_lam_ratio)[-1]
+        beta_1se<-sapply(c(final.lambda.1se,final.lambda.2se,final.lambda.2nd,final.lambda.3rd,final.lambda.4th), function(lambda.1se){
+            fit_final_lam_ratio_1se<-glmnet(x= pseudo_X,y= pseudo_y,standardize=F,
+                                            intercept=F,alpha = final_alpha,
+                                            penalty.factor = w_adaptive_ratio,
+                                            lambda = lambda.1se)
+            coef.glmnet(fit_final_lam_ratio_1se)[-1]
+        })
+
+        fit_final_lam_ratio_auc<-glmnet(x= pseudo_X,y= pseudo_y,standardize=F,
+                                    intercept=F,alpha = final_alpha,
+                                    penalty.factor = w_adaptive_ratio,
+                                    lambda = final.lambda.auc.min)
+
+        beta_auc=coef.glmnet(fit_final_lam_ratio_auc)[-1]
+        beta_auc_1se<-sapply(c(final.lambda.auc.1se,final.lambda.auc.2se,final.lambda.auc.2nd,final.lambda.auc.3rd,final.lambda.auc.4th), function(lambda.1se){
+            fit_final_lam_ratio_1se<-glmnet(x= pseudo_X,y= pseudo_y,standardize=F,
+                                            intercept=F,alpha = final_alpha,
+                                            penalty.factor = w_adaptive_ratio,
+                                            lambda = lambda.1se)
+            coef.glmnet(fit_final_lam_ratio_1se)[-1]
+        })
 
         return_list<-list("beta"=beta,
+                          "beta_1se"=beta_1se,
+                          "beta_auc"=beta_auc,
+                          "beta_auc_1se"=beta_auc_1se,
                           "lambda_list"=lambda_list,
                           "ratio_list"=ratio_list,
                           "lambda_min"=final.lambda.min,
+                          "lambda_1se"=c(final.lambda.1se,final.lambda.2nd,final.lambda.3rd,final.lambda.4th),
                           "ratio_min"=final.ratio.min)
         if(output_all_betas){
             fit_final_lam_ratio_allbeta<-glmnet(x= pseudo_X,y= pseudo_y,standardize=F,
@@ -688,8 +749,10 @@ htlgmm.default<-function(
                            list("cv_mse"=cv_mse/nfolds))
         }else if(family == "binomial"){
             return_list<-c(return_list,
-                           list("cv_dev"=cv_dev$deviance/nfolds,
-                                "cv_auc"=cv_dev$auc/nfolds))
+                           list("cv_dev"=cv_dev$deviance,
+                                "cv_auc"=cv_dev$auc,
+                                "cv_dev_sd"=cv_dev$deviance_sd,
+                                "cv_auc_sd"=cv_dev$auc_sd))
         }
     }
     if(inference){
