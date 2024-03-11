@@ -728,13 +728,9 @@ htlgmm.default<-function(
         })
 
         return_list<-list("beta"=beta,
-                          "beta_1se"=beta_1se,
-                          "beta_auc"=beta_auc,
-                          "beta_auc_1se"=beta_auc_1se,
                           "lambda_list"=lambda_list,
                           "ratio_list"=ratio_list,
                           "lambda_min"=final.lambda.min,
-                          "lambda_1se"=c(final.lambda.1se,final.lambda.2nd,final.lambda.3rd,final.lambda.4th),
                           "ratio_min"=final.ratio.min)
         if(output_all_betas){
             fit_final_lam_ratio_allbeta<-glmnet(x= pseudo_X,y= pseudo_y,standardize=F,
@@ -749,7 +745,12 @@ htlgmm.default<-function(
                            list("cv_mse"=cv_mse/nfolds))
         }else if(family == "binomial"){
             return_list<-c(return_list,
-                           list("cv_dev"=cv_dev$deviance,
+                           list("beta_1se"=beta_1se,
+                                "beta_auc"=beta_auc,
+                                "beta_auc_1se"=beta_auc_1se,
+                                "lambda_1se"=c(final.lambda.1se,final.lambda.2se,final.lambda.2nd,final.lambda.3rd,final.lambda.4th),
+                                "lambda_auc_1se"=c(final.lambda.auc.1se,final.lambda.auc.2se,final.lambda.auc.2nd,final.lambda.auc.3rd,final.lambda.auc.4th),
+                                "cv_dev"=cv_dev$deviance,
                                 "cv_auc"=cv_dev$auc,
                                 "cv_dev_sd"=cv_dev$deviance_sd,
                                 "cv_auc_sd"=cv_dev$auc_sd))
