@@ -783,8 +783,8 @@ htlgmm.default<-function(
                            list("beta_1se"=beta_1se,
                                 "beta_auc"=beta_auc,
                                 "beta_auc_1se"=beta_auc_1se,
-                                "lambda_1se"=c(final.lambda.1se,final.lambda.2se,final.lambda.2nd,final.lambda.3rd,final.lambda.4th),
-                                "lambda_auc_1se"=c(final.lambda.auc.1se,final.lambda.auc.2se,final.lambda.auc.2nd,final.lambda.auc.3rd,final.lambda.auc.4th),
+                                "lambda_1se"=c(final.lambda.1sefinal.lambda.4th),
+                                "lambda_auc_1se"=c(final.lambda.auc.1se,final.lambda.auc.4th),
                                 "cv_dev"=cv_dev$deviance,
                                 "cv_auc"=cv_dev$auc))
             return_list<-c(return_list,
