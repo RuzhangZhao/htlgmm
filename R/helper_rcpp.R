@@ -531,7 +531,7 @@ htlgmm.default<-function(
 
         if(use_sparseC){
             C_half<-diag(1/sqrt(diag(inv_C)))
-            C_half0<-sqrtchoinv_rcpp(inv_C+diag(1e-15,nrow(inv_C)))
+            #C_half0<-sqrtchoinv_rcpp(inv_C+diag(1e-15,nrow(inv_C)))
         }else{
             if(sqrt_matrix =="svd"){
                 inv_C_svd=fast.svd(inv_C+diag(1e-15,nrow(inv_C)))
@@ -665,8 +665,8 @@ htlgmm.default<-function(
                     max_id1=min(which(cv_auc1 >= cv_auc1[max_id]-cv_auc1_sd[max_id]))
                     max_id3=as.integer((max_id+max_id1)/2)
                     max_id4=as.integer((max_id+max_id3)/2)
-                    print("bestAUCid")
-                    print(c(max_id1,max_id4,max_id))
+                    # print("bestAUCid")
+                    # print(c(max_id1,max_id4,max_id))
 
                     final.lambda.auc.min<-lambda_list[max_id]
                     final.lambda.auc.1se<-lambda_list[max_id1]
@@ -678,8 +678,8 @@ htlgmm.default<-function(
                     min_id1=min(which(cv_dev1 <= cv_dev1[min_id]+cv_dev1_sd[min_id]))
                     min_id3=as.integer((min_id+min_id1)/2)
                     min_id4=as.integer((min_id+min_id3)/2)
-                    print("bestdevianceid")
-                    print(c(min_id1,min_id4,min_id))
+                    # print("bestdevianceid")
+                    # print(c(min_id1,min_id4,min_id))
                     final.lambda.min<-lambda_list[min_id]
                     final.lambda.1se<-lambda_list[min_id1]
                     final.lambda.4th<-lambda_list[min_id4]
@@ -780,11 +780,11 @@ htlgmm.default<-function(
                            list("cv_mse"=cv_mse/nfolds))
         }else if(family == "binomial"){
             return_list<-c(return_list,
-                           list("beta_1se"=beta_1se,
-                                "beta_auc"=beta_auc,
-                                "beta_auc_1se"=beta_auc_1se,
-                                "lambda_1se"=c(final.lambda.1se,final.lambda.4th),
-                                "lambda_auc_1se"=c(final.lambda.auc.1se,final.lambda.auc.4th),
+                           list(#"beta_1se"=beta_1se,
+                                #"beta_auc"=beta_auc,
+                                #"beta_auc_1se"=beta_auc_1se,
+                                #"lambda_1se"=c(final.lambda.1se,final.lambda.4th),
+                                #"lambda_auc_1se"=c(final.lambda.auc.1se,final.lambda.auc.4th),
                                 "cv_dev"=cv_dev$deviance,
                                 "cv_auc"=cv_dev$auc))
             return_list<-c(return_list,
@@ -799,7 +799,7 @@ htlgmm.default<-function(
                 warning("Current penalty is lasso, please turn to adaptivelasso for inference")
             }
             # refine C
-            if(use_sparseC){C_half=C_half0}
+            #if(use_sparseC){C_half=C_half0}
             if(refine_C){
                 inv_C = Delta_opt_rcpp(y=y,Z=Z,W=W,
                                        family=family,
