@@ -326,6 +326,7 @@ htlgmm.default<-function(
         use_cv = TRUE,
         type_measure = "default",
         nfolds = 10,
+        foldid = NULL,
         fix_lambda = NULL,
         lambda_list = NULL,
         nlambda = 100,
@@ -618,9 +619,15 @@ htlgmm.default<-function(
             }
         }
     }else{
-        if(length(unique(y)) <= 2){
-            index_fold<-createFolds(as.numeric(y>0),k = nfolds)
-        }else{index_fold<-createFolds(y,k = nfolds)}
+        if(is.null(foldid)){
+            if(length(unique(y)) <= 2){
+                index_fold<-createFolds(as.numeric(y>0),k = nfolds)
+            }else{index_fold<-createFolds(y,k = nfolds)}
+        }else{
+            uni_fold=sort(unique(foldid))
+            nfolds=length(uni_fold)
+            index_fold<-lapply(1:length(uni_fold),function(i){which(foldid==uni_fold[i])})
+        }
 
         if(tune_ratio){
             if(family == "gaussian"){

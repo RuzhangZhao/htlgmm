@@ -27,6 +27,7 @@ cv.htlgmm(
   use_cv = TRUE,
   type_measure = "default",
   nfolds = 10,
+  foldid = NULL,
   fix_lambda = NULL,
   lambda_list = NULL,
   nlambda = 100,
@@ -96,6 +97,8 @@ For coxph model, robust is also about whether we apply the robust variance for t
 \item{type_measure}{Select from c("default", "mse", "deviance", "auc"). Default is mse(liner), deviance(logistic). 'auc' is another choice for binary y.}
 
 \item{nfolds}{The fold number for cross validation. Only work for use_cv = TRUE.The default is 10.}
+
+\item{foldid}{An optional vector of values with the length of sample size, identifying what fold each observation is in. If supplied, nfolds can be missing.}
 
 \item{fix_lambda}{Without cross validation, fix the lambda. The default is NULL.}
 

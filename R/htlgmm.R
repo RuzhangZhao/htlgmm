@@ -119,6 +119,7 @@ htlgmm<-function(
     }}
     use_cv = FALSE
     nfolds = 10
+    foldid = NULL
     tune_ratio = FALSE
     ratio_list = NULL
     type_measure = "default"
@@ -139,7 +140,7 @@ htlgmm<-function(
                             hat_thetaA,V_thetaA,use_offset,
                             V_thetaA_sandwich,remove_penalty_Z,
                             remove_penalty_W,inference,fix_C,refine_C,
-                            sqrt_matrix,use_cv,type_measure,nfolds,
+                            sqrt_matrix,use_cv,type_measure,nfolds,foldid,
                             fix_lambda,lambda_list,nlambda,
                             lambda.min.ratio,tune_ratio,fix_ratio,
                             ratio_list,gamma_adaptivelasso,
@@ -194,6 +195,7 @@ htlgmm<-function(
 #' @param use_cv Whether to use cross validation to determine the best lambda (or ratio).
 #' @param type_measure Select from c("default", "mse", "deviance", "auc"). Default is mse(liner), deviance(logistic). 'auc' is another choice for binary y.
 #' @param nfolds The fold number for cross validation. Only work for use_cv = TRUE.The default is 10.
+#' @param foldid An optional vector of values with the length of sample size, identifying what fold each observation is in. If supplied, nfolds can be missing.
 #' @param fix_lambda Without cross validation, fix the lambda. The default is NULL.
 #' @param lambda_list Customize the input lambda list for validation. The default is NULL to generate lambda list according to glmnet.
 #' @param nlambda The number of lambda values - default is 100.
@@ -266,6 +268,7 @@ cv.htlgmm<-function(
         use_cv = TRUE,
         type_measure = "default",
         nfolds = 10,
+        foldid = NULL,
         fix_lambda = NULL,
         lambda_list = NULL,
         nlambda = 100,
@@ -308,7 +311,7 @@ cv.htlgmm<-function(
                             hat_thetaA,V_thetaA,use_offset,
                             V_thetaA_sandwich,remove_penalty_Z,
                             remove_penalty_W,inference,fix_C,refine_C,
-                            sqrt_matrix,use_cv,type_measure,nfolds,
+                            sqrt_matrix,use_cv,type_measure,nfolds,foldid,
                             fix_lambda,lambda_list,nlambda,
                             lambda.min.ratio,tune_ratio,fix_ratio,
                             ratio_list,gamma_adaptivelasso,
