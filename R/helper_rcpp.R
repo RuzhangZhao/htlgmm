@@ -225,7 +225,7 @@ cv_dev_lambda_func<-function(index_fold,Z,W,A,y,
                            alpha = final_alpha,penalty.factor = w_adaptive,lambda = cur_lam)
             cur_beta<-coef.glmnet(cv_fit)[-1]
             probtest <- expit_rcpp(prodv_rcpp(cbind(Atest,Ztest,Wtest),cur_beta))
-            cur_dev <- -2*sum( ytest * log(probtest) + (1 - ytest) * log(1 - probtest) )
+            cur_dev <- -2*mean( ytest * log(probtest) + (1 - ytest) * log(1 - probtest) )
             suppressMessages(cur_auc<-c(auc(ytest,expit_rcpp(prodv_rcpp(cbind(Atest,Ztest,Wtest),cur_beta)),direction = "<")))
 
             c(cur_dev,cur_auc)
@@ -672,9 +672,10 @@ htlgmm.default<-function(
                     max_id1=min(which(cv_auc1 >= cv_auc1[max_id]-cv_auc1_sd[max_id]))
                     max_id3=as.integer((max_id+max_id1)/2)
                     max_id4=as.integer((max_id+max_id3)/2)
-                    # print("bestAUCid")
-                    # print(c(max_id1,max_id4,max_id))
-
+                    if(output_all_betas){
+                        print("bestAUCid")
+                        print(c(max_id1,max_id4,max_id))
+                    }
                     final.lambda.auc.min<-lambda_list[max_id]
                     final.lambda.auc.1se<-lambda_list[max_id1]
                     final.lambda.auc.4th<-lambda_list[max_id4]
@@ -685,8 +686,10 @@ htlgmm.default<-function(
                     min_id1=min(which(cv_dev1 <= cv_dev1[min_id]+cv_dev1_sd[min_id]))
                     min_id3=as.integer((min_id+min_id1)/2)
                     min_id4=as.integer((min_id+min_id3)/2)
-                    # print("bestdevianceid")
-                    # print(c(min_id1,min_id4,min_id))
+                    if(output_all_betas){
+                        print("bestdevianceid")
+                        print(c(min_id1,min_id4,min_id))
+                    }
                     final.lambda.min<-lambda_list[min_id]
                     final.lambda.1se<-lambda_list[min_id1]
                     final.lambda.4th<-lambda_list[min_id4]
@@ -702,97 +705,102 @@ htlgmm.default<-function(
                                     lambda = final.lambda.min)
 
         beta<-coef.glmnet(fit_final_lam_ratio)[-1]
-        beta_1se<-sapply(c(final.lambda.1se,final.lambda.4th), function(lambda.1se){
-            fit_final_lam_ratio_1se<-glmnet(x= pseudo_X,y= pseudo_y,standardize=F,
-                                            intercept=F,alpha = final_alpha,
-                                            penalty.factor = w_adaptive_ratio,
-                                            lambda = lambda.1se)
-            coef.glmnet(fit_final_lam_ratio_1se)[-1]
-        })
-        ###
-        C_half2=C_half
-        C_half2[(1+pZ+pA+pW):nrow(C_half),(1+pZ+pA+pW):nrow(C_half)]=
-            C_half2[(1+pZ+pA+pW):nrow(C_half),(1+pZ+pA+pW):nrow(C_half)]/2
-        C_half3=C_half
-        C_half3[(1+pZ+pA+pW):nrow(C_half),(1+pZ+pA+pW):nrow(C_half)]=
-            C_half3[(1+pZ+pA+pW):nrow(C_half),(1+pZ+pA+pW):nrow(C_half)]*2
-        pseudo_Xy_list<-pseudo_Xy(C_half=C_half2,Z=Z,W=W,A=A,y=y,
-                                  beta=beta_initial,hat_thetaA=hat_thetaA,
-                                  study_info=study_info,X=X,XR=XR)
+        if(output_all_betas){
+            beta_1se<-sapply(c(final.lambda.1se,final.lambda.4th), function(lambda.1se){
+                fit_final_lam_ratio_1se<-glmnet(x= pseudo_X,y= pseudo_y,standardize=F,
+                                                intercept=F,alpha = final_alpha,
+                                                penalty.factor = w_adaptive_ratio,
+                                                lambda = lambda.1se)
+                coef.glmnet(fit_final_lam_ratio_1se)[-1]
+            })
+            ###
+            C_half2=C_half
+            C_half2[(pZ+pA+pW):nrow(C_half),(pZ+pA+pW):nrow(C_half)]=
+                C_half2[(pZ+pA+pW):nrow(C_half),(pZ+pA+pW):nrow(C_half)]/2
+            C_half3=C_half
+            C_half3[(pZ+pA+pW):nrow(C_half),(pZ+pA+pW):nrow(C_half)]=
+                C_half3[(pZ+pA+pW):nrow(C_half),(pZ+pA+pW):nrow(C_half)]*2
+            pseudo_Xy_list<-pseudo_Xy(C_half=C_half2,Z=Z,W=W,A=A,y=y,
+                                      beta=beta_initial,hat_thetaA=hat_thetaA,
+                                      study_info=study_info,X=X,XR=XR)
 
-        initial_sf<-nZ/sqrt(nrow(pseudo_Xy_list$pseudo_X))
-        pseudo_X2<-pseudo_Xy_list$pseudo_X/initial_sf
-        pseudo_y2<-pseudo_Xy_list$pseudo_y/initial_sf
+            initial_sf<-nZ/sqrt(nrow(pseudo_Xy_list$pseudo_X))
+            pseudo_X2<-pseudo_Xy_list$pseudo_X/initial_sf
+            pseudo_y2<-pseudo_Xy_list$pseudo_y/initial_sf
 
-        pseudo_Xy_list<-pseudo_Xy(C_half=C_half3,Z=Z,W=W,A=A,y=y,
-                                  beta=beta_initial,hat_thetaA=hat_thetaA,
-                                  study_info=study_info,X=X,XR=XR)
+            pseudo_Xy_list<-pseudo_Xy(C_half=C_half3,Z=Z,W=W,A=A,y=y,
+                                      beta=beta_initial,hat_thetaA=hat_thetaA,
+                                      study_info=study_info,X=X,XR=XR)
 
-        initial_sf<-nZ/sqrt(nrow(pseudo_Xy_list$pseudo_X))
-        pseudo_X3<-pseudo_Xy_list$pseudo_X/initial_sf
-        pseudo_y3<-pseudo_Xy_list$pseudo_y/initial_sf
+            initial_sf<-nZ/sqrt(nrow(pseudo_Xy_list$pseudo_X))
+            pseudo_X3<-pseudo_Xy_list$pseudo_X/initial_sf
+            pseudo_y3<-pseudo_Xy_list$pseudo_y/initial_sf
 
-        fit_final_lam_ratio2<-glmnet(x= pseudo_X2,y= pseudo_y2,standardize=F,
-                                    intercept=F,alpha = final_alpha,
-                                    penalty.factor = w_adaptive_ratio,
-                                    lambda = final.lambda.min)
-        fit_final_lam_ratio3<-glmnet(x= pseudo_X3,y= pseudo_y3,standardize=F,
-                                     intercept=F,alpha = final_alpha,
-                                     penalty.factor = w_adaptive_ratio,
-                                     lambda = final.lambda.min)
-        beta2<-coef.glmnet(fit_final_lam_ratio2)[-1]
-        beta3<-coef.glmnet(fit_final_lam_ratio3)[-1]
-        beta_1se<-cbind(cbind(beta_1se,beta2),beta3)
-        fit_final_lam_ratio_auc<-glmnet(x= pseudo_X,y= pseudo_y,standardize=F,
-                                    intercept=F,alpha = final_alpha,
-                                    penalty.factor = w_adaptive_ratio,
-                                    lambda = final.lambda.auc.min)
+            fit_final_lam_ratio2<-glmnet(x= pseudo_X2,y= pseudo_y2,standardize=F,
+                                        intercept=F,alpha = final_alpha,
+                                        penalty.factor = w_adaptive_ratio,
+                                        lambda = final.lambda.min)
+            fit_final_lam_ratio3<-glmnet(x= pseudo_X3,y= pseudo_y3,standardize=F,
+                                         intercept=F,alpha = final_alpha,
+                                         penalty.factor = w_adaptive_ratio,
+                                         lambda = final.lambda.min)
+            beta2<-coef.glmnet(fit_final_lam_ratio2)[-1]
+            beta3<-coef.glmnet(fit_final_lam_ratio3)[-1]
+            beta_1se<-cbind(cbind(beta_1se,beta2),beta3)
+            fit_final_lam_ratio_auc<-glmnet(x= pseudo_X,y= pseudo_y,standardize=F,
+                                        intercept=F,alpha = final_alpha,
+                                        penalty.factor = w_adaptive_ratio,
+                                        lambda = final.lambda.auc.min)
 
-        beta_auc=coef.glmnet(fit_final_lam_ratio_auc)[-1]
-        beta_auc_1se<-sapply(c(final.lambda.auc.1se,final.lambda.auc.4th), function(lambda.1se){
-            fit_final_lam_ratio_1se<-glmnet(x= pseudo_X,y= pseudo_y,standardize=F,
-                                            intercept=F,alpha = final_alpha,
-                                            penalty.factor = w_adaptive_ratio,
-                                            lambda = lambda.1se)
-            coef.glmnet(fit_final_lam_ratio_1se)[-1]
-        })
+            beta_auc=coef.glmnet(fit_final_lam_ratio_auc)[-1]
+            beta_auc_1se<-sapply(c(final.lambda.auc.1se,final.lambda.auc.4th), function(lambda.1se){
+                fit_final_lam_ratio_1se<-glmnet(x= pseudo_X,y= pseudo_y,standardize=F,
+                                                intercept=F,alpha = final_alpha,
+                                                penalty.factor = w_adaptive_ratio,
+                                                lambda = lambda.1se)
+                coef.glmnet(fit_final_lam_ratio_1se)[-1]
+            })
 
 
-        fit_final_lam_ratio2<-glmnet(x= pseudo_X2,y= pseudo_y2,standardize=F,
-                                     intercept=F,alpha = final_alpha,
-                                     penalty.factor = w_adaptive_ratio,
-                                     lambda = final.lambda.auc.min)
-        fit_final_lam_ratio3<-glmnet(x= pseudo_X3,y= pseudo_y3,standardize=F,
-                                     intercept=F,alpha = final_alpha,
-                                     penalty.factor = w_adaptive_ratio,
-                                     lambda = final.lambda.auc.min)
-        beta_auc2<-coef.glmnet(fit_final_lam_ratio2)[-1]
-        beta_auc3<-coef.glmnet(fit_final_lam_ratio3)[-1]
-        beta_auc_1se<-cbind(cbind(beta_auc_1se,beta_auc2),beta_auc3)
+            fit_final_lam_ratio2<-glmnet(x= pseudo_X2,y= pseudo_y2,standardize=F,
+                                         intercept=F,alpha = final_alpha,
+                                         penalty.factor = w_adaptive_ratio,
+                                         lambda = final.lambda.auc.min)
+            fit_final_lam_ratio3<-glmnet(x= pseudo_X3,y= pseudo_y3,standardize=F,
+                                         intercept=F,alpha = final_alpha,
+                                         penalty.factor = w_adaptive_ratio,
+                                         lambda = final.lambda.auc.min)
+            beta_auc2<-coef.glmnet(fit_final_lam_ratio2)[-1]
+            beta_auc3<-coef.glmnet(fit_final_lam_ratio3)[-1]
+            beta_auc_1se<-cbind(cbind(beta_auc_1se,beta_auc2),beta_auc3)
+        }
         return_list<-list("beta"=beta,
                           "lambda_list"=lambda_list,
                           "ratio_list"=ratio_list,
                           "lambda_min"=final.lambda.min,
                           "ratio_min"=final.ratio.min)
-        if(output_all_betas){
-            fit_final_lam_ratio_allbeta<-glmnet(x= pseudo_X,y= pseudo_y,standardize=F,
-                                                intercept=F,alpha = final_alpha,
-                                                penalty.factor = w_adaptive_ratio,
-                                                lambda = lambda_list)
-            return_list<-c(return_list,
-            list("allbetas"=coef(fit_final_lam_ratio_allbeta)))
-        }
+        # if(output_all_betas){
+            # fit_final_lam_ratio_allbeta<-glmnet(x= pseudo_X,y= pseudo_y,standardize=F,
+            #                                     intercept=F,alpha = final_alpha,
+            #                                     penalty.factor = w_adaptive_ratio,
+            #                                     lambda = lambda_list)
+            # return_list<-c(return_list,
+            # list("allbetas"=coef(fit_final_lam_ratio_allbeta)))
+        # }
         if(family == "gaussian"){
             return_list<-c(return_list,
                            list("cv_mse"=cv_mse/nfolds))
         }else if(family == "binomial"){
+            if(output_all_betas){
+                return_list<-c(return_list,
+                               list("beta_1se"=beta_1se,
+                                   "beta_auc"=beta_auc,
+                                   "beta_auc_1se"=beta_auc_1se,
+                                   "lambda_1se"=c(final.lambda.1se,final.lambda.4th),
+                                   "lambda_auc_1se"=c(final.lambda.auc.1se,final.lambda.auc.4th)))
+            }
             return_list<-c(return_list,
-                           list(#"beta_1se"=beta_1se,
-                                #"beta_auc"=beta_auc,
-                                #"beta_auc_1se"=beta_auc_1se,
-                                #"lambda_1se"=c(final.lambda.1se,final.lambda.4th),
-                                #"lambda_auc_1se"=c(final.lambda.auc.1se,final.lambda.auc.4th),
-                                "cv_dev"=cv_dev$deviance,
+                           list("cv_dev"=cv_dev$deviance,
                                 "cv_auc"=cv_dev$auc))
             return_list<-c(return_list,
                            list("cv_dev_sd"=cv_dev$deviance_sd,
