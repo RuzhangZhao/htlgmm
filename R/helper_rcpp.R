@@ -602,6 +602,7 @@ htlgmm.default<-function(
                 Z1=rbind(Z,Z[ids,])
                 W1=rbind(W,W[ids,])
                 if(!is.null(A)){A1=rbind(A,A[ids,,drop=F])}else{A1=A}
+
                 beta_initial0=beta_initial
                 pp=sum(y1)/sum(1-y1)
                 beta_initial0[1]=log(pp/(1-pp))
