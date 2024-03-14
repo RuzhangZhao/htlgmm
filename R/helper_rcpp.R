@@ -596,7 +596,7 @@ htlgmm.default<-function(
             #C_half0<-sqrtchoinv_rcpp(inv_C+diag(1e-15,nrow(inv_C)))
         }else{
             if(output_all_betas){
-                print(paste0("case,control",sum(y)/sum(1-y)))
+                print(paste0("case,control",round(sum(y)/sum(1-y),5) ))
                 ids = sample(which(y==1),round(sum(1-y)/5),replace = T)
                 y1=c(y,y[ids])
                 Z1=rbind(Z,Z[ids,])
@@ -610,6 +610,9 @@ htlgmm.default<-function(
                                        V_thetaA=V_thetaA,
                                        use_offset = use_offset)
                 C_half<-diag(1/sqrt(diag(inv_C)))
+                if(sqrt_matrix == "svd"){
+                    C_half<-sqrtchoinv_rcpp(inv_C+diag(1e-15,nrow(inv_C)))
+                }
             }else{
                 if(sqrt_matrix =="svd"){
                     inv_C_svd=fast.svd(inv_C+diag(1e-15,nrow(inv_C)))
