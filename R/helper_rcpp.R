@@ -521,6 +521,7 @@ htlgmm.default<-function(
     # Estimation of C
 
     if(is.null(fix_C)){
+
         inv_C = Delta_opt_rcpp(y=y,Z=Z,W=W,
                                family=family,
                                study_info=study_info,
@@ -530,16 +531,33 @@ htlgmm.default<-function(
                                use_offset = use_offset,
                                X=X,XR=XR)
 
+
         if(use_sparseC){
             C_half<-diag(1/sqrt(diag(inv_C)))
             #C_half0<-sqrtchoinv_rcpp(inv_C+diag(1e-15,nrow(inv_C)))
         }else{
-            if(sqrt_matrix =="svd"){
-                inv_C_svd=fast.svd(inv_C+diag(1e-15,nrow(inv_C)))
-                C_half=prod_rcpp(inv_C_svd$v,(t(inv_C_svd$u)*1/sqrt(inv_C_svd$d)))
-                #C_half<-inv_C_svd$v%*%diag(1/sqrt(inv_C_svd$d))%*%t(inv_C_svd$u)
-            }else if(sqrt_matrix =="cholesky"){
-                C_half<-sqrtchoinv_rcpp(inv_C+diag(1e-15,nrow(inv_C)))
+            if(output_all_betas){
+                ids = c(sample(which(y==1),integer(length(y)/2),replace = T),
+                        sample(which(y==0),integer(length(y)/2),replace = F))
+                y1=y[ids]
+                Z1=Z[ids,]
+                W1=W[ids,]
+                if(!is.null(A)){A1=A[ids,,drop=F]}else{A1=A}
+                inv_C = Delta_opt_rcpp(y=y1,Z=Z1,W=W1,
+                                       family=family,
+                                       study_info=study_info,
+                                       A=A1,pA=pA,pZ=pZ,beta=beta_initial,
+                                       hat_thetaA=hat_thetaA,
+                                       V_thetaA=V_thetaA,
+                                       use_offset = use_offset)
+            }else{
+                if(sqrt_matrix =="svd"){
+                    inv_C_svd=fast.svd(inv_C+diag(1e-15,nrow(inv_C)))
+                    C_half=prod_rcpp(inv_C_svd$v,(t(inv_C_svd$u)*1/sqrt(inv_C_svd$d)))
+                    #C_half<-inv_C_svd$v%*%diag(1/sqrt(inv_C_svd$d))%*%t(inv_C_svd$u)
+                }else if(sqrt_matrix =="cholesky"){
+                    C_half<-sqrtchoinv_rcpp(inv_C+diag(1e-15,nrow(inv_C)))
+                }
             }
         }
     }else{
