@@ -537,8 +537,8 @@ htlgmm.default<-function(
             #C_half0<-sqrtchoinv_rcpp(inv_C+diag(1e-15,nrow(inv_C)))
         }else{
             if(output_all_betas){
-                ids = c(sample(which(y==1),integer(length(y)/2),replace = T),
-                        sample(which(y==0),integer(length(y)/2),replace = F))
+                ids = c(sample(which(y==1),round(length(y)/2),replace = T),
+                        sample(which(y==0),round(length(y)/2),replace = F))
                 y1=y[ids]
                 Z1=Z[ids,]
                 W1=W[ids,]
