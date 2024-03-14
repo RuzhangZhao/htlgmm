@@ -596,11 +596,11 @@ htlgmm.default<-function(
             #C_half0<-sqrtchoinv_rcpp(inv_C+diag(1e-15,nrow(inv_C)))
         }else{
             if(output_all_betas){
-                ids = c(sample(which(y==1),round(length(y)/5),replace = T),
-                        sample(which(y==0),round(length(y)/5*4),replace = F))
-                y1=y[ids]
-                Z1=Z[ids,]
-                W1=W[ids,]
+                print(paste0("case,control",sum(y)/sum(1-y)))
+                ids = sample(which(y==1),round(sum(1-y)/5),replace = T)
+                y1=c(y,y[ids])
+                Z1=rbind(Z,Z[ids,])
+                W1=rbind(W,W[ids,])
                 if(!is.null(A)){A1=A[ids,,drop=F]}else{A1=A}
                 inv_C = Delta_opt_rcpp(y=y1,Z=Z1,W=W1,
                                        family=family,
