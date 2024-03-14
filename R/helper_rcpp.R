@@ -602,10 +602,13 @@ htlgmm.default<-function(
                 Z1=rbind(Z,Z[ids,])
                 W1=rbind(W,W[ids,])
                 if(!is.null(A)){A1=rbind(A,A[ids,,drop=F])}else{A1=A}
+                beta_initial0=beta_initial
+                pp=sum(y1)/sum(1-y1)
+                beta_initial0[1]=log(pp/(1-pp))
                 inv_C = Delta_opt_rcpp(y=y1,Z=Z1,W=W1,
                                        family=family,
                                        study_info=study_info,
-                                       A=A1,pA=pA,pZ=pZ,beta=beta_initial,
+                                       A=A1,pA=pA,pZ=pZ,beta=beta_initial0,
                                        hat_thetaA=hat_thetaA,
                                        V_thetaA=V_thetaA,
                                        use_offset = use_offset)
