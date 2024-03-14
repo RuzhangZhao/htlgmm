@@ -1,3 +1,62 @@
+cv_dev_lambda_func1<-function(index_fold,Z,W,A,y,
+                              C_half,beta_initial,hat_thetaA,
+                              study_info,lambda_list,
+                              w_adaptive,final_alpha,
+                              pseudo_Xy){
+    dev_fold<-lapply(1:length(index_fold), function(cur_fold){
+        index_test<-index_fold[[cur_fold]]
+        Ztrain<-Z[-index_test,,drop=FALSE]
+        Ztest<-Z[index_test,,drop=FALSE]
+        if(!is.null(W)){
+            Wtrain<-W[-index_test,,drop=FALSE]
+            Wtest<-W[index_test,,drop=FALSE]
+        }else{
+            Wtrain<-NULL
+            Wtest<-NULL}
+        if(!is.null(A)){
+            Atrain<-A[-index_test,,drop=FALSE]
+            Atest<-A[index_test,,drop=FALSE]
+        }else{
+            Atrain<-NULL
+            Atest<-NULL}
+        ytrain<-y[-index_test]
+        ytest<-y[index_test]
+
+        fit_initial_fold<-cv.glmnet(x=cbind(Atrain,Ztrain,Wtrain),
+                                    y=ytrain,intercept=F,
+                                    alpha=1)
+        beta_initial_fold = as.vector(coef(fit_initial_fold,s="lambda.min"))
+        pseudo_Xy_list_train<-pseudo_Xy(C_half,Ztrain,Wtrain,Atrain,
+                                        ytrain,beta = beta_initial_fold,
+                                        hat_thetaA = hat_thetaA,
+                                        study_info=study_info)
+        initial_sf_train<-nrow(Ztrain)/sqrt(nrow(pseudo_Xy_list_train$pseudo_X))
+        pseudo_X_train<-pseudo_Xy_list_train$pseudo_X/initial_sf_train
+        pseudo_y_train<-pseudo_Xy_list_train$pseudo_y/initial_sf_train
+        dev_lam<-sapply(lambda_list,function(cur_lam){
+            cv_fit<-glmnet(x= (pseudo_X_train),y= (pseudo_y_train),
+                           standardize=F,intercept=F,
+                           alpha = final_alpha,penalty.factor = w_adaptive,lambda = cur_lam)
+            cur_beta<-coef.glmnet(cv_fit)[-1]
+            probtest <- expit_rcpp(prodv_rcpp(cbind(Atest,Ztest,Wtest),cur_beta))
+            cur_dev <- -2*mean( ytest * log(probtest) + (1 - ytest) * log(1 - probtest) )
+            suppressMessages(cur_auc<-c(auc(ytest,expit_rcpp(prodv_rcpp(cbind(Atest,Ztest,Wtest),cur_beta)),direction = "<")))
+
+            c(cur_dev,cur_auc)
+        })
+        dev_lam
+    })
+    sum_dev_lam<-Reduce(`+`, dev_fold)
+    sum_dev_lam=sum_dev_lam/length(index_fold)
+    for(i in 1:length(dev_fold)){dev_fold[[i]]=dev_fold[[i]]^2}
+    sum_dev_lam_sq<-Reduce(`+`, dev_fold)
+    sum_dev_lam_sq=sum_dev_lam_sq/length(index_fold)
+    sum_dev_lam_sq=sum_dev_lam_sq-sum_dev_lam^2
+    sum_dev_lam_sd=sqrt(sum_dev_lam_sq)
+    list("deviance"=sum_dev_lam[1,],"auc"=sum_dev_lam[2,],
+         "deviance_sd"=sum_dev_lam_sd[1,],"auc_sd"=sum_dev_lam_sd[2,])
+}
+
 
 Delta_opt_rcpp<-function(y,Z,W,family,
                     study_info,A=NULL,pA=NULL,pZ=NULL,
@@ -680,10 +739,18 @@ htlgmm.default<-function(
                                            w_adaptive,final_alpha,pseudo_Xy)
                 final.lambda.min<-lambda_list[which.min(cv_mse)]
             }else if(family == "binomial"){
-                cv_dev<-cv_dev_lambda_func(index_fold,Z,W,A,y,
-                                           C_half,beta_initial,hat_thetaA,
-                                           study_info,lambda_list,
-                                           w_adaptive,final_alpha,pseudo_Xy)
+                if(refine_C){
+                    cv_dev<-cv_dev_lambda_func1(index_fold,Z,W,A,y,
+                                               C_half,beta_initial,hat_thetaA,
+                                               study_info,lambda_list,
+                                               w_adaptive,final_alpha,pseudo_Xy)
+                }else{
+                    cv_dev<-cv_dev_lambda_func(index_fold,Z,W,A,y,
+                                               C_half,beta_initial,hat_thetaA,
+                                               study_info,lambda_list,
+                                               w_adaptive,final_alpha,pseudo_Xy)
+                }
+
                 # if(type_measure == "auc"){
                     cv_auc1<-cv_dev$auc
                     cv_auc1_sd<-cv_dev$auc_sd
