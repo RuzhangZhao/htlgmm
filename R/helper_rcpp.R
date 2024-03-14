@@ -24,6 +24,7 @@ cv_dev_lambda_func1<-function(index_fold,Z,W,A,y,
 
         fit_initial_fold<-cv.glmnet(x=cbind(Ztrain,Wtrain),
                                     y=ytrain,
+                                    family="binomial",
                                     alpha=0)
         beta_initial_fold = as.vector(coef(fit_initial_fold,s="lambda.min"))
         pseudo_Xy_list_train<-pseudo_Xy(C_half,Ztrain,Wtrain,Atrain,
@@ -602,10 +603,13 @@ htlgmm.default<-function(
                 Z1=rbind(Z,Z[ids,])
                 W1=rbind(W,W[ids,])
                 if(!is.null(A)){A1=rbind(A,A[ids,,drop=F])}else{A1=A}
-
-                beta_initial0=beta_initial
-                pp=sum(y1)/sum(1-y1)
-                beta_initial0[1]=log(pp/(1-pp))
+                res0=cv.glmnet(x=cbind(Z1,W1),y=y1,
+                               family=family,
+                               alpha=0)
+                beta_initial0=as.vector(coef(res0,s="lambda.min"))
+                # beta_initial0=beta_initial
+                # pp=sum(y1)/sum(1-y1)
+                # beta_initial0[1]=log(pp/(1-pp))
                 inv_C = Delta_opt_rcpp(y=y1,Z=Z1,W=W1,
                                        family=family,
                                        study_info=study_info,
