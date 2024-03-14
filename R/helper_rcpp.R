@@ -601,7 +601,7 @@ htlgmm.default<-function(
                 y1=c(y,y[ids])
                 Z1=rbind(Z,Z[ids,])
                 W1=rbind(W,W[ids,])
-                if(!is.null(A)){A1=A[ids,,drop=F]}else{A1=A}
+                if(!is.null(A)){A1=rbind(A,A[ids,,drop=F])}else{A1=A}
                 inv_C = Delta_opt_rcpp(y=y1,Z=Z1,W=W1,
                                        family=family,
                                        study_info=study_info,
