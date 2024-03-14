@@ -24,7 +24,7 @@ cv_dev_lambda_func1<-function(index_fold,Z,W,A,y,
 
         fit_initial_fold<-cv.glmnet(x=cbind(Ztrain,Wtrain),
                                     y=ytrain,
-                                    alpha=1)
+                                    alpha=0)
         beta_initial_fold = as.vector(coef(fit_initial_fold,s="lambda.min"))
         pseudo_Xy_list_train<-pseudo_Xy(C_half,Ztrain,Wtrain,Atrain,
                                         ytrain,beta = beta_initial_fold,
