@@ -550,6 +550,7 @@ htlgmm.default<-function(
                                        hat_thetaA=hat_thetaA,
                                        V_thetaA=V_thetaA,
                                        use_offset = use_offset)
+                C_half<-diag(1/sqrt(diag(inv_C)))
             }else{
                 if(sqrt_matrix =="svd"){
                     inv_C_svd=fast.svd(inv_C+diag(1e-15,nrow(inv_C)))
