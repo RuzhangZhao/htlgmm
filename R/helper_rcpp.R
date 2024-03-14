@@ -614,7 +614,7 @@ htlgmm.default<-function(
                                        use_offset = use_offset)
                 C_half<-diag(1/sqrt(diag(inv_C)))
                 if(sqrt_matrix == "svd"){
-                    C_half<-sqrtchoinv_rcpp(inv_C+diag(1e-15,nrow(inv_C)))
+                    C_half<-sqrtchoinv_rcpp(inv_C+diag(1e-9,nrow(inv_C)))
                 }
             }else{
                 if(sqrt_matrix =="svd"){
