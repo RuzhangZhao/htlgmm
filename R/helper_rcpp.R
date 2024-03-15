@@ -603,13 +603,9 @@ htlgmm.default<-function(
                 Z1=rbind(Z,Z[ids,])
                 W1=rbind(W,W[ids,])
                 if(!is.null(A)){A1=rbind(A,A[ids,,drop=F])}else{A1=A}
-                res0=cv.glmnet(x=cbind(Z1,W1),y=y1,
-                               family=family,
-                               alpha=0)
-                beta_initial0=as.vector(coef(res0,s="lambda.min"))
-                # beta_initial0=beta_initial
-                # pp=sum(y1)/sum(1-y1)
-                # beta_initial0[1]=log(pp/(1-pp))
+                beta_initial0=beta_initial
+                pp=sum(y1)/sum(1-y1)
+                beta_initial0[1]=log(pp/(1-pp))
                 inv_C = Delta_opt_rcpp(y=y1,Z=Z1,W=W1,
                                        family=family,
                                        study_info=study_info,
@@ -891,7 +887,7 @@ htlgmm.default<-function(
             if(output_all_betas){
                 return_list<-c(return_list,
                                list("beta_1se"=beta_1se,
-                                   "beta_auc"=beta_auc,
+                                   #"beta_auc"=beta_auc,
                                    "beta_auc_1se"=beta_auc_1se,
                                    "lambda_1se"=c(final.lambda.1se,final.lambda.4th),
                                    "lambda_auc_1se"=c(final.lambda.auc.1se,final.lambda.auc.4th)))
@@ -901,7 +897,8 @@ htlgmm.default<-function(
                                 "cv_auc"=cv_dev$auc))
             return_list<-c(return_list,
                            list("cv_dev_sd"=cv_dev$deviance_sd,
-                                "cv_auc_sd"=cv_dev$auc_sd))
+                                "cv_auc_sd"=cv_dev$auc_sd,
+                                "beta_auc"=beta_auc))
         }
     }
     if(inference){
