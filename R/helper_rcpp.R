@@ -798,6 +798,14 @@ htlgmm.default<-function(
                                     lambda = final.lambda.min)
 
         beta<-coef.glmnet(fit_final_lam_ratio)[-1]
+
+        fit_final_lam_ratio_auc<-glmnet(x= pseudo_X,y= pseudo_y,standardize=F,
+                                        intercept=F,alpha = final_alpha,
+                                        penalty.factor = w_adaptive_ratio,
+                                        lambda = final.lambda.auc.min)
+
+        beta_auc=coef.glmnet(fit_final_lam_ratio_auc)[-1]
+
         if(output_all_betas){
             beta_1se<-sapply(c(final.lambda.1se,final.lambda.4th), function(lambda.1se){
                 fit_final_lam_ratio_1se<-glmnet(x= pseudo_X,y= pseudo_y,standardize=F,
@@ -840,12 +848,7 @@ htlgmm.default<-function(
             beta2<-coef.glmnet(fit_final_lam_ratio2)[-1]
             beta3<-coef.glmnet(fit_final_lam_ratio3)[-1]
             beta_1se<-cbind(cbind(beta_1se,beta2),beta3)
-            fit_final_lam_ratio_auc<-glmnet(x= pseudo_X,y= pseudo_y,standardize=F,
-                                        intercept=F,alpha = final_alpha,
-                                        penalty.factor = w_adaptive_ratio,
-                                        lambda = final.lambda.auc.min)
 
-            beta_auc=coef.glmnet(fit_final_lam_ratio_auc)[-1]
             beta_auc_1se<-sapply(c(final.lambda.auc.1se,final.lambda.auc.4th), function(lambda.1se){
                 fit_final_lam_ratio_1se<-glmnet(x= pseudo_X,y= pseudo_y,standardize=F,
                                                 intercept=F,alpha = final_alpha,
