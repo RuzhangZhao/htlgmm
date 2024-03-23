@@ -628,7 +628,7 @@ htlgmm.default<-function(
             }
         }
     }else{
-        if(fixC == 1){
+        if(fix_C == 1){
             C_half<-sqrtchoinv_rcpp(inv_C+diag(1e-15,nrow(inv_C)))
         }else{
             if(nrow(fix_C)!=pA+pZ+pW+pZ){
