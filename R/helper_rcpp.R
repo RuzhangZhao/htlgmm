@@ -628,9 +628,13 @@ htlgmm.default<-function(
             }
         }
     }else{
-        if(nrow(fix_C)!=pA+pZ+pW+pZ){
-            stop("Input fix_C dimension is wrong!")}
-        C_half<-sqrtcho_rcpp(fix_C+diag(1e-15,nrow(fix_C)))
+        if(fixC == 1){
+            C_half<-sqrtchoinv_rcpp(inv_C+diag(1e-15,nrow(inv_C)))
+        }else{
+            if(nrow(fix_C)!=pA+pZ+pW+pZ){
+                stop("Input fix_C dimension is wrong!")}
+            C_half<-sqrtcho_rcpp(fix_C+diag(1e-15,nrow(fix_C)))
+        }
     }
 
     # Prepare for final model
