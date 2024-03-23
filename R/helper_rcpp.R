@@ -629,6 +629,14 @@ htlgmm.default<-function(
         }
     }else{
         if(fix_C == 1){
+            inv_C = Delta_opt_rcpp(y=y,Z=Z,W=W,
+                                   family=family,
+                                   study_info=study_info,
+                                   A=A,pA=pA,pZ=pZ,beta=beta_initial,
+                                   hat_thetaA=hat_thetaA,
+                                   V_thetaA=V_thetaA,
+                                   use_offset = use_offset,
+                                   X=X,XR=XR)
             C_half<-sqrtchoinv_rcpp(inv_C+diag(1e-15,nrow(inv_C)))
         }else{
             if(nrow(fix_C)!=pA+pZ+pW+pZ){
