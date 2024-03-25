@@ -597,21 +597,30 @@ htlgmm.default<-function(
             #C_half0<-sqrtchoinv_rcpp(inv_C+diag(1e-15,nrow(inv_C)))
         }else{
             if(output_all_betas){
+
                 print(paste0("case,control",round(sum(y)/sum(1-y),5) ))
-                ids = sample(which(y==1),round(sum(1-y)/5),replace = T)
-                y1=c(y,y[ids])
-                Z1=rbind(Z,Z[ids,])
-                W1=rbind(W,W[ids,])
-                if(!is.null(A)){A1=rbind(A,A[ids,,drop=F])}else{A1=A}
-                beta_initial0=beta_initial
-                pp=sum(y1)/sum(1-y1)
-                beta_initial0[1]=log(pp/(1-pp))
+                id1 = c(sample(which(y==0),round(sum(y==0)/2)),
+                        sample(which(y==1),round(sum(y)*2),replace = T))
+                Z1 = Z[id1,]
+                W1 = W[id1,]
+                y1 = y[id1]
+                A1 = A[id1,,drop=F]
+                offset_term = prodv_rcpp(cbind(Z1,W1),beta_initial[-1])
+                df=data.frame(y=y1,A=A1)
+                hat_thetaA_glm=speedglm(y~0+.,data = df,offset = offset_term,family = binomial())
+                hat_thetaA11=hat_thetaA_glm$coefficients
+                offset_term = prodv_rcpp(Z1,study_info[[1]]$Coeff)
+                df=data.frame(y=y1,A=A1)
+                hat_thetaA_glm=speedglm(y~0+.,data = df,offset = offset_term,family = binomial())
+                hat_thetaA1=hat_thetaA_glm$coefficients
+                V_thetaA1=vcov(hat_thetaA_glm)
+
                 inv_C = Delta_opt_rcpp(y=y1,Z=Z1,W=W1,
                                        family=family,
                                        study_info=study_info,
-                                       A=A1,pA=pA,pZ=pZ,beta=beta_initial0,
-                                       hat_thetaA=hat_thetaA,
-                                       V_thetaA=V_thetaA,
+                                       A=A1,pA=pA,pZ=pZ,beta=c(hat_thetaA11,beta_initial[-1]),
+                                       hat_thetaA=hat_thetaA1,
+                                       V_thetaA=V_thetaA1,
                                        use_offset = use_offset)
                 C_half<-diag(1/sqrt(diag(inv_C)))
                 if(sqrt_matrix == "svd"){
