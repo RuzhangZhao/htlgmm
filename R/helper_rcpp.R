@@ -888,7 +888,7 @@ htlgmm.default<-function(
                            list("cv_dev"=cv_dev,
                                 "cv_auc"=cv_auc,
                                 "cv_ext"=cv_ext))
-            if(output_all_betas){
+            if(tune_ratio){
                 print(paste0("devratio:",ids[1]))
                 print(paste0("aucratio:",ids_auc[1]))
 
