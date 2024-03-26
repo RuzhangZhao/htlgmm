@@ -1,9 +1,38 @@
-cv_dev_lambda_func1<-function(index_fold,Z,W,A,y,
-                              C_half,beta_initial,hat_thetaA,
-                              study_info,lambda_list,
-                              w_adaptive,final_alpha,
-                              pseudo_Xy){
-    dev_fold<-lapply(1:length(index_fold), function(cur_fold){
+cv_dev_lambda_Cratio_func<-function(index_fold,Z,W,A,y,
+                                    C_half,beta_initial,hat_thetaA,
+                                    study_info,
+                                    ratio_range,pZ,pW,pA,
+                                    w_adaptive,final_alpha,
+                                    pseudo_Xy,lambda.min.ratio,
+                                    nlambda,X=NULL,XR=NULL){
+    if(is.null(X)){X=cbind(A,Z,W)}
+    if(is.null(XR)){XR=cbind(A,Z)}
+    item_ratio_list<-lapply(ratio_range,function(ratio){
+        C_half_ratio=C_half
+        C_half_ratio[(pZ+pA+pW+1):nrow(C_half),(pZ+pA+pW+1):nrow(C_half)]=
+            C_half[(pZ+pA+pW+1):nrow(C_half),(pZ+pA+pW+1):nrow(C_half)]*ratio
+
+        pseudo_Xy_list<-pseudo_Xy(C_half=C_half_ratio,Z=Z,W=W,A=A,y=y,
+                                  beta=beta_initial,hat_thetaA=hat_thetaA,
+                                  study_info=study_info,X=X,XR=XR)
+
+        initial_sf<-nrow(Z)/sqrt(nrow(pseudo_Xy_list$pseudo_X))
+        pseudo_X_ratio<-pseudo_Xy_list$pseudo_X/initial_sf
+        pseudo_y_ratio<-pseudo_Xy_list$pseudo_y/initial_sf
+
+        innerprod<-crossprodv_rcpp(pseudo_X_ratio,pseudo_y_ratio)[which(w_adaptive!=0)]
+        lambda.max<-max(abs(innerprod))/nrow(pseudo_X_ratio)
+        lambda_list_ratio <-exp(seq(log(lambda.max),log(lambda.max*lambda.min.ratio),
+                                    length.out=nlambda))
+
+        list("C_half"=C_half_ratio,
+             "pseudo_X"=pseudo_X_ratio,
+             "pseudo_y"=pseudo_y_ratio,
+             "lambda_list"=lambda_list_ratio)
+    })
+
+
+    dev_lam_ratio<-lapply(1:length(index_fold), function(cur_fold){
         index_test<-index_fold[[cur_fold]]
         Ztrain<-Z[-index_test,,drop=FALSE]
         Ztest<-Z[index_test,,drop=FALSE]
@@ -21,41 +50,63 @@ cv_dev_lambda_func1<-function(index_fold,Z,W,A,y,
             Atest<-NULL}
         ytrain<-y[-index_test]
         ytest<-y[index_test]
+        dev_lam_ratio_fold<-lapply(1:length(ratio_range),function(ratio_id){
+            cur_ratio=ratio_range[ratio_id]
+            C_half_ratio = item_ratio_list[[ratio_id]]$C_half
+            lambda_list_ratio = item_ratio_list[[ratio_id]]$lambda_list
+            pseudo_Xy_list_train<-pseudo_Xy(C_half_ratio,Ztrain,Wtrain,Atrain,
+                                            ytrain,beta = beta_initial,hat_thetaA = hat_thetaA,
+                                            study_info=study_info)
+            initial_sf_train<-nrow(Ztrain)/sqrt(nrow(pseudo_Xy_list_train$pseudo_X))
+            pseudo_X_train<-pseudo_Xy_list_train$pseudo_X/initial_sf_train
+            pseudo_y_train<-pseudo_Xy_list_train$pseudo_y/initial_sf_train
 
-        fit_initial_fold<-cv.glmnet(x=cbind(Ztrain,Wtrain),
-                                    y=ytrain,
-                                    family="binomial",
-                                    alpha=0)
-        beta_initial_fold = as.vector(coef(fit_initial_fold,s="lambda.min"))
-        pseudo_Xy_list_train<-pseudo_Xy(C_half,Ztrain,Wtrain,Atrain,
-                                        ytrain,beta = beta_initial_fold,
-                                        hat_thetaA = hat_thetaA,
-                                        study_info=study_info)
-        initial_sf_train<-nrow(Ztrain)/sqrt(nrow(pseudo_Xy_list_train$pseudo_X))
-        pseudo_X_train<-pseudo_Xy_list_train$pseudo_X/initial_sf_train
-        pseudo_y_train<-pseudo_Xy_list_train$pseudo_y/initial_sf_train
-        dev_lam<-sapply(lambda_list,function(cur_lam){
-            cv_fit<-glmnet(x= (pseudo_X_train),y= (pseudo_y_train),
-                           standardize=F,intercept=F,
-                           alpha = final_alpha,penalty.factor = w_adaptive,lambda = cur_lam)
-            cur_beta<-coef.glmnet(cv_fit)[-1]
-            probtest <- expit_rcpp(prodv_rcpp(cbind(Atest,Ztest,Wtest),cur_beta))
-            cur_dev <- -2*mean( ytest * log(probtest) + (1 - ytest) * log(1 - probtest) )
-            suppressMessages(cur_auc<-c(auc(ytest,expit_rcpp(prodv_rcpp(cbind(Atest,Ztest,Wtest),cur_beta)),direction = "<")))
-
-            c(cur_dev,cur_auc)
-        })
-        dev_lam
+            sapply(lambda_list_ratio,function(cur_lam){
+                cv_fit<-glmnet(x=pseudo_X_train,y=pseudo_y_train,
+                               standardize=F,intercept=F,alpha = final_alpha,
+                               penalty.factor = w_adaptive,
+                               lambda = cur_lam)
+                cur_beta<-coef.glmnet(cv_fit)[-1]
+                probtest <- expit_rcpp(prodv_rcpp(cbind(Atest,Ztest,Wtest),cur_beta))
+                cur_dev <- -2*sum( ytest * log(probtest) + (1 - ytest) * log(1 - probtest) )
+                suppressMessages(cur_auc<-c(auc(ytest,probtest,direction = "<")))
+                c(cur_dev,cur_auc)
+            })
+        }) # row is ratio_range & col is lambda_list
+        list("deviance"=do.call(rbind, lapply(dev_lam_ratio_fold, function(m) m[1,])),
+             "auc"=do.call(rbind, lapply(dev_lam_ratio_fold, function(m) m[2,])))
     })
-    sum_dev_lam<-Reduce(`+`, dev_fold)
-    sum_dev_lam=sum_dev_lam/length(index_fold)
-    for(i in 1:length(dev_fold)){dev_fold[[i]]=dev_fold[[i]]^2}
-    sum_dev_lam_sq<-Reduce(`+`, dev_fold)
-    sum_dev_lam_sq=sum_dev_lam_sq/length(index_fold)
-    sum_dev_lam_sq=sum_dev_lam_sq-sum_dev_lam^2
-    sum_dev_lam_sd=sqrt(sum_dev_lam_sq)
-    list("deviance"=sum_dev_lam[1,],"auc"=sum_dev_lam[2,],
-         "deviance_sd"=sum_dev_lam_sd[1,],"auc_sd"=sum_dev_lam_sd[2,])
+    dev_lam_ratio1<-lapply(1:length(index_fold), function(cur_fold){
+        dev_lam_ratio[[cur_fold]]$deviance
+    })
+    dev_lam_ratio2<-lapply(1:length(index_fold), function(cur_fold){
+        dev_lam_ratio[[cur_fold]]$auc
+    })
+    list("deviance"=Reduce(`+`, dev_lam_ratio1)/length(index_fold),
+         "auc"=Reduce(`+`, dev_lam_ratio2)/length(index_fold),
+         "items"=item_ratio_list)
+}
+
+
+## cross validation function for continuous y with lambda and ratio
+cv_auc_ext<-function(index_fold,Z,W,A,y,study_info,hat_thetaA){
+    sapply(1:length(index_fold), function(cur_fold){
+        index_test<-index_fold[[cur_fold]]
+        Ztrain<-Z[-index_test,,drop=FALSE]
+        Ztest<-Z[index_test,,drop=FALSE]
+        if(!is.null(A)){
+            Atrain<-A[-index_test,,drop=FALSE]
+            Atest<-A[index_test,,drop=FALSE]
+        }else{
+            Atrain<-NULL
+            Atest<-NULL}
+        ytrain<-y[-index_test]
+        ytest<-y[index_test]
+        hat_theta<-c(hat_thetaA,study_info[[1]]$Coeff)
+        probtest <- expit_rcpp(prodv_rcpp(cbind(Atest,Ztest),hat_theta))
+        suppressMessages(cur_auc<-c(auc(ytest,probtest,direction = "<")))
+        cur_auc
+    })
 }
 
 
@@ -130,8 +181,8 @@ pseudo_Xy_gaussian_rcpp<-function(
         C_half,Z,W,A,y,beta=NULL,hat_thetaA=NULL,study_info=NULL,X=NULL,XR=NULL){
     tilde_thetaZ=study_info[[1]]$Coeff
     tilde_theta=c(hat_thetaA,tilde_thetaZ)
-    if(is.null(dim(X)[1])){X=cbind(A,Z,W)}
-    if(is.null(dim(XR)[1])){XR=cbind(A,Z)}
+    if(is.null(X)){X=cbind(A,Z,W)}
+    if(is.null(XR)){XR=cbind(A,Z)}
     pseudo_X=prod_rcpp(C_half,crossprod_rcpp(cbind(X,Z),X))
     pseudo_y1=crossprodv_rcpp(X,y)
     pseudo_y2=prodv_rcpp(crossprod_rcpp(Z,XR),tilde_theta)
@@ -286,7 +337,7 @@ cv_dev_lambda_func<-function(index_fold,Z,W,A,y,
             cur_beta<-coef.glmnet(cv_fit)[-1]
             probtest <- expit_rcpp(prodv_rcpp(cbind(Atest,Ztest,Wtest),cur_beta))
             cur_dev <- -2*mean( ytest * log(probtest) + (1 - ytest) * log(1 - probtest) )
-            suppressMessages(cur_auc<-c(auc(ytest,expit_rcpp(prodv_rcpp(cbind(Atest,Ztest,Wtest),cur_beta)),direction = "<")))
+            suppressMessages(cur_auc<-c(auc(ytest,probtest,direction = "<")))
 
             c(cur_dev,cur_auc)
         })
@@ -345,7 +396,7 @@ cv_dev_lambda_ratio_func<-function(index_fold,Z,W,A,y,
                 cur_beta<-coef.glmnet(cv_fit)[-1]
                 probtest <- expit_rcpp(prodv_rcpp(cbind(Atest,Ztest,Wtest),cur_beta))
                 cur_dev <- -2*sum( ytest * log(probtest) + (1 - ytest) * log(1 - probtest) )
-                suppressMessages(cur_auc<-c(auc(ytest,expit_rcpp(prodv_rcpp(cbind(Atest,Ztest,Wtest),cur_beta)),direction = "<")))
+                suppressMessages(cur_auc<-c(auc(ytest,probtest,direction = "<")))
                 c(cur_dev,cur_auc)
             })
         }) # row is ratio_range & col is lambda_list
@@ -591,67 +642,22 @@ htlgmm.default<-function(
                                use_offset = use_offset,
                                X=X,XR=XR)
 
-
         if(use_sparseC){
             C_half<-diag(1/sqrt(diag(inv_C)))
             #C_half0<-sqrtchoinv_rcpp(inv_C+diag(1e-15,nrow(inv_C)))
         }else{
-            if(output_all_betas){
-
-                print(paste0("case,control",round(sum(y)/sum(1-y),5) ))
-                id1 = c(sample(which(y==0),round(sum(y==0)/2)),
-                        sample(which(y==1),round(sum(y)*2),replace = T))
-                Z1 = Z[id1,]
-                W1 = W[id1,]
-                y1 = y[id1]
-                A1 = A[id1,,drop=F]
-                offset_term = prodv_rcpp(cbind(Z1,W1),beta_initial[-1])
-                df=data.frame(y=y1,A=A1)
-                hat_thetaA_glm=speedglm(y~0+.,data = df,offset = offset_term,family = binomial())
-                hat_thetaA11=hat_thetaA_glm$coefficients
-                offset_term = prodv_rcpp(Z1,study_info[[1]]$Coeff)
-                df=data.frame(y=y1,A=A1)
-                hat_thetaA_glm=speedglm(y~0+.,data = df,offset = offset_term,family = binomial())
-                hat_thetaA1=hat_thetaA_glm$coefficients
-                V_thetaA1=vcov(hat_thetaA_glm)
-
-                inv_C = Delta_opt_rcpp(y=y1,Z=Z1,W=W1,
-                                       family=family,
-                                       study_info=study_info,
-                                       A=A1,pA=pA,pZ=pZ,beta=c(hat_thetaA11,beta_initial[-1]),
-                                       hat_thetaA=hat_thetaA1,
-                                       V_thetaA=V_thetaA1,
-                                       use_offset = use_offset)
-                C_half<-diag(1/sqrt(diag(inv_C)))
-                if(sqrt_matrix == "svd"){
-                    C_half<-sqrtchoinv_rcpp(inv_C+diag(1e-9,nrow(inv_C)))
-                }
-            }else{
-                if(sqrt_matrix =="svd"){
-                    inv_C_svd=fast.svd(inv_C+diag(1e-15,nrow(inv_C)))
-                    C_half=prod_rcpp(inv_C_svd$v,(t(inv_C_svd$u)*1/sqrt(inv_C_svd$d)))
-                    #C_half<-inv_C_svd$v%*%diag(1/sqrt(inv_C_svd$d))%*%t(inv_C_svd$u)
-                }else if(sqrt_matrix =="cholesky"){
-                    C_half<-sqrtchoinv_rcpp(inv_C+diag(1e-15,nrow(inv_C)))
-                }
+            if(sqrt_matrix =="svd"){
+                inv_C_svd=fast.svd(inv_C+diag(1e-15,nrow(inv_C)))
+                C_half=prod_rcpp(inv_C_svd$v,(t(inv_C_svd$u)*1/sqrt(inv_C_svd$d)))
+                #C_half<-inv_C_svd$v%*%diag(1/sqrt(inv_C_svd$d))%*%t(inv_C_svd$u)
+            }else if(sqrt_matrix =="cholesky"){
+                C_half<-sqrtchoinv_rcpp(inv_C+diag(1e-15,nrow(inv_C)))
             }
         }
     }else{
-        if(fix_C == 1){
-            inv_C = Delta_opt_rcpp(y=y,Z=Z,W=W,
-                                   family=family,
-                                   study_info=study_info,
-                                   A=A,pA=pA,pZ=pZ,beta=beta_initial,
-                                   hat_thetaA=hat_thetaA,
-                                   V_thetaA=V_thetaA,
-                                   use_offset = use_offset,
-                                   X=X,XR=XR)
-            C_half<-sqrtchoinv_rcpp(inv_C+diag(1e-15,nrow(inv_C)))
-        }else{
-            if(nrow(fix_C)!=pA+pZ+pW+pZ){
-                stop("Input fix_C dimension is wrong!")}
-            C_half<-sqrtcho_rcpp(fix_C+diag(1e-15,nrow(fix_C)))
-        }
+        if(nrow(fix_C)!=pA+pZ+pW+pZ){
+            stop("Input fix_C dimension is wrong!")}
+        C_half<-sqrtcho_rcpp(fix_C+diag(1e-15,nrow(fix_C)))
     }
 
     # Prepare for final model
@@ -667,12 +673,13 @@ htlgmm.default<-function(
     # generate lambda list from glmnet
     if(penalty_type != "none"){
         if(is.null(fix_lambda)&is.null(lambda_list)){
-            fit_final<-glmnet(x= pseudo_X,y= pseudo_y,standardize=F,
-                              intercept=F,alpha = final_alpha,penalty.factor = fix_penalty)
-            #innerprod<-crossprodv_rcpp(pseudo_X,pseudo_y)[which(fix_penalty!=0)]
+            # fit_final<-glmnet(x= pseudo_X,y= pseudo_y,standardize=F,
+            #                   intercept=F,alpha = final_alpha,penalty.factor = fix_penalty)
+            innerprod<-crossprodv_rcpp(pseudo_X,pseudo_y)[which(fix_penalty!=0)]
             #lambda.max<-min(max(abs(innerprod))/nrow(pseudo_X),fit_final$lambda[1])
             #message(c(lambda.max,fit_final$lambda[1],max(abs(innerprod))/nrow(pseudo_X)))
-            lambda.max<-fit_final$lambda[1]
+            #lambda.max<-fit_final$lambda[1]
+            lambda.max<-max(abs(innerprod))/nrow(pseudo_X)
             lambda_list <-exp(seq(log(lambda.max),log(lambda.max*lambda.min.ratio),
                                   length.out=nlambda))
         }
@@ -742,23 +749,76 @@ htlgmm.default<-function(
                                                  study_info,lambda_list,
                                                  ratio_list,pZ,pW,pA,
                                                  w_adaptive,final_alpha,pseudo_Xy)
-                ids<-which(cv_mse==min(cv_mse),arr.ind = TRUE)
+                ids<-which(cv_mse==min(cv_mse),arr.ind = TRUE)[1,]
+                final.ratio.min<-ratio_list[ids[1]]
+                final.lambda.min<-lambda_list[ids[2]]
             }else if(family == "binomial"){
-                cv_dev<-cv_dev_lambda_ratio_func(index_fold,Z,W,A,y,
-                                                 C_half,beta_initial,hat_thetaA,
-                                                 study_info,lambda_list,
-                                                 ratio_list,pZ,pW,pA,
-                                                 w_adaptive,final_alpha,pseudo_Xy)
-                if(type_measure == "auc"){
-                    cv_dev1<-cv_dev$auc
-                    ids<-which(cv_dev1==max(cv_dev1),arr.ind = TRUE)
-                }else{
-                    cv_dev1<-cv_dev$deviance
-                    ids<-which(cv_dev1==min(cv_dev1),arr.ind = TRUE)
-                }
+                # cv_dev<-cv_dev_lambda_ratio_func(index_fold,Z,W,A,y,
+                #                                  C_half,beta_initial,hat_thetaA,
+                #                                  study_info,lambda_list,
+                #                                  ratio_list,pZ,pW,pA,
+                #                                  w_adaptive,final_alpha,pseudo_Xy)
+                cv_dev<-cv_dev_lambda_Cratio_func(index_fold,Z,W,A,y,
+                                                  C_half,beta_initial,hat_thetaA,
+                                                  study_info,
+                                                  ratio_list,pZ,pW,pA,
+                                                  w_adaptive,final_alpha,
+                                                  pseudo_Xy,lambda.min.ratio,
+                                                  nlambda,X,XR)
+                cv_auc1<-cv_dev$auc
+                ids_auc<-which(cv_auc1==max(cv_auc1),arr.ind = TRUE)[1,]
+                print(ids_auc)
+                cv_dev1<-cv_dev$deviance
+                ids<-which(cv_dev1==min(cv_dev1),arr.ind = TRUE)[1,]
+                print(ids)
+                final.ratio.min_tune_ratio<-ratio_list[ids[1]]
+                final.lambda.min_tune_ratio<-cv_dev$items[[ids[1]]]$lambda_list[ids[2]]
+                final.ratio.auc.min_tune_ratio<-ratio_list[ids_auc[1]]
+                final.lambda.auc.min_tune_ratio<-cv_dev$items[[ids_auc[1]]]$lambda_list[ids_auc[2]]
             }
-            final.ratio.min<-ratio_list[ids[1]]
-            final.lambda.min<-lambda_list[ids[2]]
+            w_adaptive_ratio<-w_adaptive
+            fit_final_lam_ratio<-glmnet(x= cv_dev$items[[ids[1]]]$pseudo_X,
+                                        y= cv_dev$items[[ids[1]]]$pseudo_y,
+                                        standardize=F,intercept=F,alpha = final_alpha,
+                                        penalty.factor = w_adaptive_ratio,
+                                        lambda = final.lambda.min_tune_ratio)
+
+            beta<-coef.glmnet(fit_final_lam_ratio)[-1]
+
+            fit_final_lam_ratio_auc<-glmnet(x= cv_dev$items[[ids_auc[1]]]$pseudo_X,
+                                            y= cv_dev$items[[ids_auc[1]]]$pseudo_y,
+                                            standardize=F,
+                                            intercept=F,alpha = final_alpha,
+                                            penalty.factor = w_adaptive_ratio,
+                                            lambda = final.lambda.auc.min_tune_ratio)
+
+            beta_auc=coef.glmnet(fit_final_lam_ratio_auc)[-1]
+
+            return_list<-list("beta_tune_ratio"=beta,
+                              "beta_auc_tune_ratio"=beta_auc,
+                              "lambda_list_tune_ratio"=
+                                  sapply(1:length(ratio_list), function(i){
+                                      cv_dev$items[[i]]$lambda_list}),
+                              "lambda_min_tune_ratio"=c(final.lambda.min_tune_ratio,final.lambda.auc.min_tune_ratio),
+                              "ratio_min_tune_ratio"=c(final.ratio.min_tune_ratio,final.ratio.auc.min_tune_ratio),
+                              "cv_dev_tune_ratio"=cv_dev$deviance,
+                              "cv_auc_tune_ratio"=cv_dev$auc
+                              )
+
+            pseudo_X_extra=cv_dev$items[[length(ratio_list)]]$pseudo_X
+            pseudo_y_extra=cv_dev$items[[length(ratio_list)]]$pseudo_y
+            final.lambda.auc.min.2 = cv_dev$items[[length(ratio_list)]]$lambda_list[which.max(cv_dev$auc[length(ratio_list),])]
+
+            lambda_list = cv_dev$items[[1]]$lambda_list
+            cv_auc=cv_dev$auc[1,]
+            pseudo_X=cv_dev$items[[1]]$pseudo_X
+            pseudo_y=cv_dev$items[[1]]$pseudo_y
+            cv_dev=cv_dev$deviance[1,]
+            final.lambda.min = lambda_list[which.min(cv_dev)]
+            final.lambda.auc.min = lambda_list[which.max(cv_auc)]
+            final.ratio.min = 1
+
+
         }else{
             if(family == "gaussian"){
                 cv_mse<-cv_mse_lambda_func(index_fold,Z,W,A,y,
@@ -767,52 +827,27 @@ htlgmm.default<-function(
                                            w_adaptive,final_alpha,pseudo_Xy)
                 final.lambda.min<-lambda_list[which.min(cv_mse)]
             }else if(family == "binomial"){
-                if(refine_C){
-                    cv_dev<-cv_dev_lambda_func1(index_fold,Z,W,A,y,
-                                               C_half,beta_initial,hat_thetaA,
-                                               study_info,lambda_list,
-                                               w_adaptive,final_alpha,pseudo_Xy)
-                }else{
-                    cv_dev<-cv_dev_lambda_func(index_fold,Z,W,A,y,
-                                               C_half,beta_initial,hat_thetaA,
-                                               study_info,lambda_list,
-                                               w_adaptive,final_alpha,pseudo_Xy)
-                }
+                cv_dev<-cv_dev_lambda_func(index_fold,Z,W,A,y,
+                                           C_half,beta_initial,hat_thetaA,
+                                           study_info,lambda_list,
+                                           w_adaptive,final_alpha,pseudo_Xy)
+                cv_auc<-cv_dev$auc
+                cv_auc_sd<-cv_dev$auc_sd
+                max_id<-which.max(cv_auc)
+                final.lambda.auc.min<-lambda_list[max_id]
 
-                # if(type_measure == "auc"){
-                    cv_auc1<-cv_dev$auc
-                    cv_auc1_sd<-cv_dev$auc_sd
-                    max_id=which.max(cv_auc1)
-                    max_id1=min(which(cv_auc1 >= cv_auc1[max_id]-cv_auc1_sd[max_id]))
-                    max_id3=as.integer((max_id+max_id1)/2)
-                    max_id4=as.integer((max_id+max_id3)/2)
-                    if(output_all_betas){
-                        print("bestAUCid")
-                        print(c(max_id1,max_id4,max_id))
-                    }
-                    final.lambda.auc.min<-lambda_list[max_id]
-                    final.lambda.auc.1se<-lambda_list[max_id1]
-                    final.lambda.auc.4th<-lambda_list[max_id4]
-                # }else{
-                    cv_dev1<-cv_dev$deviance
-                    cv_dev1_sd<-cv_dev$deviance_sd
-                    min_id=which.min(cv_dev1)
-                    min_id1=min(which(cv_dev1 <= cv_dev1[min_id]+cv_dev1_sd[min_id]))
-                    min_id3=as.integer((min_id+min_id1)/2)
-                    min_id4=as.integer((min_id+min_id3)/2)
-                    if(output_all_betas){
-                        print("bestdevianceid")
-                        print(c(min_id1,min_id4,min_id))
-                    }
-                    final.lambda.min<-lambda_list[min_id]
-                    final.lambda.1se<-lambda_list[min_id1]
-                    final.lambda.4th<-lambda_list[min_id4]
-                # }
+                cv_dev<-cv_dev$deviance
+                cv_dev_sd<-cv_dev$deviance_sd
+                min_id<-which.min(cv_dev)
+                final.lambda.min<-lambda_list[min_id]
             }
             final.ratio.min<-1
+            return_list<-list()
         }
-        ratio_vec<-c(rep(final.ratio.min,pZ),rep(1,pW+pA))
-        w_adaptive_ratio<-w_adaptive*ratio_vec
+
+        # ratio_vec<-c(rep(final.ratio.min,pZ),rep(1,pW+pA))
+        # w_adaptive_ratio<-w_adaptive*ratio_vec
+        w_adaptive_ratio<-w_adaptive
         fit_final_lam_ratio<-glmnet(x= pseudo_X,y= pseudo_y,standardize=F,
                                     intercept=F,alpha = final_alpha,
                                     penalty.factor = w_adaptive_ratio,
@@ -827,102 +862,48 @@ htlgmm.default<-function(
 
         beta_auc=coef.glmnet(fit_final_lam_ratio_auc)[-1]
 
-        if(output_all_betas){
-            beta_1se<-sapply(c(final.lambda.1se,final.lambda.4th), function(lambda.1se){
-                fit_final_lam_ratio_1se<-glmnet(x= pseudo_X,y= pseudo_y,standardize=F,
-                                                intercept=F,alpha = final_alpha,
-                                                penalty.factor = w_adaptive_ratio,
-                                                lambda = lambda.1se)
-                coef.glmnet(fit_final_lam_ratio_1se)[-1]
-            })
-            ###
-            C_half2=C_half
-            C_half2[(pZ+pA+pW):nrow(C_half),(pZ+pA+pW):nrow(C_half)]=
-                C_half2[(pZ+pA+pW):nrow(C_half),(pZ+pA+pW):nrow(C_half)]/2
-            C_half3=C_half
-            C_half3[(pZ+pA+pW):nrow(C_half),(pZ+pA+pW):nrow(C_half)]=
-                C_half3[(pZ+pA+pW):nrow(C_half),(pZ+pA+pW):nrow(C_half)]*2
-            pseudo_Xy_list<-pseudo_Xy(C_half=C_half2,Z=Z,W=W,A=A,y=y,
-                                      beta=beta_initial,hat_thetaA=hat_thetaA,
-                                      study_info=study_info,X=X,XR=XR)
-
-            initial_sf<-nZ/sqrt(nrow(pseudo_Xy_list$pseudo_X))
-            pseudo_X2<-pseudo_Xy_list$pseudo_X/initial_sf
-            pseudo_y2<-pseudo_Xy_list$pseudo_y/initial_sf
-
-            pseudo_Xy_list<-pseudo_Xy(C_half=C_half3,Z=Z,W=W,A=A,y=y,
-                                      beta=beta_initial,hat_thetaA=hat_thetaA,
-                                      study_info=study_info,X=X,XR=XR)
-
-            initial_sf<-nZ/sqrt(nrow(pseudo_Xy_list$pseudo_X))
-            pseudo_X3<-pseudo_Xy_list$pseudo_X/initial_sf
-            pseudo_y3<-pseudo_Xy_list$pseudo_y/initial_sf
-
-            fit_final_lam_ratio2<-glmnet(x= pseudo_X2,y= pseudo_y2,standardize=F,
-                                        intercept=F,alpha = final_alpha,
-                                        penalty.factor = w_adaptive_ratio,
-                                        lambda = final.lambda.min)
-            fit_final_lam_ratio3<-glmnet(x= pseudo_X3,y= pseudo_y3,standardize=F,
-                                         intercept=F,alpha = final_alpha,
-                                         penalty.factor = w_adaptive_ratio,
-                                         lambda = final.lambda.min)
-            beta2<-coef.glmnet(fit_final_lam_ratio2)[-1]
-            beta3<-coef.glmnet(fit_final_lam_ratio3)[-1]
-            beta_1se<-cbind(cbind(beta_1se,beta2),beta3)
-
-            beta_auc_1se<-sapply(c(final.lambda.auc.1se,final.lambda.auc.4th), function(lambda.1se){
-                fit_final_lam_ratio_1se<-glmnet(x= pseudo_X,y= pseudo_y,standardize=F,
-                                                intercept=F,alpha = final_alpha,
-                                                penalty.factor = w_adaptive_ratio,
-                                                lambda = lambda.1se)
-                coef.glmnet(fit_final_lam_ratio_1se)[-1]
-            })
-
-
-            fit_final_lam_ratio2<-glmnet(x= pseudo_X2,y= pseudo_y2,standardize=F,
-                                         intercept=F,alpha = final_alpha,
-                                         penalty.factor = w_adaptive_ratio,
-                                         lambda = final.lambda.auc.min)
-            fit_final_lam_ratio3<-glmnet(x= pseudo_X3,y= pseudo_y3,standardize=F,
-                                         intercept=F,alpha = final_alpha,
-                                         penalty.factor = w_adaptive_ratio,
-                                         lambda = final.lambda.auc.min)
-            beta_auc2<-coef.glmnet(fit_final_lam_ratio2)[-1]
-            beta_auc3<-coef.glmnet(fit_final_lam_ratio3)[-1]
-            beta_auc_1se<-cbind(cbind(beta_auc_1se,beta_auc2),beta_auc3)
-        }
-        return_list<-list("beta"=beta,
+        return_list<-c(return_list,
+                       list("beta"=beta,
+                          "beta_auc"=beta_auc,
                           "lambda_list"=lambda_list,
                           "ratio_list"=ratio_list,
                           "lambda_min"=final.lambda.min,
-                          "ratio_min"=final.ratio.min)
-        # if(output_all_betas){
-            # fit_final_lam_ratio_allbeta<-glmnet(x= pseudo_X,y= pseudo_y,standardize=F,
-            #                                     intercept=F,alpha = final_alpha,
-            #                                     penalty.factor = w_adaptive_ratio,
-            #                                     lambda = lambda_list)
-            # return_list<-c(return_list,
-            # list("allbetas"=coef(fit_final_lam_ratio_allbeta)))
-        # }
+                          "ratio_min"=final.ratio.min))
+
         if(family == "gaussian"){
             return_list<-c(return_list,
                            list("cv_mse"=cv_mse/nfolds))
         }else if(family == "binomial"){
+            cv_ext<-mean(cv_auc_ext(index_fold,Z,W,A,y,study_info,hat_thetaA))
+            return_list<-c(return_list,
+                           list("cv_dev"=cv_dev,
+                                "cv_auc"=cv_auc,
+                                "cv_ext"=cv_ext))
             if(output_all_betas){
+                fit_final_lam_ratio_auc<-glmnet(x= pseudo_X_extra,y= pseudo_y_extra,
+                                                standardize=F,
+                                                intercept=F,alpha = final_alpha,
+                                                penalty.factor = w_adaptive_ratio,
+                                                lambda = final.lambda.auc.min)
+                beta_auc1=coef.glmnet(fit_final_lam_ratio_auc)[-1]
+                fit_final_lam_ratio_auc<-glmnet(x= pseudo_X_extra,y= pseudo_y_extra,
+                                                standardize=F,
+                                                intercept=F,alpha = final_alpha,
+                                                penalty.factor = w_adaptive_ratio,
+                                                lambda = final.lambda.auc.min.2)
+                beta_auc2=coef.glmnet(fit_final_lam_ratio_auc)[-1]
+                if(max(cv_auc)>cv_ext){
+                    beta_auc3 = beta_auc
+                }else{
+                    beta_auc3 = beta_auc2
+                }
                 return_list<-c(return_list,
-                               list("beta_1se"=beta_1se,
-                                   #"beta_auc"=beta_auc,
-                                   "beta_auc_1se"=beta_auc_1se,
-                                   "lambda_1se"=c(final.lambda.1se,final.lambda.4th),
-                                   "lambda_auc_1se"=c(final.lambda.auc.1se,final.lambda.auc.4th)))
+                               list("beta_auc1"=beta_auc1,
+                                   "beta_auc2"=beta_auc2,
+                                   "beta_auc3"=beta_auc3))
             }
-            return_list<-c(return_list,
-                           list("cv_dev"=cv_dev$deviance,
-                                "cv_auc"=cv_dev$auc))
-            return_list<-c(return_list,
-                           list("cv_dev_sd"=cv_dev$deviance_sd,
-                                "cv_auc_sd"=cv_dev$auc_sd,
-                                "beta_auc"=beta_auc))
+
+
         }
     }
     if(inference){
@@ -931,8 +912,6 @@ htlgmm.default<-function(
             if(penalty_type == "lasso"){
                 warning("Current penalty is lasso, please turn to adaptivelasso for inference")
             }
-            # refine C
-            #if(use_sparseC){C_half=C_half0}
             if(refine_C){
                 inv_C = Delta_opt_rcpp(y=y,Z=Z,W=W,
                                        family=family,
