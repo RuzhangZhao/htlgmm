@@ -845,8 +845,8 @@ htlgmm.default<-function(
                 max_id<-which.max(cv_auc)
                 final.lambda.auc.min<-lambda_list[max_id]
 
-                cv_dev<-cv_dev$deviance
                 cv_dev_sd<-cv_dev$deviance_sd
+                cv_dev<-cv_dev$deviance
                 min_id<-which.min(cv_dev)
                 final.lambda.min<-lambda_list[min_id]
             }
