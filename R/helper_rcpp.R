@@ -11,6 +11,11 @@ cv_dev_lambda_Cratio_func<-function(index_fold,Z,W,A,y,
         C_half_ratio=C_half
         C_half_ratio[(pZ+pA+pW+1):nrow(C_half),(pZ+pA+pW+1):nrow(C_half)]=
             C_half[(pZ+pA+pW+1):nrow(C_half),(pZ+pA+pW+1):nrow(C_half)]*ratio
+        C_half_ratio[1:(pZ+pA+pW),(pZ+pA+pW+1):nrow(C_half)]=
+            C_half[1:(pZ+pA+pW),(pZ+pA+pW+1):nrow(C_half)]*min(1,sqrt(ratio))
+        C_half_ratio[(pZ+pA+pW+1):nrow(C_half),1:(pZ+pA+pW)]=
+            C_half[(pZ+pA+pW+1):nrow(C_half),1:(pZ+pA+pW)]*min(1,sqrt(ratio))
+
 
         pseudo_Xy_list<-pseudo_Xy(C_half=C_half_ratio,Z=Z,W=W,A=A,y=y,
                                   beta=beta_initial,hat_thetaA=hat_thetaA,
@@ -767,10 +772,9 @@ htlgmm.default<-function(
                                                   nlambda,X,XR)
                 cv_auc1<-cv_dev$auc
                 ids_auc<-which(cv_auc1==max(cv_auc1),arr.ind = TRUE)[1,]
-                print(ids_auc)
                 cv_dev1<-cv_dev$deviance
                 ids<-which(cv_dev1==min(cv_dev1),arr.ind = TRUE)[1,]
-                print(ids)
+                print(sapply(1:nrow(cv_auc1), function(i){round(max(cv_auc1[i,]),4)}))
                 final.ratio.min_tune_ratio<-ratio_list[ids[1]]
                 final.lambda.min_tune_ratio<-cv_dev$items[[ids[1]]]$lambda_list[ids[2]]
                 final.ratio.auc.min_tune_ratio<-ratio_list[ids_auc[1]]
@@ -807,7 +811,12 @@ htlgmm.default<-function(
 
             pseudo_X_extra=cv_dev$items[[length(ratio_list)]]$pseudo_X
             pseudo_y_extra=cv_dev$items[[length(ratio_list)]]$pseudo_y
-            final.lambda.auc.min.2 = cv_dev$items[[length(ratio_list)]]$lambda_list[which.max(cv_dev$auc[length(ratio_list),])]
+            final.lambda.auc.min.extra = cv_dev$items[[length(ratio_list)]]$lambda_list[which.max(cv_dev$auc[length(ratio_list),])]
+
+            sec_id = min(2,length(ratio_list))
+            pseudo_X_extra2=cv_dev$items[[sec_id]]$pseudo_X
+            pseudo_y_extra2=cv_dev$items[[sec_id]]$pseudo_y
+            final.lambda.auc.min.extra2 = cv_dev$items[[sec_id]]$lambda_list[which.max(cv_dev$auc[sec_id,])]
 
             lambda_list = cv_dev$items[[1]]$lambda_list
             cv_auc=cv_dev$auc[1,]
@@ -880,18 +889,22 @@ htlgmm.default<-function(
                                 "cv_auc"=cv_auc,
                                 "cv_ext"=cv_ext))
             if(output_all_betas){
-                fit_final_lam_ratio_auc<-glmnet(x= pseudo_X_extra,y= pseudo_y_extra,
+                print(paste0("devratio:",ids[1]))
+                print(paste0("aucratio:",ids_auc[1]))
+
+                fit_final_lam_ratio_auc<-glmnet(x= pseudo_X_extra2,y= pseudo_y_extra2,
                                                 standardize=F,
                                                 intercept=F,alpha = final_alpha,
                                                 penalty.factor = w_adaptive_ratio,
-                                                lambda = final.lambda.auc.min)
+                                                lambda = final.lambda.auc.min.extra2)
                 beta_auc1=coef.glmnet(fit_final_lam_ratio_auc)[-1]
                 fit_final_lam_ratio_auc<-glmnet(x= pseudo_X_extra,y= pseudo_y_extra,
                                                 standardize=F,
                                                 intercept=F,alpha = final_alpha,
                                                 penalty.factor = w_adaptive_ratio,
-                                                lambda = final.lambda.auc.min.2)
+                                                lambda = final.lambda.auc.min.extra)
                 beta_auc2=coef.glmnet(fit_final_lam_ratio_auc)[-1]
+                print(paste0( round(max(cv_auc),4),"vs",round(cv_ext,4) ))
                 if(max(cv_auc)>cv_ext){
                     beta_auc3 = beta_auc
                 }else{
