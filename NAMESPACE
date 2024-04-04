@@ -3,8 +3,6 @@
 export(choinv)
 export(cv.htlgmm)
 export(expit)
-export(fm.htlgmm)
-export(group.fm.htlgmm)
 export(gwas.htlgmm)
 export(htlgmm)
 import(Rcpp)

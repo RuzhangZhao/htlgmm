@@ -14,6 +14,7 @@ cv.htlgmm(
   family = "gaussian",
   initial_with_type = "ridge",
   beta_initial = NULL,
+  alpha = NULL,
   hat_thetaA = NULL,
   V_thetaA = NULL,
   use_offset = FALSE,
@@ -35,6 +36,9 @@ cv.htlgmm(
   tune_ratio = FALSE,
   fix_ratio = NULL,
   ratio_list = NULL,
+  tune_weight = FALSE,
+  fix_weight = NULL,
+  weight_list = NULL,
   gamma_adaptivelasso = 1/2,
   use_sparseC = TRUE,
   seed.use = 97,
@@ -58,7 +62,7 @@ For binary variable, we use intercept term by 'A=1' to adjust for different bina
 If there is only intercept term in A, we use 'A=1'.
 A are the features working for adjustment in reduced model, but A is not summarized in summary statistics(input:study_info).}
 
-\item{penalty_type}{The penalty type for htlgmm, chosen from c("none","lasso","adaptivelasso","ridge"). The default is "adaptivelasso".
+\item{penalty_type}{The penalty type for htlgmm, chosen from c("none","lasso","adaptivelasso","ridge","elasticnet"). The default is "adaptivelasso".
 If 'penalty_type = 'none' ', we use without penalty. (For continuous y, we use ordinary least square, and for binary y, we use logistic regression without penalty.)}
 
 \item{family}{The family is chosen from c("gaussian","binomial"). Linear regression for "gaussian" and logistic regression for "binomial".}
@@ -70,6 +74,8 @@ for continuous y, we use ordinary least square, and for binary y, we use logisti
 \item{beta_initial}{The initial estimation for beta if a consistent estimator is available.
 E.g., one may input htlgmm result as beta_initial for more rounds to refine the final estimation.
 The default is NULL, and main study is used for initial estimation according to 'initial_with_type'.}
+
+\item{alpha}{The elasticnet mixing parameter, between 0 and 1, which is corresponding to the alpha for glmnet. Only used when penalty_type == 'elasticnet'.}
 
 \item{hat_thetaA}{If A is not NULL, one can provide hat_thetaA as the input. If 'hat_thetaA = NULL', we estimate hat_thetaA with glm by main study.}
 
@@ -94,7 +100,7 @@ For coxph model, robust is also about whether we apply the robust variance for t
 
 \item{use_cv}{Whether to use cross validation to determine the best lambda (or ratio).}
 
-\item{type_measure}{Select from c("default", "mse", "deviance", "auc"). Default is mse(liner), deviance(logistic). 'auc' is another choice for binary y.}
+\item{type_measure}{Select from c("default", "mse", "deviance", "auc"). Default is mse(liner), auc(logistic). 'deviance' is another choice for binary y.}
 
 \item{nfolds}{The fold number for cross validation. Only work for use_cv = TRUE.The default is 10.}
 
@@ -113,6 +119,12 @@ For coxph model, robust is also about whether we apply the robust variance for t
 \item{fix_ratio}{The fixed ratio for two-lambda strategy. The ratio is multiplied for Z features. The default is NULL. If it is NULL, select the best ratio via cross validation.}
 
 \item{ratio_list}{The ratio list if it is preset. The default is NULL and ratio list will be generated.}
+
+\item{tune_weight}{Whether to assign tuning weight for weighting matrix of external study part. The default is FALSE. This is not applied to coxph model.}
+
+\item{fix_weight}{The fixed weight for for weighting matrix of external study part. The default is NULL. If it is NULL, select the best weight via cross validation.}
+
+\item{weight_list}{The weight list if it is preset. The default is NULL and weight list will be generated.}
 
 \item{gamma_adaptivelasso}{The gamma for adaptive lasso. Select from c(1/2,1,2). The default is 1/2.}
 
