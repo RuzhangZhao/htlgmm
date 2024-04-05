@@ -310,14 +310,17 @@ cv_mse_lambda_Cweight_func<-function(index_fold,Z,W,A,y,
                                      w_adaptive,final_alpha,
                                      pseudo_Xy,lambda.min.ratio,
                                      nlambda,X=NULL,XR=NULL,
-                                     fix_lambda_list=NULL){
+                                     fix_lambda_list=NULL,sC_half=NULL){
     if(is.null(X)){X=cbind(A,Z,W)}
     if(is.null(XR)){XR=cbind(A,Z)}
     item_weight_list<-lapply(weight_list,function(weight){
-        C_half_weight=C_half
-        C_half_weight[(pZ+pA+pW+1):nrow(C_half),(pZ+pA+pW+1):nrow(C_half)]=
-            C_half[(pZ+pA+pW+1):nrow(C_half),(pZ+pA+pW+1):nrow(C_half)]*sqrt(weight)
-
+        if(weight<0){
+            C_half_weight<-sC_half
+        }else{
+            C_half_weight<-C_half
+            C_half_weight[(pZ+pA+pW+1):nrow(C_half),(pZ+pA+pW+1):nrow(C_half)]=
+                C_half[(pZ+pA+pW+1):nrow(C_half),(pZ+pA+pW+1):nrow(C_half)]*sqrt(weight)
+        }
         pseudo_Xy_list<-pseudo_Xy(C_half=C_half_weight,Z=Z,W=W,A=A,y=y,
                                   beta=beta_initial,hat_thetaA=hat_thetaA,
                                   study_info=study_info,X=X,XR=XR)
@@ -391,14 +394,17 @@ cv_dev_lambda_Cweight_func<-function(index_fold,Z,W,A,y,
                                      w_adaptive,final_alpha,
                                      pseudo_Xy,lambda.min.ratio,
                                      nlambda,X=NULL,XR=NULL,
-                                     fix_lambda_list=NULL){
+                                     fix_lambda_list=NULL,sC_half=NULL){
     if(is.null(X)){X=cbind(A,Z,W)}
     if(is.null(XR)){XR=cbind(A,Z)}
     item_weight_list<-lapply(weight_list,function(weight){
-        C_half_weight=C_half
-        C_half_weight[(pZ+pA+pW+1):nrow(C_half),(pZ+pA+pW+1):nrow(C_half)]=
-            C_half[(pZ+pA+pW+1):nrow(C_half),(pZ+pA+pW+1):nrow(C_half)]*sqrt(weight)
-
+        if(weight<0){
+            C_half_weight<-sC_half
+        }else{
+            C_half_weight=C_half
+            C_half_weight[(pZ+pA+pW+1):nrow(C_half),(pZ+pA+pW+1):nrow(C_half)]<-
+                C_half[(pZ+pA+pW+1):nrow(C_half),(pZ+pA+pW+1):nrow(C_half)]*sqrt(weight)
+        }
         pseudo_Xy_list<-pseudo_Xy(C_half=C_half_weight,Z=Z,W=W,A=A,y=y,
                                   beta=beta_initial,hat_thetaA=hat_thetaA,
                                   study_info=study_info,X=X,XR=XR)
@@ -420,7 +426,6 @@ cv_dev_lambda_Cweight_func<-function(index_fold,Z,W,A,y,
              "pseudo_y"=pseudo_y_weight,
              "lambda_list"=lambda_list_weight)
     })
-
 
     dev_lam_weight<-lapply(1:length(index_fold), function(cur_fold){
         index_test<-index_fold[[cur_fold]]
@@ -758,6 +763,42 @@ htlgmm.default<-function(
                                       family=family)
                 beta_initial=c(coef.glmnet(fit_initial,s="lambda.min")[-1])
             }
+        }else if(initial_with_type == "subset_lasso"){
+            initial_alpha = 1
+            init_ids<-sample(1:nZ,round(nZ*0.7))
+
+            index_fold_init<-createFolds(y[init_ids],k = nfolds)
+            index_fold_non<-createFolds(y[-init_ids],k = nfolds)
+            foldid<-rep(NA,length(y))
+            for( i in 1:nfolds){
+                foldid[index_fold_init[[i]]]<-i
+                foldid[index_fold_non[[i]]]<-i
+            }
+
+            if(pA == 0){
+                fit_initial=cv.glmnet(x=X[init_ids,],y= y[init_ids],
+                                      alpha = initial_alpha,
+                                      penalty.factor = fix_penalty,
+                                      family=family)
+                beta_initial=c(coef.glmnet(fit_initial,s="lambda.min")[-1])
+            }else if(length(unique(A[,1]))==1){
+                if(unique(A[,1])==1){
+                    fit_initial=cv.glmnet(x=X[init_ids,-1,drop=F],y=y[init_ids],
+                                          alpha = initial_alpha,
+                                          penalty.factor = fix_penalty[-1],
+                                          family=family)
+                    beta_initial=as.vector(coef.glmnet(fit_initial,s="lambda.min"))
+                }else{
+                    stop("The first column of A is constant, then it should be 1 for intercept.")
+                }
+            }else{
+                fit_initial=cv.glmnet(x=X[init_ids,],y= y[init_ids],
+                                      alpha = initial_alpha,
+                                      penalty.factor = fix_penalty,
+                                      family=family)
+                beta_initial=c(coef.glmnet(fit_initial,s="lambda.min")[-1])
+            }
+
         }else{stop("Select Initial Type from c('glm','ridge','lasso')")}
     }
     if (penalty_type == "adaptivelasso"){
@@ -779,9 +820,9 @@ htlgmm.default<-function(
                                V_thetaA=V_thetaA,
                                use_offset = use_offset,
                                X=X,XR=XR)
-
+        sC_half<-diag(1/sqrt(diag(inv_C)))
         if(use_sparseC){
-            C_half<-diag(1/sqrt(diag(inv_C)))
+            C_half<-sC_half
         }else{
             if(sqrt_matrix =="svd"){
                 inv_C_svd=fast.svd(inv_C+diag(1e-15,nrow(inv_C)))
@@ -816,6 +857,7 @@ htlgmm.default<-function(
 
     ###########--------------###########
     # generate lambda list from glmnet
+
     if(!is.null(lambda_list)){fix_lambda_list<-lambda_list}else{
         fix_lambda_list<-NULL}
     if(penalty_type != "none"){
@@ -847,13 +889,13 @@ htlgmm.default<-function(
             # ratio_count<-10
             # ratio_list<-(seq(sqrt(ratio_lower),sqrt(ratio_upper),(sqrt(ratio_upper)-sqrt(ratio_lower))/ratio_count)^2)
             # ratio_list<-c(1,ratio_list)
-            ratio_list<-c(1,0,1/4,1/2,2,4,8)
+            ratio_list<-c(1,1/2,2,4)
         }
     }else{tune_ratio<-FALSE}
 
     ###########--------------###########
     # generate weight list from glmnet
-    if(tune_weight){if(is.null(weight_list)){weight_list<-c(1,2,4,8)}}
+    if(tune_weight){if(is.null(weight_list)){weight_list<-c(1,2,4,8,-1)}}
 
     ###########--------------###########
     # No Cross Validation
@@ -910,7 +952,7 @@ htlgmm.default<-function(
                                                    w_adaptive,final_alpha,
                                                    pseudo_Xy,lambda.min.ratio,
                                                    nlambda,X,XR,
-                                                   fix_lambda_list)
+                                                   fix_lambda_list,sC_half)
                 cv_mse<-cv_res$mse
                 ids<-which(cv_mse==min(cv_mse),arr.ind = TRUE)[1,]
                 final.weight.min<-weight_list[ids[1]]
@@ -924,7 +966,7 @@ htlgmm.default<-function(
                                                    w_adaptive,final_alpha,
                                                    pseudo_Xy,lambda.min.ratio,
                                                    nlambda,X,XR,
-                                                   fix_lambda_list)
+                                                   fix_lambda_list,sC_half)
                 cv_auc<-cv_res$auc
                 ids_auc<-which(cv_auc==max(cv_auc),arr.ind = TRUE)[1,]
                 cv_dev<-cv_res$deviance
