@@ -544,11 +544,13 @@ cv_dev_lambda_Cweight_func2<-function(index_fold,Z,W,A,y,family,
         ytest<-y[index_test]
         dev_lam_weight_fold<-lapply(1:length(weight_list),function(weight_id){
             cur_weight=weight_list[weight_id]
-
+            train_lasso<-cv.glmnet(x = cbind(Atrain,Ztrain,Wtrain),
+                                   y=ytrain,family=family)
+            beta_initial1<-as.vector(coef(train_lasso,s="lambda.min"))
             inv_C_train = Delta_opt_rcpp(y=ytrain,Z=Ztrain,W=Wtrain,
                                          family=family,
                                          study_info=study_info,
-                                         A=Atrain,pA=pA,pZ=pZ,beta=beta_initial,
+                                         A=Atrain,pA=pA,pZ=pZ,beta=beta_initial1,
                                          hat_thetaA=hat_thetaA,
                                          V_thetaA=V_thetaA,
                                          use_offset=use_offset)
@@ -563,7 +565,7 @@ cv_dev_lambda_Cweight_func2<-function(index_fold,Z,W,A,y,family,
             #C_half_weight = item_weight_list[[weight_id]]$C_half
             lambda_list_weight = item_weight_list[[weight_id]]$lambda_list
             pseudo_Xy_list_train<-pseudo_Xy(C_half_weight,Ztrain,Wtrain,Atrain,
-                                            ytrain,beta = beta_initial,hat_thetaA = hat_thetaA,
+                                            ytrain,beta = beta_initial1,hat_thetaA = hat_thetaA,
                                             study_info=study_info)
             initial_sf_train<-nrow(Ztrain)/sqrt(nrow(pseudo_Xy_list_train$pseudo_X))
             pseudo_X_train<-pseudo_Xy_list_train$pseudo_X/initial_sf_train
