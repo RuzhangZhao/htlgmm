@@ -393,7 +393,7 @@ cv_dev_lambda_Cweight_func<-function(index_fold,Z,W,A,y,
                                      weight_list,pZ,pW,pA,
                                      w_adaptive,final_alpha,
                                      pseudo_Xy,lambda.min.ratio,
-                                     nlambda,X=NULL,XR=NULL,
+                                     nlambda,V_thetaA,use_offset,X=NULL,XR=NULL,
                                      fix_lambda_list=NULL,sC_half=NULL){
     if(is.null(X)){X=cbind(A,Z,W)}
     if(is.null(XR)){XR=cbind(A,Z)}
@@ -448,6 +448,119 @@ cv_dev_lambda_Cweight_func<-function(index_fold,Z,W,A,y,
         dev_lam_weight_fold<-lapply(1:length(weight_list),function(weight_id){
             cur_weight=weight_list[weight_id]
             C_half_weight = item_weight_list[[weight_id]]$C_half
+            lambda_list_weight = item_weight_list[[weight_id]]$lambda_list
+            pseudo_Xy_list_train<-pseudo_Xy(C_half_weight,Ztrain,Wtrain,Atrain,
+                                            ytrain,beta = beta_initial,hat_thetaA = hat_thetaA,
+                                            study_info=study_info)
+            initial_sf_train<-nrow(Ztrain)/sqrt(nrow(pseudo_Xy_list_train$pseudo_X))
+            pseudo_X_train<-pseudo_Xy_list_train$pseudo_X/initial_sf_train
+            pseudo_y_train<-pseudo_Xy_list_train$pseudo_y/initial_sf_train
+
+            sapply(lambda_list_weight,function(cur_lam){
+                cv_fit<-glmnet(x=pseudo_X_train,y=pseudo_y_train,
+                               standardize=F,intercept=F,alpha = final_alpha,
+                               penalty.factor = w_adaptive,
+                               lambda = cur_lam)
+                cur_beta<-coef.glmnet(cv_fit)[-1]
+                probtest <- expit_rcpp(prodv_rcpp(cbind(Atest,Ztest,Wtest),cur_beta))
+                cur_dev <- -2*sum( ytest * log(probtest) + (1 - ytest) * log(1 - probtest) )
+                suppressMessages(cur_auc<-c(auc(ytest,probtest,direction = "<")))
+                c(cur_dev,cur_auc)
+            })
+        }) # row is weight_list & col is lambda_list
+        list("deviance"=do.call(rbind, lapply(dev_lam_weight_fold, function(m) m[1,])),
+             "auc"=do.call(rbind, lapply(dev_lam_weight_fold, function(m) m[2,])))
+    })
+    dev_lam_weight1<-lapply(1:length(index_fold), function(cur_fold){
+        dev_lam_weight[[cur_fold]]$deviance
+    })
+    dev_lam_weight2<-lapply(1:length(index_fold), function(cur_fold){
+        dev_lam_weight[[cur_fold]]$auc
+    })
+    list("deviance"=Reduce(`+`, dev_lam_weight1)/length(index_fold),
+         "auc"=Reduce(`+`, dev_lam_weight2)/length(index_fold),
+         "items"=item_weight_list)
+}
+
+
+
+cv_dev_lambda_Cweight_func2<-function(index_fold,Z,W,A,y,
+                                      C_half,beta_initial,hat_thetaA,
+                                      study_info,
+                                      weight_list,pZ,pW,pA,
+                                      w_adaptive,final_alpha,
+                                      pseudo_Xy,lambda.min.ratio,
+                                      nlambda,V_thetaA,use_offset,X=NULL,XR=NULL,
+                                      fix_lambda_list=NULL,sC_half=NULL){
+    if(is.null(X)){X=cbind(A,Z,W)}
+    if(is.null(XR)){XR=cbind(A,Z)}
+    item_weight_list<-lapply(weight_list,function(weight){
+        if(weight<0){
+            C_half_weight<-sC_half
+        }else{
+            C_half_weight=C_half
+            C_half_weight[(pZ+pA+pW+1):nrow(C_half),(pZ+pA+pW+1):nrow(C_half)]<-
+                C_half[(pZ+pA+pW+1):nrow(C_half),(pZ+pA+pW+1):nrow(C_half)]*sqrt(weight)
+        }
+        pseudo_Xy_list<-pseudo_Xy(C_half=C_half_weight,Z=Z,W=W,A=A,y=y,
+                                  beta=beta_initial,hat_thetaA=hat_thetaA,
+                                  study_info=study_info,X=X,XR=XR)
+
+        initial_sf<-nrow(Z)/sqrt(nrow(pseudo_Xy_list$pseudo_X))
+        pseudo_X_weight<-pseudo_Xy_list$pseudo_X/initial_sf
+        pseudo_y_weight<-pseudo_Xy_list$pseudo_y/initial_sf
+
+        if(!is.null(fix_lambda_list)){
+            lambda_list_weight<-fix_lambda_list
+        }else{
+            innerprod<-crossprodv_rcpp(pseudo_X_weight,pseudo_y_weight)[which(w_adaptive!=0)]
+            lambda.max<-max(abs(innerprod))/nrow(pseudo_X_weight)
+            lambda_list_weight <-exp(seq(log(lambda.max),log(lambda.max*lambda.min.ratio),
+                                         length.out=nlambda))
+        }
+        list("C_half"=C_half_weight,
+             "pseudo_X"=pseudo_X_weight,
+             "pseudo_y"=pseudo_y_weight,
+             "lambda_list"=lambda_list_weight)
+    })
+
+    dev_lam_weight<-lapply(1:length(index_fold), function(cur_fold){
+        index_test<-index_fold[[cur_fold]]
+        Ztrain<-Z[-index_test,,drop=FALSE]
+        Ztest<-Z[index_test,,drop=FALSE]
+        if(!is.null(W)){
+            Wtrain<-W[-index_test,,drop=FALSE]
+            Wtest<-W[index_test,,drop=FALSE]
+        }else{
+            Wtrain<-NULL
+            Wtest<-NULL}
+        if(!is.null(A)){
+            Atrain<-A[-index_test,,drop=FALSE]
+            Atest<-A[index_test,,drop=FALSE]
+        }else{
+            Atrain<-NULL
+            Atest<-NULL}
+        ytrain<-y[-index_test]
+        ytest<-y[index_test]
+        dev_lam_weight_fold<-lapply(1:length(weight_list),function(weight_id){
+            cur_weight=weight_list[weight_id]
+
+            inv_C_train = Delta_opt_rcpp(y=ytrain,Z=Ztrain,W=Wtrain,
+                                         family=family,
+                                         study_info=study_info,
+                                         A=Atrain,pA=pA,pZ=pZ,beta=beta_initial,
+                                         hat_thetaA=hat_thetaA,
+                                         V_thetaA=V_thetaA,
+                                         use_offset=use_offset)
+            if(cur_weight<0){
+                C_half_weight<-diag(1/sqrt(diag(inv_C_train)))
+            }else{
+                C_half_weight<-sqrtchoinv_rcpp(inv_C_train+diag(1e-15,nrow(inv_C_train)))
+                C_half_weight[(pZ+pA+pW+1):nrow(C_half_weight),(pZ+pA+pW+1):nrow(C_half_weight)]<-
+                    C_half_weight[(pZ+pA+pW+1):nrow(C_half_weight),(pZ+pA+pW+1):nrow(C_half_weight)]*sqrt(cur_weight)
+            }
+
+            #C_half_weight = item_weight_list[[weight_id]]$C_half
             lambda_list_weight = item_weight_list[[weight_id]]$lambda_list
             pseudo_Xy_list_train<-pseudo_Xy(C_half_weight,Ztrain,Wtrain,Atrain,
                                             ytrain,beta = beta_initial,hat_thetaA = hat_thetaA,
@@ -763,42 +876,6 @@ htlgmm.default<-function(
                                       family=family)
                 beta_initial=c(coef.glmnet(fit_initial,s="lambda.min")[-1])
             }
-        }else if(initial_with_type == "subset_lasso"){
-            initial_alpha = 1
-            init_ids<-sample(1:nZ,round(nZ*0.7))
-
-            index_fold_init<-createFolds(y[init_ids],k = nfolds)
-            index_fold_non<-createFolds(y[-init_ids],k = nfolds)
-            foldid<-rep(NA,length(y))
-            for( i in 1:nfolds){
-                foldid[index_fold_init[[i]]]<-i
-                foldid[index_fold_non[[i]]]<-i
-            }
-
-            if(pA == 0){
-                fit_initial=cv.glmnet(x=X[init_ids,],y= y[init_ids],
-                                      alpha = initial_alpha,
-                                      penalty.factor = fix_penalty,
-                                      family=family)
-                beta_initial=c(coef.glmnet(fit_initial,s="lambda.min")[-1])
-            }else if(length(unique(A[,1]))==1){
-                if(unique(A[,1])==1){
-                    fit_initial=cv.glmnet(x=X[init_ids,-1,drop=F],y=y[init_ids],
-                                          alpha = initial_alpha,
-                                          penalty.factor = fix_penalty[-1],
-                                          family=family)
-                    beta_initial=as.vector(coef.glmnet(fit_initial,s="lambda.min"))
-                }else{
-                    stop("The first column of A is constant, then it should be 1 for intercept.")
-                }
-            }else{
-                fit_initial=cv.glmnet(x=X[init_ids,],y= y[init_ids],
-                                      alpha = initial_alpha,
-                                      penalty.factor = fix_penalty,
-                                      family=family)
-                beta_initial=c(coef.glmnet(fit_initial,s="lambda.min")[-1])
-            }
-
         }else{stop("Select Initial Type from c('glm','ridge','lasso')")}
     }
     if (penalty_type == "adaptivelasso"){
@@ -959,19 +1036,21 @@ htlgmm.default<-function(
                 final.lambda.min<-cv_res$items[[ids[1]]]$lambda_list[ids[2]]
                 return_list<-list("cv_mse"=cv_mse)
             }else if(family == "binomial"){
+                if(refine_C){cv_dev_lambda_Cweight_func = cv_dev_lambda_Cweight_func2}
                 cv_res<-cv_dev_lambda_Cweight_func(index_fold,Z,W,A,y,
                                                    C_half,beta_initial,hat_thetaA,
                                                    study_info,
                                                    weight_list,pZ,pW,pA,
                                                    w_adaptive,final_alpha,
                                                    pseudo_Xy,lambda.min.ratio,
-                                                   nlambda,X,XR,
+                                                   nlambda,V_thetaA,use_offset,X,XR,
                                                    fix_lambda_list,sC_half)
                 cv_auc<-cv_res$auc
                 ids_auc<-which(cv_auc==max(cv_auc),arr.ind = TRUE)[1,]
                 cv_dev<-cv_res$deviance
                 ids_dev<-which(cv_dev==min(cv_dev),arr.ind = TRUE)[1,]
-
+                print(paste0("auc_id",ids_auc))
+                print(paste0("dev_id",ids_dev))
                 pseudo_X<-cv_res$items[[ids_auc[1]]]$pseudo_X
                 pseudo_y<-cv_res$items[[ids_auc[1]]]$pseudo_y
 
