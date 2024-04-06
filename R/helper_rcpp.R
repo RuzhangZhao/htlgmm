@@ -547,22 +547,22 @@ cv_dev_lambda_Cweight_func2<-function(index_fold,Z,W,A,y,family,
             train_lasso<-cv.glmnet(x = cbind(Atrain,Ztrain,Wtrain),
                                    y=ytrain,family=family)
             beta_initial1<-as.vector(coef(train_lasso,s="lambda.min"))
-            inv_C_train = Delta_opt_rcpp(y=ytrain,Z=Ztrain,W=Wtrain,
-                                         family=family,
-                                         study_info=study_info,
-                                         A=Atrain,pA=pA,pZ=pZ,beta=beta_initial1,
-                                         hat_thetaA=hat_thetaA,
-                                         V_thetaA=V_thetaA,
-                                         use_offset=use_offset)
-            if(cur_weight<0){
-                C_half_weight<-diag(1/sqrt(diag(inv_C_train)))
-            }else{
-                C_half_weight<-sqrtchoinv_rcpp(inv_C_train+diag(1e-15,nrow(inv_C_train)))
-                C_half_weight[(pZ+pA+pW+1):nrow(C_half_weight),(pZ+pA+pW+1):nrow(C_half_weight)]<-
-                    C_half_weight[(pZ+pA+pW+1):nrow(C_half_weight),(pZ+pA+pW+1):nrow(C_half_weight)]*sqrt(cur_weight)
-            }
+            # inv_C_train = Delta_opt_rcpp(y=ytrain,Z=Ztrain,W=Wtrain,
+            #                              family=family,
+            #                              study_info=study_info,
+            #                              A=Atrain,pA=pA,pZ=pZ,beta=beta_initial1,
+            #                              hat_thetaA=hat_thetaA,
+            #                              V_thetaA=V_thetaA,
+            #                              use_offset=use_offset)
+            # if(cur_weight<0){
+            #     C_half_weight<-diag(1/sqrt(diag(inv_C_train)))
+            # }else{
+            #     C_half_weight<-sqrtchoinv_rcpp(inv_C_train+diag(1e-15,nrow(inv_C_train)))
+            #     C_half_weight[(pZ+pA+pW+1):nrow(C_half_weight),(pZ+pA+pW+1):nrow(C_half_weight)]<-
+            #         C_half_weight[(pZ+pA+pW+1):nrow(C_half_weight),(pZ+pA+pW+1):nrow(C_half_weight)]*sqrt(cur_weight)
+            # }
 
-            #C_half_weight = item_weight_list[[weight_id]]$C_half
+            C_half_weight = item_weight_list[[weight_id]]$C_half
             lambda_list_weight = item_weight_list[[weight_id]]$lambda_list
             pseudo_Xy_list_train<-pseudo_Xy(C_half_weight,Ztrain,Wtrain,Atrain,
                                             ytrain,beta = beta_initial1,hat_thetaA = hat_thetaA,
