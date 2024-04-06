@@ -1160,7 +1160,7 @@ htlgmm.default<-function(
                 return_list<-list("cv_mse"=cv_mse)
             }else if(family == "binomial"){
                 if(refine_C){cv_dev_lambda_Cweight_func = cv_dev_lambda_Cweight_func2}
-                if(length(gamma_adaptivelasso)>0){cv_dev_lambda_Cweight_func = cv_dev_lambda_Cweight_func3}
+                if(gamma_adaptivelasso[1]!=1/2){cv_dev_lambda_Cweight_func = cv_dev_lambda_Cweight_func3}
                 cv_res<-cv_dev_lambda_Cweight_func(index_fold,Z,W,A,y,family,
                                                    C_half,beta_initial,
                                                    gamma_adaptivelasso,
