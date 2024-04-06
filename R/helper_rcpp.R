@@ -652,7 +652,7 @@ cv_dev_lambda_Cweight_func3<-function(index_fold,Z,W,A,y,family,
                              use_offset = use_offset,
                              X=X,XR=XR)
     sC_half_w<-diag(1/sqrt(diag(inv_C_w)))
-    C_half_w<-sqrtchoinv_rcpp(inv_C+diag(1e-15,nrow(inv_C)))
+    C_half_w<-sqrtchoinv_rcpp(inv_C_w+diag(1e-15,nrow(inv_C_w)))
 
 
     dev_lam_weight<-lapply(1:length(index_fold), function(cur_fold){
