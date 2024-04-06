@@ -303,7 +303,7 @@ cv_dev_lambda_ratio_func<-function(index_fold,Z,W,A,y,
 }
 
 
-cv_mse_lambda_Cweight_func<-function(index_fold,Z,W,A,y,
+cv_mse_lambda_Cweight_func<-function(index_fold,Z,W,A,y,family,
                                      C_half,beta_initial,hat_thetaA,
                                      study_info,
                                      weight_list,pZ,pW,pA,
@@ -387,7 +387,7 @@ cv_mse_lambda_Cweight_func<-function(index_fold,Z,W,A,y,
          "items"=item_weight_list)
 }
 
-cv_dev_lambda_Cweight_func<-function(index_fold,Z,W,A,y,
+cv_dev_lambda_Cweight_func<-function(index_fold,Z,W,A,y,family,
                                      C_half,beta_initial,hat_thetaA,
                                      study_info,
                                      weight_list,pZ,pW,pA,
@@ -484,7 +484,7 @@ cv_dev_lambda_Cweight_func<-function(index_fold,Z,W,A,y,
 
 
 
-cv_dev_lambda_Cweight_func2<-function(index_fold,Z,W,A,y,
+cv_dev_lambda_Cweight_func2<-function(index_fold,Z,W,A,y,family,
                                       C_half,beta_initial,hat_thetaA,
                                       study_info,
                                       weight_list,pZ,pW,pA,
@@ -1022,7 +1022,7 @@ htlgmm.default<-function(
 
         if(tune_weight & !tune_ratio){
             if(family == "gaussian"){
-                cv_res<-cv_mse_lambda_Cweight_func(index_fold,Z,W,A,y,
+                cv_res<-cv_mse_lambda_Cweight_func(index_fold,Z,W,A,y,family,
                                                    C_half,beta_initial,hat_thetaA,
                                                    study_info,
                                                    weight_list,pZ,pW,pA,
@@ -1037,7 +1037,7 @@ htlgmm.default<-function(
                 return_list<-list("cv_mse"=cv_mse)
             }else if(family == "binomial"){
                 if(refine_C){cv_dev_lambda_Cweight_func = cv_dev_lambda_Cweight_func2}
-                cv_res<-cv_dev_lambda_Cweight_func(index_fold,Z,W,A,y,
+                cv_res<-cv_dev_lambda_Cweight_func(index_fold,Z,W,A,y,family,
                                                    C_half,beta_initial,hat_thetaA,
                                                    study_info,
                                                    weight_list,pZ,pW,pA,
