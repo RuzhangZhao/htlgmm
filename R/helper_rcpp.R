@@ -1175,8 +1175,8 @@ htlgmm.default<-function(
                 ids_auc<-which(cv_auc==max(cv_auc),arr.ind = TRUE)[1,]
                 cv_dev<-cv_res$deviance
                 ids_dev<-which(cv_dev==min(cv_dev),arr.ind = TRUE)[1,]
-                print(paste0("auc_id",ids_auc))
-                print(paste0("dev_id",ids_dev))
+                print(paste0("auc_weightid:",ids_auc[1]))
+                #print(paste0("dev_id",ids_dev))
                 pseudo_X<-cv_res$items[[ids_auc[1]]]$pseudo_X
                 pseudo_y<-cv_res$items[[ids_auc[1]]]$pseudo_y
 
