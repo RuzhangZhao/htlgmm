@@ -39,6 +39,7 @@ cv.htlgmm(
   tune_weight = FALSE,
   fix_weight = NULL,
   weight_list = NULL,
+  tune_weight_method = "holdout",
   gamma_adaptivelasso = 1/2,
   use_sparseC = TRUE,
   seed.use = 97,
@@ -125,6 +126,8 @@ For coxph model, robust is also about whether we apply the robust variance for t
 \item{fix_weight}{The fixed weight for for weighting matrix of external study part. The default is NULL. If it is NULL, select the best weight via cross validation.}
 
 \item{weight_list}{The weight list if it is preset. The default is NULL and weight list will be generated.}
+
+\item{tune_weight_method}{Method for weight tuning.}
 
 \item{gamma_adaptivelasso}{The gamma for adaptive lasso. Select from c(1/2,1,2). The default is 1/2.}
 

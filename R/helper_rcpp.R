@@ -433,7 +433,7 @@ cv_mse_lambda_Cweight_func<-function(index_fold,Z,W,A,y,family,
 
 cv_dev_lambda_Cweight_func<-function(index_fold,Z,W,A,y,family,
                                      C_half,beta_initial,
-                                     beta_initial_w,
+                                     initial_with_type,
                                      hat_thetaA,
                                      study_info,
                                      weight_list,pZ,pW,pA,
@@ -532,7 +532,7 @@ cv_dev_lambda_Cweight_func<-function(index_fold,Z,W,A,y,family,
 
 cv_dev_lambda_Cweight_func2<-function(index_fold,Z,W,A,y,family,
                                       C_half,beta_initial,
-                                      beta_initial_w,
+                                      initial_with_type,
                                       hat_thetaA,
                                       study_info,
                                       weight_list,pZ,pW,pA,
@@ -645,126 +645,9 @@ cv_dev_lambda_Cweight_func2<-function(index_fold,Z,W,A,y,family,
          "items"=item_weight_list)
 }
 
-cv_dev_lambda_Cweight_func3<-function(index_fold,Z,W,A,y,family,
-                                      C_half,beta_initial,
-                                      beta_initial_w,
-                                      hat_thetaA,
-                                      study_info,
-                                      weight_list,pZ,pW,pA,
-                                      w_adaptive,final_alpha,
-                                      pseudo_Xy,lambda.min.ratio,
-                                      nlambda,V_thetaA,use_offset,X=NULL,XR=NULL,
-                                      fix_lambda_list=NULL,sC_half=NULL){
-    if(is.null(X)){X=cbind(A,Z,W)}
-    if(is.null(XR)){XR=cbind(A,Z)}
-    item_weight_list<-lapply(weight_list,function(weight){
-        if(weight<0){
-            C_half_weight<-sC_half
-        }else{
-            C_half_weight=C_half
-            C_half_weight[(pZ+pA+pW+1):nrow(C_half),(pZ+pA+pW+1):nrow(C_half)]<-
-                C_half[(pZ+pA+pW+1):nrow(C_half),(pZ+pA+pW+1):nrow(C_half)]*sqrt(weight)
-        }
-        pseudo_Xy_list<-pseudo_Xy(C_half=C_half_weight,Z=Z,W=W,A=A,y=y,
-                                  beta=beta_initial,hat_thetaA=hat_thetaA,
-                                  study_info=study_info,X=X,XR=XR)
-
-        initial_sf<-nrow(Z)/sqrt(nrow(pseudo_Xy_list$pseudo_X))
-        pseudo_X_weight<-pseudo_Xy_list$pseudo_X/initial_sf
-        pseudo_y_weight<-pseudo_Xy_list$pseudo_y/initial_sf
-
-        if(!is.null(fix_lambda_list)){
-            lambda_list_weight<-fix_lambda_list
-        }else{
-            innerprod<-crossprodv_rcpp(pseudo_X_weight,pseudo_y_weight)[which(w_adaptive!=0)]
-            lambda.max<-max(abs(innerprod))/nrow(pseudo_X_weight)
-            lambda_list_weight <-exp(seq(log(lambda.max),log(lambda.max*lambda.min.ratio),
-                                         length.out=nlambda))
-        }
-        list("C_half"=C_half_weight,
-             "pseudo_X"=pseudo_X_weight,
-             "pseudo_y"=pseudo_y_weight,
-             "lambda_list"=lambda_list_weight)
-    })
-
-    inv_C_w = Delta_opt_rcpp(y=y,Z=Z,W=W,
-                             family=family,
-                             study_info=study_info,
-                             A=A,pA=pA,pZ=pZ,beta=beta_initial_w,
-                             hat_thetaA=hat_thetaA,
-                             V_thetaA=V_thetaA,
-                             use_offset = use_offset,
-                             X=X,XR=XR)
-    sC_half_w<-diag(1/sqrt(diag(inv_C_w)))
-    C_half_w<-sqrtchoinv_rcpp(inv_C_w+diag(1e-15,nrow(inv_C_w)))
-
-
-    dev_lam_weight<-lapply(1:length(index_fold), function(cur_fold){
-        index_test<-index_fold[[cur_fold]]
-        Ztrain<-Z[-index_test,,drop=FALSE]
-        Ztest<-Z[index_test,,drop=FALSE]
-        if(!is.null(W)){
-            Wtrain<-W[-index_test,,drop=FALSE]
-            Wtest<-W[index_test,,drop=FALSE]
-        }else{
-            Wtrain<-NULL
-            Wtest<-NULL}
-        if(!is.null(A)){
-            Atrain<-A[-index_test,,drop=FALSE]
-            Atest<-A[index_test,,drop=FALSE]
-        }else{
-            Atrain<-NULL
-            Atest<-NULL}
-        ytrain<-y[-index_test]
-        ytest<-y[index_test]
-
-
-        dev_lam_weight_fold<-lapply(1:length(weight_list),function(weight_id){
-            cur_weight=weight_list[weight_id]
-            if(cur_weight<0){
-                C_half_weight<-sC_half_w
-            }else{
-                C_half_weight=C_half_w
-                C_half_weight[(pZ+pA+pW+1):nrow(C_half_w),(pZ+pA+pW+1):nrow(C_half_w)]<-
-                    C_half_w[(pZ+pA+pW+1):nrow(C_half_w),(pZ+pA+pW+1):nrow(C_half_w)]*sqrt(cur_weight)
-            }
-            lambda_list_weight = item_weight_list[[weight_id]]$lambda_list
-            pseudo_Xy_list_train<-pseudo_Xy(C_half_weight,Ztrain,Wtrain,Atrain,
-                                            ytrain,beta = beta_initial_w,hat_thetaA = hat_thetaA,
-                                            study_info=study_info)
-            initial_sf_train<-nrow(Ztrain)/sqrt(nrow(pseudo_Xy_list_train$pseudo_X))
-            pseudo_X_train<-pseudo_Xy_list_train$pseudo_X/initial_sf_train
-            pseudo_y_train<-pseudo_Xy_list_train$pseudo_y/initial_sf_train
-
-            sapply(lambda_list_weight,function(cur_lam){
-                cv_fit<-glmnet(x=pseudo_X_train,y=pseudo_y_train,
-                               standardize=F,intercept=F,alpha = final_alpha,
-                               penalty.factor = w_adaptive,
-                               lambda = cur_lam)
-                cur_beta<-coef.glmnet(cv_fit)[-1]
-                probtest <- expit_rcpp(prodv_rcpp(cbind(Atest,Ztest,Wtest),cur_beta))
-                cur_dev <- -2*sum( ytest * log(probtest) + (1 - ytest) * log(1 - probtest) )
-                suppressMessages(cur_auc<-c(auc(ytest,probtest,direction = "<")))
-                c(cur_dev,cur_auc)
-            })
-        }) # row is weight_list & col is lambda_list
-        list("deviance"=do.call(rbind, lapply(dev_lam_weight_fold, function(m) m[1,])),
-             "auc"=do.call(rbind, lapply(dev_lam_weight_fold, function(m) m[2,])))
-    })
-    dev_lam_weight1<-lapply(1:length(index_fold), function(cur_fold){
-        dev_lam_weight[[cur_fold]]$deviance
-    })
-    dev_lam_weight2<-lapply(1:length(index_fold), function(cur_fold){
-        dev_lam_weight[[cur_fold]]$auc
-    })
-    list("deviance"=Reduce(`+`, dev_lam_weight1)/length(index_fold),
-         "auc"=Reduce(`+`, dev_lam_weight2)/length(index_fold),
-         "items"=item_weight_list)
-}
-
 cv_dev_lambda_Cweight_func4<-function(index_fold,Z,W,A,y,family,
                                       C_half,beta_initial,
-                                      beta_initial_w,
+                                      initial_with_type,
                                       hat_thetaA,
                                       study_info,
                                       weight_list,pZ,pW,pA,
@@ -797,7 +680,7 @@ cv_dev_lambda_Cweight_func4<-function(index_fold,Z,W,A,y,family,
         train_lasso<-cv.glmnet(x =cbind(Ztrain,Wtrain),
                                y=ytrain,family=family)
         initial_res1<-beta_initial_func(ytrain,cbind(Atrain,Ztrain,Wtrain),
-                                        Atrain,pA,family,initial_with_type,fix_penalty)
+                                        Atrain,pA,family,initial_with_type,w_adaptive)
         beta_initial1<-initial_res1$beta_initial
 
         inv_C_train = Delta_opt_rcpp(y=ytrain,Z=Ztrain,W=Wtrain,
@@ -1103,7 +986,7 @@ htlgmm.default<-function(
 
     ###########--------------###########
     # compute initial beta if not given
-
+    beta_initial1se<-NULL
     if(penalty_type == "none"){
         initial_with_type = "glm"
         use_cv = FALSE
@@ -1289,12 +1172,12 @@ htlgmm.default<-function(
                 }else if(tune_weight_method == "exact"){
                     cv_dev_lambda_Cweight_func = cv_dev_lambda_Cweight_func2
                 }else if(tune_weight_method == "1se"){
-                    cv_dev_lambda_Cweight_func = cv_dev_lambda_Cweight_func3
+                    if(!is.null(beta_initial1se)){beta_initial<-beta_initial1se}
                 }
 
                 cv_res<-cv_dev_lambda_Cweight_func(index_fold,Z,W,A,y,family,
                                                    C_half,beta_initial,
-                                                   gamma_adaptivelasso,
+                                                   initial_with_type,
                                                    hat_thetaA,
                                                    study_info,
                                                    weight_list,pZ,pW,pA,

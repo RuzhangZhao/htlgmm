@@ -128,6 +128,7 @@ htlgmm<-function(
     ratio_list = NULL
     tune_weight = FALSE
     weight_list = NULL
+    tune_weight_method = "holdout"
     type_measure = "default"
     nlambda = 100
     lambda.min.ratio = 0.0001
@@ -150,7 +151,7 @@ htlgmm<-function(
                             fix_lambda,lambda_list,nlambda,
                             lambda.min.ratio,tune_ratio,fix_ratio,
                             ratio_list,tune_weight,fix_weight,
-                            weight_list,gamma_adaptivelasso,
+                            weight_list,tune_weight_method,gamma_adaptivelasso,
                             use_sparseC,seed.use,output_all_betas)
     }
     return(res)
@@ -214,6 +215,7 @@ htlgmm<-function(
 #' @param tune_weight Whether to assign tuning weight for weighting matrix of external study part. The default is FALSE. This is not applied to coxph model.
 #' @param fix_weight The fixed weight for for weighting matrix of external study part. The default is NULL. If it is NULL, select the best weight via cross validation.
 #' @param weight_list The weight list if it is preset. The default is NULL and weight list will be generated.
+#' @param tune_weight_method Method for weight tuning.
 #' @param gamma_adaptivelasso The gamma for adaptive lasso. Select from c(1/2,1,2). The default is 1/2.
 #' @param use_sparseC Whether to use approximate version of weighting matrix C.
 #' If approximation, use the diagonal of inverse of C(inv_C) to approximate the inv_C. The default is TRUE.
@@ -291,6 +293,7 @@ cv.htlgmm<-function(
         tune_weight = FALSE,
         fix_weight = NULL,
         weight_list = NULL,
+        tune_weight_method = "holdout",
         gamma_adaptivelasso = 1/2,
         use_sparseC = TRUE,
         seed.use = 97,
@@ -330,7 +333,7 @@ cv.htlgmm<-function(
                             fix_lambda,lambda_list,nlambda,
                             lambda.min.ratio,tune_ratio,fix_ratio,
                             ratio_list,tune_weight,fix_weight,
-                            weight_list,gamma_adaptivelasso,
+                            weight_list,tune_weight_method,gamma_adaptivelasso,
                             use_sparseC,seed.use,output_all_betas)
     }
 
