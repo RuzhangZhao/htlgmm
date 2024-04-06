@@ -677,7 +677,7 @@ cv_dev_lambda_Cweight_func3<-function(index_fold,Z,W,A,y,family,
 
         dev_lam_weight_fold<-lapply(1:length(weight_list),function(weight_id){
             cur_weight=weight_list[weight_id]
-            if(weight<0){
+            if(cur_weight<0){
                 C_half_weight<-sC_half_w
             }else{
                 C_half_weight=C_half_w
