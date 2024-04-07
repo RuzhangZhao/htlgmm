@@ -108,12 +108,14 @@ beta_initial_func<-function(y,X,A,pA,
                 fit_initial=speedlm(y~0+.,data = df)
             }
             beta_initial=fit_initial$coefficients
+            beta_initial1se=beta_initial
         }else if(pA == 0){
             fit_initial=cv.glmnet(x=X,y= y,
                                   alpha = initial_alpha,
                                   penalty.factor = fix_penalty,
                                   family=family)
             beta_initial=c(coef.glmnet(fit_initial,s="lambda.min")[-1])
+            beta_initial1se=c(coef.glmnet(fit_initial,s="lambda.1se")[-1])
         }else if(length(unique(A[,1]))==1){
             if(unique(A[,1])==1){
                 fit_initial=cv.glmnet(x=X[,-1,drop=F],y=y,
@@ -121,6 +123,7 @@ beta_initial_func<-function(y,X,A,pA,
                                       penalty.factor = fix_penalty[-1],
                                       family=family)
                 beta_initial=as.vector(coef.glmnet(fit_initial,s="lambda.min"))
+                beta_initial1se=as.vector(coef.glmnet(fit_initial,s="lambda.1se"))
             }else{
                 stop("The first column of A is constant, then it should be 1 for intercept.")
             }
@@ -130,10 +133,11 @@ beta_initial_func<-function(y,X,A,pA,
                                   penalty.factor = fix_penalty,
                                   family=family)
             beta_initial=c(coef.glmnet(fit_initial,s="lambda.min")[-1])
+            beta_initial1se=c(coef.glmnet(fit_initial,s="lambda.1se")[-1])
         }
     }else{stop("Select Initial Type from c('glm','ridge','lasso')")}
 
-    list("fit_initial"=fit_initial,"beta_initial"=beta_initial)
+    list("beta_initial"=beta_initial,"beta_initial1se"=beta_initial1se)
 
 }
 
@@ -590,22 +594,36 @@ cv_dev_lambda_Cweight_func2<-function(index_fold,Z,W,A,y,family,
             Atest<-NULL}
         ytrain<-y[-index_test]
         ytest<-y[index_test]
+
+        initial_res1<-beta_initial_func(ytrain,cbind(Atrain,Ztrain,Wtrain),
+                                        Atrain,pA,family,initial_with_type,w_adaptive)
+        beta_initial1<-initial_res1$beta_initial
+        if(pA!=0){
+            offset_term = prodv_rcpp(Ztrain,study_info[[1]]$Coeff)
+            df=data.frame(y=ytrain,Atrain)
+            hat_thetaA_glm=speedglm(y~0+.,data = df,offset = offset_term,family = binomial())
+            hat_thetaA1=hat_thetaA_glm$coefficients
+            V_thetaA1=vcov(hat_thetaA_glm)
+        }else{
+            hat_thetaA1=NULL
+            V_thetaA1=NULL
+        }
+        inv_C_train = Delta_opt_rcpp(y=ytrain,Z=Ztrain,W=Wtrain,
+                                     family=family,
+                                     study_info=study_info,
+                                     A=Atrain,pA=pA,pZ=pZ,beta=beta_initial1,
+                                     hat_thetaA=hat_thetaA1,
+                                     V_thetaA=V_thetaA1,
+                                     use_offset=use_offset)
+        sC_half_train<-diag(1/sqrt(diag(inv_C_train)))
+        C_half_train<-sqrtchoinv_rcpp(inv_C_train+diag(1e-15,nrow(inv_C_train)))
+
         dev_lam_weight_fold<-lapply(1:length(weight_list),function(weight_id){
             cur_weight=weight_list[weight_id]
-            train_lasso<-cv.glmnet(x =cbind(Ztrain,Wtrain),
-                                   y=ytrain,family=family)
-            beta_initial1<-as.vector(coef(train_lasso,s="lambda.min"))
-            inv_C_train = Delta_opt_rcpp(y=ytrain,Z=Ztrain,W=Wtrain,
-                                         family=family,
-                                         study_info=study_info,
-                                         A=Atrain,pA=pA,pZ=pZ,beta=beta_initial1,
-                                         hat_thetaA=hat_thetaA,
-                                         V_thetaA=V_thetaA,
-                                         use_offset=use_offset)
             if(cur_weight<0){
-                C_half_weight<-diag(1/sqrt(diag(inv_C_train)))
+                C_half_weight<-sC_half_train
             }else{
-                C_half_weight<-sqrtchoinv_rcpp(inv_C_train+diag(1e-15,nrow(inv_C_train)))
+                C_half_weight<-C_half_train
                 C_half_weight[(pZ+pA+pW+1):nrow(C_half_weight),(pZ+pA+pW+1):nrow(C_half_weight)]<-
                     C_half_weight[(pZ+pA+pW+1):nrow(C_half_weight),(pZ+pA+pW+1):nrow(C_half_weight)]*sqrt(cur_weight)
             }
@@ -673,34 +691,47 @@ cv_dev_lambda_Cweight_func4<-function(index_fold,Z,W,A,y,family,
         Atest<-NULL}
     ytrain<-y[-index_test]
     ytest<-y[index_test]
+    # renew the initial value
+
+    initial_res1<-beta_initial_func(ytrain,cbind(Atrain,Ztrain,Wtrain),
+                                    Atrain,pA,family,initial_with_type,w_adaptive)
+    beta_initial1<-initial_res1$beta_initial
+
+    if(pA!=0){
+        offset_term = prodv_rcpp(Ztrain,study_info[[1]]$Coeff)
+        df=data.frame(y=ytrain,Atrain)
+        hat_thetaA_glm=speedglm(y~0+.,data = df,offset = offset_term,family = binomial())
+        hat_thetaA1=hat_thetaA_glm$coefficients
+        V_thetaA1=vcov(hat_thetaA_glm)
+    }else{
+        hat_thetaA1=NULL
+        V_thetaA1=NULL
+    }
+
+    inv_C_train = Delta_opt_rcpp(y=ytrain,Z=Ztrain,W=Wtrain,
+                                 family=family,
+                                 study_info=study_info,
+                                 A=Atrain,pA=pA,pZ=pZ,beta=beta_initial1,
+                                 hat_thetaA=hat_thetaA1,
+                                 V_thetaA=V_thetaA1,
+                                 use_offset=use_offset)
+
+    sC_half_train<-diag(1/sqrt(diag(inv_C_train)))
+    C_half_train<-sqrtchoinv_rcpp(inv_C_train+diag(1e-15,nrow(inv_C_train)))
+
     dev_lam_weight_fold<-lapply(1:length(weight_list),function(weight_id){
         cur_weight=weight_list[weight_id]
-        #####
-        # renew the initial value
-        train_lasso<-cv.glmnet(x =cbind(Ztrain,Wtrain),
-                               y=ytrain,family=family)
-        initial_res1<-beta_initial_func(ytrain,cbind(Atrain,Ztrain,Wtrain),
-                                        Atrain,pA,family,initial_with_type,w_adaptive)
-        beta_initial1<-initial_res1$beta_initial
 
-        inv_C_train = Delta_opt_rcpp(y=ytrain,Z=Ztrain,W=Wtrain,
-                                     family=family,
-                                     study_info=study_info,
-                                     A=Atrain,pA=pA,pZ=pZ,beta=beta_initial1,
-                                     hat_thetaA=hat_thetaA,
-                                     V_thetaA=V_thetaA,
-                                     use_offset=use_offset)
         if(cur_weight<0){
-            C_half_weight<-diag(1/sqrt(diag(inv_C_train)))
+            C_half_weight<-sC_half_train
         }else{
-            C_half_weight<-sqrtchoinv_rcpp(inv_C_train+diag(1e-15,nrow(inv_C_train)))
+            C_half_weight<-C_half_train
             C_half_weight[(pZ+pA+pW+1):nrow(C_half_weight),(pZ+pA+pW+1):nrow(C_half_weight)]<-
                 C_half_weight[(pZ+pA+pW+1):nrow(C_half_weight),(pZ+pA+pW+1):nrow(C_half_weight)]*sqrt(cur_weight)
         }
 
-
         pseudo_Xy_list_train<-pseudo_Xy(C_half_weight,Ztrain,Wtrain,Atrain,
-                                        ytrain,beta = beta_initial1,hat_thetaA = hat_thetaA,
+                                        ytrain,beta = beta_initial1,hat_thetaA = hat_thetaA1,
                                         study_info=study_info)
         initial_sf_train<-nrow(Ztrain)/sqrt(nrow(pseudo_Xy_list_train$pseudo_X))
         pseudo_X_train<-pseudo_Xy_list_train$pseudo_X/initial_sf_train
