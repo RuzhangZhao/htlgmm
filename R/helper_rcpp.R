@@ -656,7 +656,7 @@ cv_dev_lambda_Cweight_func4<-function(index_fold,Z,W,A,y,family,
                                       nlambda,V_thetaA,use_offset,X=NULL,XR=NULL,
                                       fix_lambda_list=NULL,sC_half=NULL){
 
-    index_test<-Reduce(c,lapply(1:round(length(index_fold)*0.7), function(i){index_fold[[i]]}))
+    index_test<-Reduce(c,lapply(1:round(length(index_fold)*0.3), function(i){index_fold[[i]]}))
     Ztrain<-Z[-index_test,,drop=FALSE]
     Ztest<-Z[index_test,,drop=FALSE]
     if(!is.null(W)){
@@ -1219,7 +1219,8 @@ htlgmm.default<-function(
                                                          length.out=nlambda))
                         }
                     }
-
+                    pseudo_X_dev<-pseudo_X
+                    pseudo_y_dev<-pseudo_y
                     final.weight.min<-weight
 
                     res_weight<-cv_dev_lambda_func(index_fold,Z,W,A,y,
