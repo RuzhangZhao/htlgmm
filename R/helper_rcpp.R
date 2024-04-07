@@ -1230,12 +1230,12 @@ htlgmm.default<-function(
                                        study_info,lambda_list,
                                        w_adaptive,final_alpha,pseudo_Xy)
 
-                    cv_auc<-res_weight$auc
-                    max_id<-which.max(cv_auc)
+                    cv_auc1<-res_weight$auc
+                    max_id<-which.max(cv_auc1)
                     final.lambda.min<-lambda_list[max_id]
 
-                    cv_dev<-res_weight$deviance
-                    min_id<-which.min(cv_dev)
+                    cv_dev1<-res_weight$deviance
+                    min_id<-which.min(cv_dev1)
                     final.lambda.dev.min<-lambda_list[min_id]
                     final.weight.dev.min<-weight
 
