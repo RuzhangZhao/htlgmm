@@ -1233,12 +1233,11 @@ htlgmm.default<-function(
                     cv_auc<-res_weight$auc
                     max_id<-which.max(cv_auc)
                     final.lambda.min<-lambda_list[max_id]
-                    print(final.lambda.min)
-                    cv_dev<-cv_res$deviance
+
+                    cv_dev<-res_weight$deviance
                     min_id<-which.min(cv_dev)
                     final.lambda.dev.min<-lambda_list[min_id]
                     final.weight.dev.min<-weight
-                    print(final.lambda.dev.min)
 
                     return_list<-list("cv_auc"=cv_auc,"cv_dev"=cv_dev)
                     final.ratio.dev.min<-1
