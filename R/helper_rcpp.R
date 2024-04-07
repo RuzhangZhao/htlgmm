@@ -1224,21 +1224,21 @@ htlgmm.default<-function(
                     pseudo_X_dev<-pseudo_X
                     pseudo_y_dev<-pseudo_y
                     final.weight.min<-weight
-                    print("check")
+
                     res_weight<-cv_dev_lambda_func(index_fold,Z,W,A,y,
                                        C_half,beta_initial,hat_thetaA,
                                        study_info,lambda_list,
                                        w_adaptive,final_alpha,pseudo_Xy)
-                    print(c(max(lambda_list),min(lambda_list)))
+
                     cv_auc<-res_weight$auc
                     max_id<-which.max(cv_auc)
                     final.lambda.min<-lambda_list[max_id]
-
+                    print(final.lambda.min)
                     cv_dev<-cv_res$deviance
                     min_id<-which.min(cv_dev)
                     final.lambda.dev.min<-lambda_list[min_id]
                     final.weight.dev.min<-weight
-                    print("check2")
+                    print(final.lambda.dev.min)
 
                     return_list<-list("cv_auc"=cv_auc,"cv_dev"=cv_dev)
                     final.ratio.dev.min<-1
