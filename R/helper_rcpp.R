@@ -1186,9 +1186,11 @@ htlgmm.default<-function(
                                                    nlambda,V_thetaA,use_offset,X,XR,
                                                    fix_lambda_list,sC_half)
                 cv_auc<-cv_res$auc
-                ids_auc<-which(cv_auc==max(cv_auc),arr.ind = TRUE)[1,]
+                ids_auc<-which(cv_auc==max(cv_auc),arr.ind = TRUE)
+                ids_auc<-ids_auc[nrow(ids_auc),]
                 cv_dev<-cv_res$deviance
-                ids_dev<-which(cv_dev==min(cv_dev),arr.ind = TRUE)[1,]
+                ids_dev<-which(cv_dev==min(cv_dev),arr.ind = TRUE)
+                ids_dev<-ids_dev[nrow(ids_dev),]
                 print(paste0("auc_weightid:",ids_auc[1]))
 
                 final.ratio.min<-1
@@ -1222,11 +1224,12 @@ htlgmm.default<-function(
                     pseudo_X_dev<-pseudo_X
                     pseudo_y_dev<-pseudo_y
                     final.weight.min<-weight
-
+                    print("check")
                     res_weight<-cv_dev_lambda_func(index_fold,Z,W,A,y,
                                        C_half,beta_initial,hat_thetaA,
                                        study_info,lambda_list,
                                        w_adaptive,final_alpha,pseudo_Xy)
+                    print(c(max(lambda_list),min(lambda_list)))
                     cv_auc<-res_weight$auc
                     max_id<-which.max(cv_auc)
                     final.lambda.min<-lambda_list[max_id]
@@ -1235,6 +1238,15 @@ htlgmm.default<-function(
                     min_id<-which.min(cv_dev)
                     final.lambda.dev.min<-lambda_list[min_id]
                     final.weight.dev.min<-weight
+                    print("check2")
+
+                    return_list<-list("cv_auc"=cv_auc,"cv_dev"=cv_dev)
+                    final.ratio.dev.min<-1
+                    return_list<-c(return_list,
+                                   list("lambda_list"=lambda_list,
+                                        "weight_list"=weight_list))
+
+
                 }else{
                     pseudo_X<-cv_res$items[[ids_auc[1]]]$pseudo_X
                     pseudo_y<-cv_res$items[[ids_auc[1]]]$pseudo_y
@@ -1246,33 +1258,33 @@ htlgmm.default<-function(
                     final.lambda.min<-cv_res$items[[ids_auc[1]]]$lambda_list[ids_auc[2]]
                     final.weight.dev.min<-weight_list[ids_dev[1]]
                     final.lambda.dev.min<-cv_res$items[[ids_dev[1]]]$lambda_list[ids_dev[2]]
-                }
 
-                return_list<-list("cv_auc"=cv_auc,"cv_dev"=cv_dev)
+                    return_list<-list("cv_auc"=cv_auc,"cv_dev"=cv_dev)
 
-                final.ratio.dev.min<-1
-                return_list<-c(return_list,
-                               list("lambda_list"=
-                                        sapply(1:length(weight_list), function(i){
-                                            cv_res$items[[i]]$lambda_list}),
-                                    "weight_list"=weight_list))
+                    final.ratio.dev.min<-1
+                    return_list<-c(return_list,
+                                   list("lambda_list"=
+                                            sapply(1:length(weight_list), function(i){
+                                                cv_res$items[[i]]$lambda_list}),
+                                        "weight_list"=weight_list))
 
-                if(output_all_betas){
-                    all_betas<-lapply(1:length(weight_list), function(i){
-                        if(family == "gaussian"){cv_here<-cv_mse[i,]
-                        }else{cv_here<- -cv_auc[i,]}
-                        ids1<-which.min(cv_here)[1]
-                        final.lambda.min1<-cv_res$items[[i]]$lambda_list[ids1]
+                    if(output_all_betas){
+                        all_betas<-lapply(1:length(weight_list), function(i){
+                            if(family == "gaussian"){cv_here<-cv_mse[i,]
+                            }else{cv_here<- -cv_auc[i,]}
+                            ids1<-which.min(cv_here)[1]
+                            final.lambda.min1<-cv_res$items[[i]]$lambda_list[ids1]
 
-                        fit_final_lam_weight1<-glmnet(x= cv_res$items[[i]]$pseudo_X,
-                                                      y= cv_res$items[[i]]$pseudo_y,
-                                                      standardize=F,intercept=F,
-                                                      alpha = final_alpha,
-                                                      penalty.factor = w_adaptive,
-                                                      lambda = final.lambda.min1)
-                        beta1<-coef.glmnet(fit_final_lam_weight1)[-1]
-                    })
-                    return_list<-c(return_list,list("all_betas"=all_betas))
+                            fit_final_lam_weight1<-glmnet(x= cv_res$items[[i]]$pseudo_X,
+                                                          y= cv_res$items[[i]]$pseudo_y,
+                                                          standardize=F,intercept=F,
+                                                          alpha = final_alpha,
+                                                          penalty.factor = w_adaptive,
+                                                          lambda = final.lambda.min1)
+                            beta1<-coef.glmnet(fit_final_lam_weight1)[-1]
+                        })
+                        return_list<-c(return_list,list("all_betas"=all_betas))
+                    }
                 }
             }
 
