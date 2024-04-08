@@ -6,8 +6,8 @@ Delta_opt_rcpp<-function(y,Z,W,family,
     n_main=length(y)
     tilde_thetaZ=study_info[[1]]$Coeff
     tilde_theta=c(hat_thetaA,tilde_thetaZ)
-    if(is.null(dim(X)[1])){X=cbind(A,Z,W)}
-    if(is.null(dim(XR)[1])){XR=cbind(A,Z)}
+    if(is.null(X)){X=cbind(A,Z,W)}
+    if(is.null(XR)){XR=cbind(A,Z)}
     mu_X_beta=prodv_rcpp(X,beta)
     mu_XR_theta=prodv_rcpp(XR,tilde_theta)
     if(family == "binomial"){
@@ -141,8 +141,50 @@ beta_initial_func<-function(y,X,A,pA,
 
 }
 
+thetaA_func<-function(pA,Z,A,y,study_info,family,use_offset,V_thetaA_sandwich,hat_thetaA=NULL,V_thetaA=NULL){
+    if(pA!=0){
+        if(is.null(hat_thetaA)){
+            if(!is.null(V_thetaA)){
+                stop("With customized hat_thetaA input, V_thetaA is also needed")
+            }
+            if(use_offset){
+                offset_term = prodv_rcpp(Z,study_info[[1]]$Coeff)
+                df=data.frame(y,A)
+                if(family=="binomial"){
+                    hat_thetaA_glm=speedglm(y~0+.,data = df,offset = offset_term,family = binomial())
+                }else if(family=="gaussian"){
+                    hat_thetaA_glm=speedlm(y~0+.,data = df,offset = offset_term)
+                    #hat_thetaA_glm=lm(y~0+.,data = df,offset = offset_term)
+                }
+                hat_thetaA=hat_thetaA_glm$coefficients
+                if(V_thetaA_sandwich){
+                    V_thetaA=vcov_sandwich_rcpp(y=y,A=A,Z=Z,family=family,
+                                                study_info=study_info,pA=pA,
+                                                hat_thetaA=hat_thetaA,
+                                                use_offset=use_offset)
+                }else{V_thetaA=vcov(hat_thetaA_glm)}
+            }else{
+                df=data.frame(y,A,Z)
+                if(family=="binomial"){
+                    hat_thetaA_glm=speedglm(y~0+.,data = df,family = binomial())
+                }else if(family=="gaussian"){
+                    hat_thetaA_glm=speedlm(y~0+.,data = df)
+                }
+                hat_thetaA=hat_thetaA_glm$coefficients[1:pA]
+                if(V_thetaA_sandwich){
+                    V_thetaA=vcov_sandwich_rcpp(y,A,Z,family,study_info,pA,
+                                                hat_thetaA,use_offset)
+                }else{V_thetaA=vcov(hat_thetaA_glm)[1:pA,1:pA,drop=F]}
+            }
+        }
 
-
+        if(is.null(dim(V_thetaA)[1])){
+            V_thetaA = as.matrix(V_thetaA,nrow=pA,ncol=pA)
+        }
+    }
+    return(list("hat_thetaA"=hat_thetaA,
+                "V_thetaA"=V_thetaA))
+}
 
 ## cross validation function for continuous y with lambda only
 cv_mse_lambda_func<-function(index_fold,Z,W,A,y,
@@ -443,7 +485,10 @@ cv_dev_lambda_Cweight_func<-function(index_fold,Z,W,A,y,family,
                                      weight_list,pZ,pW,pA,
                                      w_adaptive,final_alpha,
                                      pseudo_Xy,lambda.min.ratio,
-                                     nlambda,V_thetaA,use_offset,X=NULL,XR=NULL,
+                                     nlambda,V_thetaA,use_sparseC,
+                                     use_offset,V_thetaA_sandwich,
+                                     fold_self_beta,
+                                     X=NULL,XR=NULL,
                                      fix_lambda_list=NULL,sC_half=NULL){
     if(is.null(X)){X=cbind(A,Z,W)}
     if(is.null(XR)){XR=cbind(A,Z)}
@@ -542,7 +587,10 @@ cv_dev_lambda_Cweight_func2<-function(index_fold,Z,W,A,y,family,
                                       weight_list,pZ,pW,pA,
                                       w_adaptive,final_alpha,
                                       pseudo_Xy,lambda.min.ratio,
-                                      nlambda,V_thetaA,use_offset,X=NULL,XR=NULL,
+                                      nlambda,V_thetaA,use_sparseC,
+                                      use_offset,V_thetaA_sandwich,
+                                      fold_self_beta,
+                                      X=NULL,XR=NULL,
                                       fix_lambda_list=NULL,sC_half=NULL){
     if(is.null(X)){X=cbind(A,Z,W)}
     if(is.null(XR)){XR=cbind(A,Z)}
@@ -598,16 +646,14 @@ cv_dev_lambda_Cweight_func2<-function(index_fold,Z,W,A,y,family,
         initial_res1<-beta_initial_func(ytrain,cbind(Atrain,Ztrain,Wtrain),
                                         Atrain,pA,family,initial_with_type,w_adaptive)
         beta_initial1<-initial_res1$beta_initial
-        if(pA!=0){
-            offset_term = prodv_rcpp(Ztrain,study_info[[1]]$Coeff)
-            df=data.frame(y=ytrain,Atrain)
-            hat_thetaA_glm=speedglm(y~0+.,data = df,offset = offset_term,family = binomial())
-            hat_thetaA1=hat_thetaA_glm$coefficients
-            V_thetaA1=vcov(hat_thetaA_glm)
-        }else{
-            hat_thetaA1=NULL
-            V_thetaA1=NULL
-        }
+        # beta_initial1<-beta_initial
+
+        thetaA_list<-thetaA_func(pA,Ztrain,Atrain,ytrain,study_info,
+                                 family,use_offset,
+                                 V_thetaA_sandwich)
+        hat_thetaA1<-thetaA_list$hat_thetaA
+        V_thetaA1<-thetaA_list$V_thetaA
+
         inv_C_train = Delta_opt_rcpp(y=ytrain,Z=Ztrain,W=Wtrain,
                                      family=family,
                                      study_info=study_info,
@@ -616,7 +662,8 @@ cv_dev_lambda_Cweight_func2<-function(index_fold,Z,W,A,y,family,
                                      V_thetaA=V_thetaA1,
                                      use_offset=use_offset)
         sC_half_train<-diag(1/sqrt(diag(inv_C_train)))
-        C_half_train<-sqrtchoinv_rcpp(inv_C_train+diag(1e-15,nrow(inv_C_train)))
+        if(use_sparseC){C_half_train<-sC_half_train
+        }else{C_half_train<-sqrtchoinv_rcpp(inv_C_train+diag(1e-15,nrow(inv_C_train)))}
 
         dev_lam_weight_fold<-lapply(1:length(weight_list),function(weight_id){
             cur_weight=weight_list[weight_id]
@@ -671,10 +718,15 @@ cv_dev_lambda_Cweight_func4<-function(index_fold,Z,W,A,y,family,
                                       weight_list,pZ,pW,pA,
                                       w_adaptive,final_alpha,
                                       pseudo_Xy,lambda.min.ratio,
-                                      nlambda,V_thetaA,use_offset,X=NULL,XR=NULL,
+                                      nlambda,V_thetaA,use_sparseC,
+                                      use_offset,V_thetaA_sandwich,
+                                      fold_self_beta,
+                                      X=NULL,XR=NULL,
                                       fix_lambda_list=NULL,sC_half=NULL){
 
     index_test<-Reduce(c,lapply(1:round(length(index_fold)*0.3), function(i){index_fold[[i]]}))
+
+    index_test<-sample(1:nrow(Z),100)
     Ztrain<-Z[-index_test,,drop=FALSE]
     Ztest<-Z[index_test,,drop=FALSE]
     if(!is.null(W)){
@@ -696,17 +748,13 @@ cv_dev_lambda_Cweight_func4<-function(index_fold,Z,W,A,y,family,
     initial_res1<-beta_initial_func(ytrain,cbind(Atrain,Ztrain,Wtrain),
                                     Atrain,pA,family,initial_with_type,w_adaptive)
     beta_initial1<-initial_res1$beta_initial
+    # beta_initial1<-beta_initial
 
-    if(pA!=0){
-        offset_term = prodv_rcpp(Ztrain,study_info[[1]]$Coeff)
-        df=data.frame(y=ytrain,Atrain)
-        hat_thetaA_glm=speedglm(y~0+.,data = df,offset = offset_term,family = binomial())
-        hat_thetaA1=hat_thetaA_glm$coefficients
-        V_thetaA1=vcov(hat_thetaA_glm)
-    }else{
-        hat_thetaA1=NULL
-        V_thetaA1=NULL
-    }
+    thetaA_list<-thetaA_func(pA,Ztrain,Atrain,ytrain,study_info,
+                             family,use_offset,
+                             V_thetaA_sandwich)
+    hat_thetaA1<-thetaA_list$hat_thetaA
+    V_thetaA1<-thetaA_list$V_thetaA
 
     inv_C_train = Delta_opt_rcpp(y=ytrain,Z=Ztrain,W=Wtrain,
                                  family=family,
@@ -715,13 +763,12 @@ cv_dev_lambda_Cweight_func4<-function(index_fold,Z,W,A,y,family,
                                  hat_thetaA=hat_thetaA1,
                                  V_thetaA=V_thetaA1,
                                  use_offset=use_offset)
-
     sC_half_train<-diag(1/sqrt(diag(inv_C_train)))
-    C_half_train<-sqrtchoinv_rcpp(inv_C_train+diag(1e-15,nrow(inv_C_train)))
+    if(use_sparseC){C_half_train<-sC_half_train
+    }else{C_half_train<-sqrtchoinv_rcpp(inv_C_train+diag(1e-15,nrow(inv_C_train)))}
 
     dev_lam_weight_fold<-lapply(1:length(weight_list),function(weight_id){
         cur_weight=weight_list[weight_id]
-
         if(cur_weight<0){
             C_half_weight<-sC_half_train
         }else{
@@ -774,6 +821,11 @@ cv_dev_lambda_Cweight_func4<-function(index_fold,Z,W,A,y,family,
                 "deviance"=cv_dev1,
                 "auc"=cv_auc1))
 }
+
+
+
+
+
 
 ## cross validation function for continuous y with lambda and ratio
 cv_auc_ext<-function(index_fold,Z,W,A,y,study_info,hat_thetaA){
@@ -960,47 +1012,54 @@ htlgmm.default<-function(
     ###########--------------###########
     # compute hat_thetaA and V_thetaA
 
-    if(pA!=0){
-        if(is.null(hat_thetaA)){
-            if(!is.null(V_thetaA)){
-                stop("With customized hat_thetaA input, V_thetaA is also needed")
-            }
-            if(use_offset){
-                offset_term = prodv_rcpp(Z,study_info[[1]]$Coeff)
-                df=data.frame(y,A)
-                if(family=="binomial"){
-                    hat_thetaA_glm=speedglm(y~0+.,data = df,offset = offset_term,family = binomial())
-                }else if(family=="gaussian"){
-                    hat_thetaA_glm=speedlm(y~0+.,data = df,offset = offset_term)
-                    #hat_thetaA_glm=lm(y~0+.,data = df,offset = offset_term)
-                }
-                hat_thetaA=hat_thetaA_glm$coefficients
-                if(V_thetaA_sandwich){
-                    V_thetaA=vcov_sandwich_rcpp(y=y,A=A,Z=Z,family=family,
-                                                study_info=study_info,pA=pA,
-                                                hat_thetaA=hat_thetaA,
-                                                use_offset=use_offset,
-                                                XR=XR)
-                }else{V_thetaA=vcov(hat_thetaA_glm)}
-            }else{
-                df=data.frame(y,A,Z)
-                if(family=="binomial"){
-                    hat_thetaA_glm=speedglm(y~0+.,data = df,family = binomial())
-                }else if(family=="gaussian"){
-                    hat_thetaA_glm=speedlm(y~0+.,data = df)
-                }
-                hat_thetaA=hat_thetaA_glm$coefficients[1:pA]
-                if(V_thetaA_sandwich){
-                    V_thetaA=vcov_sandwich_rcpp(y,A,Z,family,study_info,pA,
-                                           hat_thetaA,use_offset)
-                }else{V_thetaA=vcov(hat_thetaA_glm)[1:pA,1:pA,drop=F]}
-            }
-        }
+    # if(pA!=0){
+    #     if(is.null(hat_thetaA)){
+    #         if(!is.null(V_thetaA)){
+    #             stop("With customized hat_thetaA input, V_thetaA is also needed")
+    #         }
+    #         if(use_offset){
+    #             offset_term = prodv_rcpp(Z,study_info[[1]]$Coeff)
+    #             df=data.frame(y,A)
+    #             if(family=="binomial"){
+    #                 hat_thetaA_glm=speedglm(y~0+.,data = df,offset = offset_term,family = binomial())
+    #             }else if(family=="gaussian"){
+    #                 hat_thetaA_glm=speedlm(y~0+.,data = df,offset = offset_term)
+    #                 #hat_thetaA_glm=lm(y~0+.,data = df,offset = offset_term)
+    #             }
+    #             hat_thetaA=hat_thetaA_glm$coefficients
+    #             if(V_thetaA_sandwich){
+    #                 V_thetaA=vcov_sandwich_rcpp(y=y,A=A,Z=Z,family=family,
+    #                                             study_info=study_info,pA=pA,
+    #                                             hat_thetaA=hat_thetaA,
+    #                                             use_offset=use_offset,
+    #                                             XR=XR)
+    #             }else{V_thetaA=vcov(hat_thetaA_glm)}
+    #         }else{
+    #             df=data.frame(y,A,Z)
+    #             if(family=="binomial"){
+    #                 hat_thetaA_glm=speedglm(y~0+.,data = df,family = binomial())
+    #             }else if(family=="gaussian"){
+    #                 hat_thetaA_glm=speedlm(y~0+.,data = df)
+    #             }
+    #             hat_thetaA=hat_thetaA_glm$coefficients[1:pA]
+    #             if(V_thetaA_sandwich){
+    #                 V_thetaA=vcov_sandwich_rcpp(y,A,Z,family,study_info,pA,
+    #                                        hat_thetaA,use_offset)
+    #             }else{V_thetaA=vcov(hat_thetaA_glm)[1:pA,1:pA,drop=F]}
+    #         }
+    #     }
+    #
+    #     if(is.null(dim(V_thetaA)[1])){
+    #         V_thetaA = as.matrix(V_thetaA,nrow=pA,ncol=pA)
+    #     }
+    # }
 
-        if(is.null(dim(V_thetaA)[1])){
-            V_thetaA = as.matrix(V_thetaA,nrow=pA,ncol=pA)
-        }
-    }
+    thetaA_list<-thetaA_func(pA,Z,A,y,study_info,
+                             family,use_offset,
+                             V_thetaA_sandwich,
+                             hat_thetaA,V_thetaA)
+    hat_thetaA<-thetaA_list$hat_thetaA
+    V_thetaA<-thetaA_list$V_thetaA
 
     ###########--------------###########
     # define penalty assignment
@@ -1054,6 +1113,7 @@ htlgmm.default<-function(
                                V_thetaA=V_thetaA,
                                use_offset = use_offset,
                                X=X,XR=XR)
+
         sC_half<-diag(1/sqrt(diag(inv_C)))
         if(use_sparseC){
             C_half<-sC_half
@@ -1205,7 +1265,7 @@ htlgmm.default<-function(
                 }else if(tune_weight_method == "1se"){
                     if(!is.null(beta_initial1se)){beta_initial<-beta_initial1se}
                 }
-
+                fold_self_beta = refine_C
                 cv_res<-cv_dev_lambda_Cweight_func(index_fold,Z,W,A,y,family,
                                                    C_half,beta_initial,
                                                    initial_with_type,
@@ -1214,8 +1274,10 @@ htlgmm.default<-function(
                                                    weight_list,pZ,pW,pA,
                                                    w_adaptive,final_alpha,
                                                    pseudo_Xy,lambda.min.ratio,
-                                                   nlambda,V_thetaA,use_offset,X,XR,
-                                                   fix_lambda_list,sC_half)
+                                                   nlambda,V_thetaA,use_sparseC,
+                                                   use_offset,V_thetaA_sandwich,
+                                                   fold_self_beta,
+                                                   X,XR,fix_lambda_list,sC_half)
                 cv_auc<-cv_res$auc
                 ids_auc<-which(cv_auc==max(cv_auc),arr.ind = TRUE)
                 ids_auc<-ids_auc[nrow(ids_auc),]

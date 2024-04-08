@@ -92,7 +92,7 @@ htlgmm<-function(
         hat_thetaA = NULL,
         V_thetaA = NULL,
         use_offset = FALSE,
-        robust = TRUE,
+        robust = FALSE,
         remove_penalty_Z = FALSE,
         remove_penalty_W = FALSE,
         inference = TRUE,
@@ -193,7 +193,7 @@ htlgmm<-function(
 #' @param hat_thetaA If A is not NULL, one can provide hat_thetaA as the input. If 'hat_thetaA = NULL', we estimate hat_thetaA with glm by main study.
 #' @param V_thetaA If A is not NULL, one can provide V_thetaA as the input. If 'V_thetaA = NULL', we estimate V_thetaA with glm by main study.
 #' @param use_offset Whether to use offset regarding the external model estimated coefficient. The default is FALSE.
-#' @param robust Whether to apply sandwich formula to compute the variance-covariance matrix of hat_thetaA.The default is TRUE.
+#' @param robust Whether to apply sandwich formula to compute the variance-covariance matrix of hat_thetaA.The default is FALSE.
 #' For coxph model, robust is also about whether we apply the robust variance for the estimating equations.
 #' @param remove_penalty_Z Not penalize Z if it is TRUE. The default is FALSE.
 #' @param remove_penalty_W Not penalize W if it is TRUE. The default is FALSE.
@@ -272,7 +272,7 @@ cv.htlgmm<-function(
         hat_thetaA = NULL,
         V_thetaA = NULL,
         use_offset = FALSE,
-        robust = TRUE,
+        robust = FALSE,
         remove_penalty_Z = FALSE,
         remove_penalty_W = FALSE,
         inference = TRUE,

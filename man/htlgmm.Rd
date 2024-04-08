@@ -18,7 +18,7 @@ htlgmm(
   hat_thetaA = NULL,
   V_thetaA = NULL,
   use_offset = FALSE,
-  robust = TRUE,
+  robust = FALSE,
   remove_penalty_Z = FALSE,
   remove_penalty_W = FALSE,
   inference = TRUE,
