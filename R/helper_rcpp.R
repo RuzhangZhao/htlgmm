@@ -642,11 +642,13 @@ cv_dev_lambda_Cweight_func2<-function(index_fold,Z,W,A,y,family,
             Atest<-NULL}
         ytrain<-y[-index_test]
         ytest<-y[index_test]
-
-        initial_res1<-beta_initial_func(ytrain,cbind(Atrain,Ztrain,Wtrain),
-                                        Atrain,pA,family,initial_with_type,w_adaptive)
-        beta_initial1<-initial_res1$beta_initial
-        # beta_initial1<-beta_initial
+        if(fold_self_beta){
+            initial_res1<-beta_initial_func(ytrain,cbind(Atrain,Ztrain,Wtrain),
+                                            Atrain,pA,family,initial_with_type,w_adaptive)
+            beta_initial1<-initial_res1$beta_initial
+        }else{
+            beta_initial1<-beta_initial
+        }
 
         thetaA_list<-thetaA_func(pA,Ztrain,Atrain,ytrain,study_info,
                                  family,use_offset,
@@ -723,10 +725,12 @@ cv_dev_lambda_Cweight_func4<-function(index_fold,Z,W,A,y,family,
                                       fold_self_beta,
                                       X=NULL,XR=NULL,
                                       fix_lambda_list=NULL,sC_half=NULL){
+    sample_p<-0.3
+    index_test<-c(sample(which(y==1),round(sum(y)*sample_p)),
+                  sample(which(y==0),round(sum(1-y)*sample_p)))
 
-    index_test<-Reduce(c,lapply(1:round(length(index_fold)*0.3), function(i){index_fold[[i]]}))
+    #index_test<-Reduce(c,lapply(1:round(length(index_fold)*0.3), function(i){index_fold[[i]]}))
 
-    index_test<-sample(1:nrow(Z),100)
     Ztrain<-Z[-index_test,,drop=FALSE]
     Ztest<-Z[index_test,,drop=FALSE]
     if(!is.null(W)){
@@ -743,12 +747,15 @@ cv_dev_lambda_Cweight_func4<-function(index_fold,Z,W,A,y,family,
         Atest<-NULL}
     ytrain<-y[-index_test]
     ytest<-y[index_test]
-    # renew the initial value
 
-    initial_res1<-beta_initial_func(ytrain,cbind(Atrain,Ztrain,Wtrain),
-                                    Atrain,pA,family,initial_with_type,w_adaptive)
-    beta_initial1<-initial_res1$beta_initial
-    # beta_initial1<-beta_initial
+    # renew the initial value
+    if(fold_self_beta){
+        initial_res1<-beta_initial_func(ytrain,cbind(Atrain,Ztrain,Wtrain),
+                                        Atrain,pA,family,initial_with_type,w_adaptive)
+        beta_initial1<-initial_res1$beta_initial
+    }else{
+        beta_initial1<-beta_initial
+    }
 
     thetaA_list<-thetaA_func(pA,Ztrain,Atrain,ytrain,study_info,
                              family,use_offset,
