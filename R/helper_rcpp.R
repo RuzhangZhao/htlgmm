@@ -408,9 +408,9 @@ cv_mse_lambda_Cweight_func<-function(index_fold,Z,W,A,y,family,
             C_half_weight<-sC_half
         }else{
             C_half_weight<-C_half
-            C_half_weight[(pZ+pA+pW+1):nrow(C_half),(pZ+pA+pW+1):nrow(C_half)]=
-                C_half[(pZ+pA+pW+1):nrow(C_half),(pZ+pA+pW+1):nrow(C_half)]*sqrt(weight)
         }
+        C_half_weight[(pZ+pA+pW+1):nrow(C_half),(pZ+pA+pW+1):nrow(C_half)]=
+            C_half[(pZ+pA+pW+1):nrow(C_half),(pZ+pA+pW+1):nrow(C_half)]*sqrt(abs(weight))
         pseudo_Xy_list<-pseudo_Xy(C_half=C_half_weight,Z=Z,W=W,A=A,y=y,
                                   beta=beta_initial,hat_thetaA=hat_thetaA,
                                   study_info=study_info,X=X,XR=XR)
@@ -496,10 +496,10 @@ cv_dev_lambda_Cweight_func<-function(index_fold,Z,W,A,y,family,
         if(weight<0){
             C_half_weight<-sC_half
         }else{
-            C_half_weight=C_half
-            C_half_weight[(pZ+pA+pW+1):nrow(C_half),(pZ+pA+pW+1):nrow(C_half)]<-
-                C_half[(pZ+pA+pW+1):nrow(C_half),(pZ+pA+pW+1):nrow(C_half)]*sqrt(weight)
+            C_half_weight<-C_half
         }
+        C_half_weight[(pZ+pA+pW+1):nrow(C_half),(pZ+pA+pW+1):nrow(C_half)]<-
+            C_half[(pZ+pA+pW+1):nrow(C_half),(pZ+pA+pW+1):nrow(C_half)]*sqrt(abs(weight))
         pseudo_Xy_list<-pseudo_Xy(C_half=C_half_weight,Z=Z,W=W,A=A,y=y,
                                   beta=beta_initial,hat_thetaA=hat_thetaA,
                                   study_info=study_info,X=X,XR=XR)
@@ -673,9 +673,10 @@ cv_dev_lambda_Cweight_func2<-function(index_fold,Z,W,A,y,family,
                 C_half_weight<-sC_half_train
             }else{
                 C_half_weight<-C_half_train
-                C_half_weight[(pZ+pA+pW+1):nrow(C_half_weight),(pZ+pA+pW+1):nrow(C_half_weight)]<-
-                    C_half_weight[(pZ+pA+pW+1):nrow(C_half_weight),(pZ+pA+pW+1):nrow(C_half_weight)]*sqrt(cur_weight)
             }
+            C_half_weight[(pZ+pA+pW+1):nrow(C_half_weight),(pZ+pA+pW+1):nrow(C_half_weight)]<-
+                C_half_weight[(pZ+pA+pW+1):nrow(C_half_weight),(pZ+pA+pW+1):nrow(C_half_weight)]*sqrt(abs(cur_weight))
+
 
             #C_half_weight = item_weight_list[[weight_id]]$C_half
             lambda_list_weight = item_weight_list[[weight_id]]$lambda_list
@@ -780,9 +781,9 @@ cv_dev_lambda_Cweight_func4<-function(index_fold,Z,W,A,y,family,
             C_half_weight<-sC_half_train
         }else{
             C_half_weight<-C_half_train
-            C_half_weight[(pZ+pA+pW+1):nrow(C_half_weight),(pZ+pA+pW+1):nrow(C_half_weight)]<-
-                C_half_weight[(pZ+pA+pW+1):nrow(C_half_weight),(pZ+pA+pW+1):nrow(C_half_weight)]*sqrt(cur_weight)
         }
+        C_half_weight[(pZ+pA+pW+1):nrow(C_half_weight),(pZ+pA+pW+1):nrow(C_half_weight)]<-
+            C_half_weight[(pZ+pA+pW+1):nrow(C_half_weight),(pZ+pA+pW+1):nrow(C_half_weight)]*sqrt(abs(cur_weight))
 
         pseudo_Xy_list_train<-pseudo_Xy(C_half_weight,Ztrain,Wtrain,Atrain,
                                         ytrain,beta = beta_initial1,hat_thetaA = hat_thetaA1,
@@ -1198,8 +1199,8 @@ htlgmm.default<-function(
     # generate weight list from glmnet
     if(tune_weight){
         if(is.null(weight_list)){
-            weight_list<-c(1,2,4,8)
-            if(!use_sparseC){weight_list<-c(weight_list,-1)}
+            weight_list<-c(1,2,4,8,16)
+            if(!use_sparseC){weight_list<-c(weight_list,-weight_list)}
         }
     }
 
@@ -1272,7 +1273,7 @@ htlgmm.default<-function(
                 }else if(tune_weight_method == "1se"){
                     if(!is.null(beta_initial1se)){beta_initial<-beta_initial1se}
                 }
-                fold_self_beta = refine_C
+                fold_self_beta = TRUE
                 cv_res<-cv_dev_lambda_Cweight_func(index_fold,Z,W,A,y,family,
                                                    C_half,beta_initial,
                                                    initial_with_type,
@@ -1300,10 +1301,11 @@ htlgmm.default<-function(
 
                     if(weight<0){
                         C_half<-sC_half
-                    }else{
-                        C_half[(pZ+pA+pW+1):nrow(C_half),(pZ+pA+pW+1):nrow(C_half)]<-
-                            C_half[(pZ+pA+pW+1):nrow(C_half),(pZ+pA+pW+1):nrow(C_half)]*sqrt(weight)
                     }
+
+                    C_half[(pZ+pA+pW+1):nrow(C_half),(pZ+pA+pW+1):nrow(C_half)]<-
+                        C_half[(pZ+pA+pW+1):nrow(C_half),(pZ+pA+pW+1):nrow(C_half)]*sqrt(abs(weight))
+
                     if(weight!=1){
                         pseudo_Xy_list<-pseudo_Xy(C_half=C_half,Z=Z,W=W,A=A,y=y,
                                                   beta=beta_initial,hat_thetaA=hat_thetaA,
