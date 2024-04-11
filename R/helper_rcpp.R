@@ -1542,7 +1542,27 @@ htlgmm.default<-function(
 
             ###########--------------###########
             # refine C will cover the previously used C
+            if(output_all_betas){
+                inv_C = Delta_opt_rcpp(y=y,Z=Z,W=W,
+                                       family=family,
+                                       study_info=study_info,
+                                       A=A,pA=pA,pZ=pZ,beta=beta,
+                                       hat_thetaA=hat_thetaA,
+                                       V_thetaA = V_thetaA,
+                                       use_offset = use_offset,
+                                       X=X,XR=XR)
+                C_half<-sqrtchoinv_rcpp(inv_C+diag(1e-15,nrow(inv_C)))
+                pseudo_Xy_list<-pseudo_Xy(C_half=C_half,Z=Z,W=W,A=A,y=y,
+                                          beta=beta,hat_thetaA=hat_thetaA,
+                                          study_info=study_info,X=X,XR=XR)
+                psX<-pseudo_Xy_list$pseudo_X/nZ
 
+                psXtX<-self_crossprod_rcpp(psX)
+                psXtX_non0<-psXtX[index_nonzero,index_nonzero,drop=F]
+                inv_psXtX_non0<-choinv_rcpp(psXtX_non0)
+                inv_psXtX_final<-inv_psXtX_non0
+
+            }else{
             if(is.null(fix_C)&refine_C){
                 inv_C = Delta_opt_rcpp(y=y,Z=Z,W=W,
                                        family=family,
@@ -1575,7 +1595,7 @@ htlgmm.default<-function(
             psXtX<-self_crossprod_rcpp(psX)
             psXtX_non0<-psXtX[index_nonzero,index_nonzero,drop=F]
             inv_psXtX_non0<-choinv_rcpp(psXtX_non0)
-
+            inv_psXtX_final<-inv_psXtX_non0
             ###########--------------###########
             # When the C using is not optimal C,
 
@@ -1592,16 +1612,16 @@ htlgmm.default<-function(
                 psX_mid<-prod_rcpp(inv_C_half,crossprod_rcpp(C_half,psX))
                 psXtX_mid<-self_crossprod_rcpp(psX_mid)
                 psXtX_mid_non0<-psXtX_mid[index_nonzero,index_nonzero,drop=F]
-                inv_psXtX_non0<-prod_rcpp(prod_rcpp(inv_psXtX_non0,psXtX_mid_non0),inv_psXtX_non0)
+                inv_psXtX_final<-prod_rcpp(prod_rcpp(inv_psXtX_non0,psXtX_mid_non0),inv_psXtX_non0)
                 #
                 if(sum(diag(inv_psXtX_non0)<=0)>0){
                     psXtX_mid_non0_half<-sqrtcho_rcpp(psXtX_mid_non0+diag(1e-15,nrow(psXtX_mid_non0)))
-                    inv_psXtX_non0<-self_crossprod_rcpp(prod_rcpp(psXtX_mid_non0_half,inv_psXtX_non0))
+                    inv_psXtX_final<-self_crossprod_rcpp(prod_rcpp(psXtX_mid_non0_half,inv_psXtX_non0))
                 }
             }
 
-
-            final_vcov<-inv_psXtX_non0/nZ
+}
+            final_vcov<-inv_psXtX_final/nZ
             final_v<-diag(final_vcov)
 
             pval_final<-pchisq(beta[index_nonzero]^2/final_v,1,lower.tail = F)
