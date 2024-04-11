@@ -1162,8 +1162,13 @@ htlgmm.default<-function(
 
     if(!is.null(lambda_list)){fix_lambda_list<-lambda_list}else{
         fix_lambda_list<-NULL}
-    if(penalty_type != "none"){
-        if(is.null(fix_lambda)&is.null(lambda_list)){
+    if(penalty_type != "none" & is.null(fix_lambda)&is.null(lambda_list)){
+        if(penalty_type == "adaptivelasso"){
+            fit_final<-glmnet(x= pseudo_X,y= pseudo_y,standardize=F,
+                              intercept=F,alpha = final_alpha,penalty.factor = w_adaptive)
+            lambda_list<-fit_final$lambda
+            lambda_list<-lambda_list[!is.na(lambda_list)]
+        }else{
             innerprod<-crossprodv_rcpp(pseudo_X,pseudo_y)[which(fix_penalty!=0)]
             lambda.max<-max(abs(innerprod))/nrow(pseudo_X)
             lambda_list <-exp(seq(log(lambda.max),log(lambda.max*lambda.min.ratio),
@@ -1613,7 +1618,7 @@ htlgmm.default<-function(
                 psXtX_mid<-self_crossprod_rcpp(psX_mid)
                 psXtX_mid_non0<-psXtX_mid[index_nonzero,index_nonzero,drop=F]
                 inv_psXtX_final<-prod_rcpp(prod_rcpp(inv_psXtX_non0,psXtX_mid_non0),inv_psXtX_non0)
-                #
+
                 if(sum(diag(inv_psXtX_non0)<=0)>0){
                     psXtX_mid_non0_half<-sqrtcho_rcpp(psXtX_mid_non0+diag(1e-15,nrow(psXtX_mid_non0)))
                     inv_psXtX_final<-self_crossprod_rcpp(prod_rcpp(psXtX_mid_non0_half,inv_psXtX_non0))
