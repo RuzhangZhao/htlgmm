@@ -1163,17 +1163,17 @@ htlgmm.default<-function(
     if(!is.null(lambda_list)){fix_lambda_list<-lambda_list}else{
         fix_lambda_list<-NULL}
     if(penalty_type != "none" & is.null(fix_lambda)&is.null(lambda_list)){
-        if(penalty_type == "adaptivelasso"){
-            fit_final<-glmnet(x= pseudo_X,y= pseudo_y,standardize=F,
-                              intercept=F,alpha = final_alpha,penalty.factor = w_adaptive)
-            lambda_list<-fit_final$lambda
-            lambda_list<-lambda_list[!is.na(lambda_list)]
-        }else{
+        # if(penalty_type == "adaptivelasso"){
+        #     fit_final<-glmnet(x= pseudo_X,y= pseudo_y,standardize=F,
+        #                       intercept=F,alpha = final_alpha,penalty.factor = w_adaptive)
+        #     lambda_list<-fit_final$lambda
+        #     lambda_list<-lambda_list[!is.na(lambda_list)]
+        # }else{
             innerprod<-crossprodv_rcpp(pseudo_X,pseudo_y)[which(fix_penalty!=0)]
             lambda.max<-max(abs(innerprod))/nrow(pseudo_X)
             lambda_list <-exp(seq(log(lambda.max),log(lambda.max*lambda.min.ratio),
                                   length.out=nlambda))
-        }
+        # }
     }
     if(!is.null(fix_lambda)){
         use_cv = FALSE
