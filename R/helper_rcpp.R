@@ -1568,7 +1568,7 @@ htlgmm.default<-function(
                 inv_psXtX_final<-inv_psXtX_non0
 
             }else{
-            if(is.null(fix_C)&refine_C){
+
                 inv_C = Delta_opt_rcpp(y=y,Z=Z,W=W,
                                        family=family,
                                        study_info=study_info,
@@ -1577,8 +1577,10 @@ htlgmm.default<-function(
                                        V_thetaA = V_thetaA,
                                        use_offset = use_offset,
                                        X=X,XR=XR)
+
+                sC_half<-diag(1/sqrt(diag(inv_C)))
                 if(use_sparseC){
-                    C_half<-diag(1/sqrt(diag(inv_C)))
+                    C_half<-sC_half
                 }else{
                     if(sqrt_matrix =="svd"){
                         inv_C_svd=fast.svd(inv_C+diag(1e-15,nrow(inv_C)))
@@ -1587,7 +1589,13 @@ htlgmm.default<-function(
                         C_half<-sqrtchoinv_rcpp(inv_C+diag(1e-15,nrow(inv_C)))
                     }
                 }
-            }
+                if(final.weight.min<0){
+                    C_half<-sC_half
+                }
+                C_half[(pZ+pA+pW+1):nrow(C_half),(pZ+pA+pW+1):nrow(C_half)]=
+                    C_half[(pZ+pA+pW+1):nrow(C_half),(pZ+pA+pW+1):nrow(C_half)]*sqrt(abs(final.weight.min))
+
+
 
             ###########--------------###########
             # Compute new pseudo_X
@@ -1605,14 +1613,6 @@ htlgmm.default<-function(
             # When the C using is not optimal C,
 
             if(!is.null(fix_C)|final.weight.min!=1 |use_sparseC){
-                inv_C = Delta_opt_rcpp(y=y,Z=Z,W=W,
-                                       family=family,
-                                       study_info=study_info,
-                                       A=A,pA=pA,pZ=pZ,beta=beta,
-                                       hat_thetaA=hat_thetaA,
-                                       V_thetaA = V_thetaA,
-                                       use_offset = use_offset,
-                                       X=X,XR=XR)
                 inv_C_half<-sqrtcho_rcpp(inv_C+diag(1e-15,nrow(inv_C)))
                 psX_mid<-prod_rcpp(inv_C_half,crossprod_rcpp(C_half,psX))
                 psXtX_mid<-self_crossprod_rcpp(psX_mid)
