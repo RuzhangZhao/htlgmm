@@ -821,8 +821,8 @@ cv_dev_lambda_Cweight_func4<-function(index_fold,Z,W,A,y,family,
     ids_dev<-which(cv_dev1==min(cv_dev1),arr.ind = TRUE)
     ids_auc<-which(cv_auc1==max(cv_auc1),arr.ind = TRUE)
 
-    final_weight<-weight_list[ids_auc[nrow(ids_auc),1]]
-    final_weight_dev<-weight_list[ids_dev[nrow(ids_dev),1]]
+    final_weight<-weight_list[ids_auc[1,1]] #nrow(ids_auc)
+    final_weight_dev<-weight_list[ids_dev[1,1]] #nrow(ids_dev)
 
     return(list("final_weight"=final_weight,
                 "final_weight_dev"=final_weight_dev,
@@ -1293,10 +1293,10 @@ htlgmm.default<-function(
                                                    X,XR,fix_lambda_list,sC_half)
                 cv_auc<-cv_res$auc
                 ids_auc<-which(cv_auc==max(cv_auc),arr.ind = TRUE)
-                ids_auc<-ids_auc[nrow(ids_auc),]
+                ids_auc<-ids_auc[1,] #nrow(ids_auc)
                 cv_dev<-cv_res$deviance
                 ids_dev<-which(cv_dev==min(cv_dev),arr.ind = TRUE)
-                ids_dev<-ids_dev[nrow(ids_dev),]
+                ids_dev<-ids_dev[1,] #nrow(ids_dev)
                 print(paste0("auc_weightid:",ids_auc[1]))
 
                 final.ratio.min<-1
@@ -1547,15 +1547,15 @@ htlgmm.default<-function(
 
             ###########--------------###########
             # refine C will cover the previously used C
+            inv_C = Delta_opt_rcpp(y=y,Z=Z,W=W,
+                                   family=family,
+                                   study_info=study_info,
+                                   A=A,pA=pA,pZ=pZ,beta=beta,
+                                   hat_thetaA=hat_thetaA,
+                                   V_thetaA = V_thetaA,
+                                   use_offset = use_offset,
+                                   X=X,XR=XR)
             if(output_all_betas){
-                inv_C = Delta_opt_rcpp(y=y,Z=Z,W=W,
-                                       family=family,
-                                       study_info=study_info,
-                                       A=A,pA=pA,pZ=pZ,beta=beta,
-                                       hat_thetaA=hat_thetaA,
-                                       V_thetaA = V_thetaA,
-                                       use_offset = use_offset,
-                                       X=X,XR=XR)
                 C_half<-sqrtchoinv_rcpp(inv_C+diag(1e-15,nrow(inv_C)))
                 pseudo_Xy_list<-pseudo_Xy(C_half=C_half,Z=Z,W=W,A=A,y=y,
                                           beta=beta,hat_thetaA=hat_thetaA,
@@ -1569,33 +1569,25 @@ htlgmm.default<-function(
 
             }else{
 
-                inv_C = Delta_opt_rcpp(y=y,Z=Z,W=W,
-                                       family=family,
-                                       study_info=study_info,
-                                       A=A,pA=pA,pZ=pZ,beta=beta,
-                                       hat_thetaA=hat_thetaA,
-                                       V_thetaA = V_thetaA,
-                                       use_offset = use_offset,
-                                       X=X,XR=XR)
-
-                sC_half<-diag(1/sqrt(diag(inv_C)))
-                if(use_sparseC){
-                    C_half<-sC_half
-                }else{
-                    if(sqrt_matrix =="svd"){
-                        inv_C_svd=fast.svd(inv_C+diag(1e-15,nrow(inv_C)))
-                        C_half=prod_rcpp(inv_C_svd$v,(t(inv_C_svd$u)*1/sqrt(inv_C_svd$d)))
-                    }else if(sqrt_matrix =="cholesky"){
-                        C_half<-sqrtchoinv_rcpp(inv_C+diag(1e-15,nrow(inv_C)))
+                if(refine_C){
+                    sC_half<-diag(1/sqrt(diag(inv_C)))
+                    if(use_sparseC){
+                        C_half<-sC_half
+                    }else{
+                        if(sqrt_matrix =="svd"){
+                            inv_C_svd=fast.svd(inv_C+diag(1e-15,nrow(inv_C)))
+                            C_half=prod_rcpp(inv_C_svd$v,(t(inv_C_svd$u)*1/sqrt(inv_C_svd$d)))
+                        }else if(sqrt_matrix =="cholesky"){
+                            C_half<-sqrtchoinv_rcpp(inv_C+diag(1e-15,nrow(inv_C)))
+                        }
                     }
+                    if(final.weight.min<0){
+                        C_half<-sC_half
+                    }
+                    C_half[(pZ+pA+pW+1):nrow(C_half),(pZ+pA+pW+1):nrow(C_half)]=
+                        C_half[(pZ+pA+pW+1):nrow(C_half),(pZ+pA+pW+1):nrow(C_half)]*sqrt(abs(final.weight.min))
+                    use_sparseC<-T
                 }
-                if(final.weight.min<0){
-                    C_half<-sC_half
-                }
-                C_half[(pZ+pA+pW+1):nrow(C_half),(pZ+pA+pW+1):nrow(C_half)]=
-                    C_half[(pZ+pA+pW+1):nrow(C_half),(pZ+pA+pW+1):nrow(C_half)]*sqrt(abs(final.weight.min))
-
-
 
             ###########--------------###########
             # Compute new pseudo_X
@@ -1625,12 +1617,13 @@ htlgmm.default<-function(
                 }
             }
 
-}
+            }
             final_vcov<-inv_psXtX_final/nZ
             final_v<-diag(final_vcov)
 
             pval_final<-pchisq(beta[index_nonzero]^2/final_v,1,lower.tail = F)
             pval_final1<-p.adjust(pval_final,method = "BH")
+
             selected_pos<-index_nonzero[which(pval_final1<0.05)]
             return_list<-c(return_list,
                            list("selected_vars"=
