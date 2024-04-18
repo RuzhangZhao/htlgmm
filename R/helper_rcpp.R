@@ -1555,7 +1555,7 @@ htlgmm.default<-function(
                                    V_thetaA = V_thetaA,
                                    use_offset = use_offset,
                                    X=X,XR=XR)
-            if(output_all_betas){
+            if(refine_C){
                 C_half<-sqrtchoinv_rcpp(inv_C+diag(1e-15,nrow(inv_C)))
                 pseudo_Xy_list<-pseudo_Xy(C_half=C_half,Z=Z,W=W,A=A,y=y,
                                           beta=beta,hat_thetaA=hat_thetaA,
@@ -1569,25 +1569,25 @@ htlgmm.default<-function(
 
             }else{
 
-                if(refine_C){
-                    sC_half<-diag(1/sqrt(diag(inv_C)))
-                    if(use_sparseC){
-                        C_half<-sC_half
-                    }else{
-                        if(sqrt_matrix =="svd"){
-                            inv_C_svd=fast.svd(inv_C+diag(1e-15,nrow(inv_C)))
-                            C_half=prod_rcpp(inv_C_svd$v,(t(inv_C_svd$u)*1/sqrt(inv_C_svd$d)))
-                        }else if(sqrt_matrix =="cholesky"){
-                            C_half<-sqrtchoinv_rcpp(inv_C+diag(1e-15,nrow(inv_C)))
-                        }
+
+                sC_half<-diag(1/sqrt(diag(inv_C)))
+                if(use_sparseC){
+                    C_half<-sC_half
+                }else{
+                    if(sqrt_matrix =="svd"){
+                        inv_C_svd=fast.svd(inv_C+diag(1e-15,nrow(inv_C)))
+                        C_half=prod_rcpp(inv_C_svd$v,(t(inv_C_svd$u)*1/sqrt(inv_C_svd$d)))
+                    }else if(sqrt_matrix =="cholesky"){
+                        C_half<-sqrtchoinv_rcpp(inv_C+diag(1e-15,nrow(inv_C)))
                     }
-                    if(final.weight.min<0){
-                        C_half<-sC_half
-                    }
-                    C_half[(pZ+pA+pW+1):nrow(C_half),(pZ+pA+pW+1):nrow(C_half)]=
-                        C_half[(pZ+pA+pW+1):nrow(C_half),(pZ+pA+pW+1):nrow(C_half)]*sqrt(abs(final.weight.min))
-                    use_sparseC<-T
                 }
+                if(final.weight.min<0){
+                    C_half<-sC_half
+                }
+                C_half[(pZ+pA+pW+1):nrow(C_half),(pZ+pA+pW+1):nrow(C_half)]=
+                    C_half[(pZ+pA+pW+1):nrow(C_half),(pZ+pA+pW+1):nrow(C_half)]*sqrt(abs(final.weight.min))
+                use_sparseC<-T
+
 
             ###########--------------###########
             # Compute new pseudo_X
@@ -1637,5 +1637,6 @@ htlgmm.default<-function(
                                          "FDR_adjust_name"=Xcolnames[selected_pos])
                            ))
         }}
+    return_list<-c(return_list,list("Delta_opt"=inv_C))
     return(return_list)
 }
