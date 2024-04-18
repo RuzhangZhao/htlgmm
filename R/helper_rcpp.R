@@ -1637,6 +1637,8 @@ htlgmm.default<-function(
                                          "FDR_adjust_name"=Xcolnames[selected_pos])
                            ))
         }}
-    return_list<-c(return_list,list("Delta_opt"=inv_C))
+    if(is.null(fix_C)){
+        return_list<-c(return_list,list("Delta_opt"=inv_C))
+    }
     return(return_list)
 }
