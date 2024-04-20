@@ -14,6 +14,21 @@ sqrtchoinv_rcpp2<-function(inv_C){
     C_half
 }
 
+sqrtcho_rcpp2<-function(fix_C){
+    inv_adjust=1e-15
+    iter=0
+    max_iter=min(100,round(mean(diag(fix_C))/inv_adjust))
+    while (iter <= max_iter) {
+        C_half <- tryCatch(
+            sqrtcho_rcpp(fix_C+diag(inv_adjust,nrow(fix_C))),
+            error = function(e) NULL)
+        if(is.null(C_half)){inv_adjust=inv_adjust*10}else{break}
+        iter <- iter + 1
+    }
+    if(is.null(C_half)){
+        stop("Error: Cholesky decomposition failed after finite iteration of penalty.")}
+    C_half
+}
 Delta_opt_rcpp<-function(y,Z,W,family,
                     study_info,A=NULL,pA=NULL,pZ=NULL,
                     beta=NULL,hat_thetaA=NULL,
@@ -1165,7 +1180,7 @@ htlgmm.default<-function(
     }else{
         if(nrow(fix_C)!=pA+pZ+pW+pZ){
             stop("Input fix_C dimension is wrong!")}
-        C_half<-sqrtcho_rcpp(fix_C+diag(1e-15,nrow(fix_C)))
+        C_half<-sqrtcho_rcpp2(fix_C)
     }
 
     if(!is.null(fix_weight)){
