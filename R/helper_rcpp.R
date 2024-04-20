@@ -1,7 +1,7 @@
 sqrtchoinv_rcpp2<-function(inv_C){
     inv_adjust=1e-15
     iter=0
-    max_iter=min(100,round(mean(diag(inv_C))/weight))
+    max_iter=min(100,round(mean(diag(inv_C))/inv_adjust))
     while (iter <= max_iter) {
         C_half <- tryCatch(
             sqrtcho_rcpp(inv_C+diag(inv_adjust,nrow(inv_C))),
