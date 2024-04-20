@@ -944,7 +944,7 @@ htlgmm.default<-function(
     ###########--------------###########
     # determine which kind of penalty for the final model
     if(!is.null(alpha) & penalty_type != "elasticnet"){
-        stop("When using alpha between 0 and 1, please set penalty_type to be 'elasticnet'.")
+        warning("When using alpha between 0 and 1, please set penalty_type to be 'elasticnet'.")
     }
     if(penalty_type%in%c("adaptivelasso","lasso")){final_alpha = 1}
     if(penalty_type == "ridge"){final_alpha = 0}
@@ -1119,6 +1119,11 @@ htlgmm.default<-function(
     }
     if (penalty_type == "adaptivelasso"){
         w_adaptive<-1/abs(beta_initial)^gamma_adaptivelasso
+        if(alpha == 10){
+            abs_beta<-abs(beta_initial)
+            abs_beta[abs_beta<summary(abs_beta)[2]]=summary(abs_beta)[2]
+            w_adaptive<-1/abs_beta^gamma_adaptivelasso
+        }
         w_adaptive[is.infinite(w_adaptive)]<-max(w_adaptive[!is.infinite(w_adaptive)])*100
         w_adaptive<-w_adaptive*fix_penalty
     }else{w_adaptive<-fix_penalty}
