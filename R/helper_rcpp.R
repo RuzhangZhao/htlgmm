@@ -1136,6 +1136,9 @@ htlgmm.default<-function(
                                V_thetaA=V_thetaA,
                                use_offset = use_offset,
                                X=X,XR=XR)
+        if(refine_C){
+            list("Delta_opt"=inv_C)
+        }
 
         sC_half<-diag(1/sqrt(diag(inv_C)))
         if(use_sparseC){
