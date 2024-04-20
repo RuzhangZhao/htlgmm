@@ -1134,6 +1134,7 @@ htlgmm.default<-function(
     }
     if (penalty_type == "adaptivelasso"){
         w_adaptive<-1/abs(beta_initial)^gamma_adaptivelasso
+        if(!is.null(alpha)){
         if(alpha == 10){
             abs_beta<-abs(beta_initial)
             abs_beta[abs_beta<summary(abs_beta)[2]]=summary(abs_beta)[2]
@@ -1144,7 +1145,7 @@ htlgmm.default<-function(
                 abs(reducedglm$coefficients[-1])
             }))
             w_adaptive<-1/abs_beta^gamma_adaptivelasso
-        }
+        }}
         w_adaptive[is.infinite(w_adaptive)]<-max(w_adaptive[!is.infinite(w_adaptive)])*100
         w_adaptive<-w_adaptive*fix_penalty
     }else{w_adaptive<-fix_penalty}
