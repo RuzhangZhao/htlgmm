@@ -998,7 +998,7 @@ htlgmm.default<-function(
         }
         pA=ncol(A)
     }
-    if(nZ<2*pZ+pW+pA){use_sparseC=TRUE}
+    #if(nZ<2*pZ+pW+pA){use_sparseC=TRUE}
 
     if(family == "gaussian"){pseudo_Xy=pseudo_Xy_gaussian_rcpp
     }else if(family == "binomial"){pseudo_Xy=pseudo_Xy_binomial_rcpp}
