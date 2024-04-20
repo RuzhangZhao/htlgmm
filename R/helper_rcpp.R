@@ -1,3 +1,18 @@
+sqrtchoinv_rcpp2<-function(inv_C){
+    inv_adjust=1e-15
+    iter=0
+    max_iter=min(100,round(mean(diag(inv_C))/weight))
+    while (iter <= max_iter) {
+        C_half <- tryCatch(
+            sqrtcho_rcpp(inv_C+diag(inv_adjust,nrow(inv_C))),
+            error = function(e) NULL)
+        if(is.null(C_half)){inv_adjust=inv_adjust*10}else{break}
+        iter <- iter + 1
+    }
+    if(is.null(C_half)){
+        stop("Error: Cholesky decomposition failed after finite iteration of penalty.")}
+    C_half
+}
 
 Delta_opt_rcpp<-function(y,Z,W,family,
                     study_info,A=NULL,pA=NULL,pZ=NULL,
@@ -665,7 +680,7 @@ cv_dev_lambda_Cweight_func2<-function(index_fold,Z,W,A,y,family,
                                      use_offset=use_offset)
         sC_half_train<-diag(1/sqrt(diag(inv_C_train)))
         if(use_sparseC){C_half_train<-sC_half_train
-        }else{C_half_train<-sqrtchoinv_rcpp(inv_C_train+diag(1e-15,nrow(inv_C_train)))}
+        }else{C_half_train<-sqrtchoinv_rcpp2(inv_C_train+diag(1e-15,nrow(inv_C_train)))}
 
         dev_lam_weight_fold<-lapply(1:length(weight_list),function(weight_id){
             cur_weight=weight_list[weight_id]
@@ -773,7 +788,7 @@ cv_dev_lambda_Cweight_func4<-function(index_fold,Z,W,A,y,family,
                                  use_offset=use_offset)
     sC_half_train<-diag(1/sqrt(diag(inv_C_train)))
     if(use_sparseC){C_half_train<-sC_half_train
-    }else{C_half_train<-sqrtchoinv_rcpp(inv_C_train+diag(1e-15,nrow(inv_C_train)))}
+    }else{C_half_train<-sqrtchoinv_rcpp2(inv_C_train)}
 
     dev_lam_weight_fold<-lapply(1:length(weight_list),function(weight_id){
         cur_weight=weight_list[weight_id]
@@ -1130,7 +1145,7 @@ htlgmm.default<-function(
                 inv_C_svd=fast.svd(inv_C+diag(1e-15,nrow(inv_C)))
                 C_half=prod_rcpp(inv_C_svd$v,(t(inv_C_svd$u)*1/sqrt(inv_C_svd$d)))
             }else if(sqrt_matrix =="cholesky"){
-                C_half<-sqrtchoinv_rcpp(inv_C+diag(1e-15,nrow(inv_C)))
+                C_half<-sqrtchoinv_rcpp2(inv_C)
             }
         }
     }else{
@@ -1556,7 +1571,7 @@ htlgmm.default<-function(
                                    use_offset = use_offset,
                                    X=X,XR=XR)
             if(refine_C){
-                C_half<-sqrtchoinv_rcpp(inv_C+diag(1e-15,nrow(inv_C)))
+                C_half<-sqrtchoinv_rcpp2(inv_C)
                 pseudo_Xy_list<-pseudo_Xy(C_half=C_half,Z=Z,W=W,A=A,y=y,
                                           beta=beta,hat_thetaA=hat_thetaA,
                                           study_info=study_info,X=X,XR=XR)
@@ -1578,7 +1593,7 @@ htlgmm.default<-function(
                         inv_C_svd=fast.svd(inv_C+diag(1e-15,nrow(inv_C)))
                         C_half=prod_rcpp(inv_C_svd$v,(t(inv_C_svd$u)*1/sqrt(inv_C_svd$d)))
                     }else if(sqrt_matrix =="cholesky"){
-                        C_half<-sqrtchoinv_rcpp(inv_C+diag(1e-15,nrow(inv_C)))
+                        C_half<-sqrtchoinv_rcpp2(inv_C)
                     }
                 }
                 if(final.weight.min<0){
