@@ -4,7 +4,7 @@ sqrtchoinv_rcpp2<-function(inv_C){
     max_iter=min(100,round(mean(diag(inv_C))/inv_adjust))
     while (iter <= max_iter) {
         C_half <- tryCatch(
-            sqrtcho_rcpp(inv_C+diag(inv_adjust,nrow(inv_C))),
+            sqrtchoinv_rcpp(inv_C+diag(inv_adjust,nrow(inv_C))),
             error = function(e) NULL)
         if(is.null(C_half)){inv_adjust=inv_adjust*10}else{break}
         iter <- iter + 1
