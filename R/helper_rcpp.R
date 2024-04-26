@@ -29,6 +29,22 @@ sqrtcho_rcpp2<-function(fix_C){
         stop("Error: Cholesky decomposition failed after finite iteration of penalty.")}
     C_half
 }
+
+choinv_rcpp2<-function(fix_C){
+    inv_adjust=1e-15
+    iter=0
+    max_iter=min(100,round(mean(diag(fix_C))/inv_adjust))
+    while (iter <= max_iter) {
+        inv_C <- tryCatch(
+            choinv_rcpp(fix_C+diag(inv_adjust,nrow(fix_C))),
+            error = function(e) NULL)
+        if(is.null(inv_C)){inv_adjust=inv_adjust*10}else{break}
+        iter <- iter + 1
+    }
+    if(is.null(inv_C)){
+        stop("Error: Cholesky decomposition failed after finite iteration of penalty.")}
+    inv_C
+}
 Delta_opt_rcpp<-function(y,Z,W,family,
                     study_info,A=NULL,pA=NULL,pZ=NULL,
                     beta=NULL,hat_thetaA=NULL,
@@ -1631,7 +1647,7 @@ htlgmm.default<-function(
                     inv_C_weight<-inv_C+diag(c(rep(weight,(pZ+pA+pW)),rep(weight2,pZ)))
                     C_half<-sqrtchoinv_rcpp2(inv_C_weight)
 
-                    if(weight!=1){
+                    if(weight!=0){
                         pseudo_Xy_list<-pseudo_Xy(C_half=C_half,Z=Z,W=W,A=A,y=y,
                                                   beta=beta_initial,hat_thetaA=hat_thetaA,
                                                   study_info=study_info,X=X,XR=XR)
@@ -1883,7 +1899,7 @@ htlgmm.default<-function(
 
                 psXtX<-self_crossprod_rcpp(psX)
                 psXtX_non0<-psXtX[index_nonzero,index_nonzero,drop=F]
-                inv_psXtX_non0<-choinv_rcpp(psXtX_non0)
+                inv_psXtX_non0<-choinv_rcpp2(psXtX_non0)
                 inv_psXtX_final<-inv_psXtX_non0
 
             }else{
@@ -1918,20 +1934,20 @@ htlgmm.default<-function(
 
             psXtX<-self_crossprod_rcpp(psX)
             psXtX_non0<-psXtX[index_nonzero,index_nonzero,drop=F]
-            inv_psXtX_non0<-choinv_rcpp(psXtX_non0)
+            inv_psXtX_non0<-choinv_rcpp2(psXtX_non0)
             inv_psXtX_final<-inv_psXtX_non0
             ###########--------------###########
             # When the C using is not optimal C,
 
-            if(!is.null(fix_C)|final.weight.min!=1 |use_sparseC){
-                inv_C_half<-sqrtcho_rcpp(inv_C+diag(1e-15,nrow(inv_C)))
+            if(!is.null(fix_C)|final.weight.min!=1|final.weight.min!=0 |use_sparseC){
+                inv_C_half<-sqrtcho_rcpp2(inv_C+diag(1e-15,nrow(inv_C)))
                 psX_mid<-prod_rcpp(inv_C_half,crossprod_rcpp(C_half,psX))
                 psXtX_mid<-self_crossprod_rcpp(psX_mid)
                 psXtX_mid_non0<-psXtX_mid[index_nonzero,index_nonzero,drop=F]
                 inv_psXtX_final<-prod_rcpp(prod_rcpp(inv_psXtX_non0,psXtX_mid_non0),inv_psXtX_non0)
 
                 if(sum(diag(inv_psXtX_non0)<=0)>0){
-                    psXtX_mid_non0_half<-sqrtcho_rcpp(psXtX_mid_non0+diag(1e-15,nrow(psXtX_mid_non0)))
+                    psXtX_mid_non0_half<-sqrtcho_rcpp2(psXtX_mid_non0+diag(1e-15,nrow(psXtX_mid_non0)))
                     inv_psXtX_final<-self_crossprod_rcpp(prod_rcpp(psXtX_mid_non0_half,inv_psXtX_non0))
                 }
             }
