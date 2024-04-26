@@ -9,6 +9,7 @@ sqrtchoinv_rcpp2<-function(inv_C){
         if(is.null(C_half)){inv_adjust=inv_adjust*10}else{break}
         iter <- iter + 1
     }
+    print(iter)
     if(is.null(C_half)){
         stop("Error: Cholesky decomposition failed after finite iteration of penalty.")}
     C_half
@@ -25,6 +26,7 @@ sqrtcho_rcpp2<-function(fix_C){
         if(is.null(C_half)){inv_adjust=inv_adjust*10}else{break}
         iter <- iter + 1
     }
+    print(iter)
     if(is.null(C_half)){
         stop("Error: Cholesky decomposition failed after finite iteration of penalty.")}
     C_half
@@ -41,6 +43,7 @@ choinv_rcpp2<-function(fix_C){
         if(is.null(inv_C)){inv_adjust=inv_adjust*10}else{break}
         iter <- iter + 1
     }
+    print(iter)
     if(is.null(inv_C)){
         stop("Error: Cholesky decomposition failed after finite iteration of penalty.")}
     inv_C
