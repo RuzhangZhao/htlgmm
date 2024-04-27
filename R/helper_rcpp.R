@@ -1139,6 +1139,7 @@ htlgmm.default<-function(
         family = "gaussian",
         initial_with_type = "ridge",
         beta_initial = NULL,
+        weight_adaptivelasso = NULL,
         alpha = NULL,
         hat_thetaA = NULL,
         V_thetaA = NULL,
@@ -1374,21 +1375,24 @@ htlgmm.default<-function(
         beta_initial1se<-initial_res$beta_initial1se
     }
     if (penalty_type == "adaptivelasso"){
-        w_adaptive<-1/abs(beta_initial)^gamma_adaptivelasso
-        if(!is.null(alpha)){
-        if(alpha == 10){
-            abs_beta<-abs(beta_initial)
-            abs_beta[abs_beta<summary(abs_beta)[2]]=summary(abs_beta)[2]
-            w_adaptive<-1/abs_beta^gamma_adaptivelasso
-        }else if(alpha == 11){
-            abs_beta<-c(1,sapply(2:ncol(X), function(i){
-                reducedglm=glm(y~.,data = data.frame(y,X[,i]),family = "binomial")
-                abs(reducedglm$coefficients[-1])
-            }))
-            w_adaptive<-1/abs_beta^gamma_adaptivelasso
-        }}
-        w_adaptive[is.infinite(w_adaptive)]<-max(w_adaptive[!is.infinite(w_adaptive)])*100
-        w_adaptive<-w_adaptive*fix_penalty
+        if(is.null(weight_adaptivelasso)){
+            w_adaptive<-1/abs(beta_initial)^gamma_adaptivelasso
+            w_adaptive[is.infinite(w_adaptive)]<-max(w_adaptive[!is.infinite(w_adaptive)])*100
+            w_adaptive<-w_adaptive*fix_penalty
+        }else{
+            if(length(weight_adaptivelasso) != length(fix_penalty) & length(weight_adaptivelasso) != length(fix_penalty)-1 ){
+                stop("The length of 'weight_adaptivelasso' is invalid. Either the same length as beta_initial or without intercept is accepted.")
+            }else{
+                if(length(weight_adaptivelasso) == length(fix_penalty)){
+                    w_adaptive<-weight_adaptivelasso*fix_penalty
+                }else if(Acolnames[1] == "intercept"){
+                    w_adaptive<-c(0,weight_adaptivelasso)*fix_penalty
+                }else{
+                    stop("The length of 'weight_adaptivelasso' is invalid. Either the same length as beta_initial or without intercept is accepted.")
+                }
+            }
+
+        }
     }else{w_adaptive<-fix_penalty}
 
     ###########--------------###########
