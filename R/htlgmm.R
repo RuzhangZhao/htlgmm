@@ -28,6 +28,8 @@
 #' @param beta_initial The initial estimation for beta if a consistent estimator is available.
 #' E.g., one may input htlgmm result as beta_initial for more rounds to refine the final estimation.
 #' The default is NULL, and main study is used for initial estimation according to 'initial_with_type'.
+#' @param weight_adaptivelasso The weight of adaptive lasso when using penalty_type = 'adaptivelasso'. The default is NULL. When using default weight_adaptivelasso, user may follow the instruction from 'Zou, H. (2006). The adaptive lasso and its oracle properties.'
+#' The input of 'weight_adaptivelasso' can either be with all features (the same length as beta_initial) or without intercept.
 #' @param alpha The elasticnet mixing parameter, between 0 and 1, which is corresponding to the alpha for glmnet. Only used when penalty_type == 'elasticnet'.
 #' @param hat_thetaA If A is not NULL, one can provide hat_thetaA as the input. If 'hat_thetaA = NULL', we estimate hat_thetaA with glm by main study.
 #' @param V_thetaA If A is not NULL, one can provide V_thetaA as the input. If 'V_thetaA = NULL', we estimate V_thetaA with glm by main study.
@@ -88,6 +90,7 @@ htlgmm<-function(
         family = "gaussian",
         initial_with_type = "glm",
         beta_initial = NULL,
+        weight_adaptivelasso = NULL,
         alpha = NULL,
         hat_thetaA = NULL,
         V_thetaA = NULL,
@@ -143,7 +146,8 @@ htlgmm<-function(
     }else{
         V_thetaA_sandwich=robust
         res<-htlgmm.default(y,Z,W,study_info,A,penalty_type,
-                            family,initial_with_type,beta_initial,alpha,
+                            family,initial_with_type,beta_initial,
+                            weight_adaptivelasso,alpha,
                             hat_thetaA,V_thetaA,use_offset,
                             V_thetaA_sandwich,remove_penalty_Z,
                             remove_penalty_W,inference,fix_C,refine_C,
@@ -189,6 +193,8 @@ htlgmm<-function(
 #' @param beta_initial The initial estimation for beta if a consistent estimator is available.
 #' E.g., one may input htlgmm result as beta_initial for more rounds to refine the final estimation.
 #' The default is NULL, and main study is used for initial estimation according to 'initial_with_type'.
+#' @param weight_adaptivelasso The weight of adaptive lasso when using penalty_type = 'adaptivelasso'. The default is NULL. When using default weight_adaptivelasso, user may follow the instruction from 'Zou, H. (2006). The adaptive lasso and its oracle properties.'
+#' The input of 'weight_adaptivelasso' can either be with all features (the same length as beta_initial) or without intercept.
 #' @param alpha The elasticnet mixing parameter, between 0 and 1, which is corresponding to the alpha for glmnet. Only used when penalty_type == 'elasticnet'.
 #' @param hat_thetaA If A is not NULL, one can provide hat_thetaA as the input. If 'hat_thetaA = NULL', we estimate hat_thetaA with glm by main study.
 #' @param V_thetaA If A is not NULL, one can provide V_thetaA as the input. If 'V_thetaA = NULL', we estimate V_thetaA with glm by main study.
@@ -268,6 +274,7 @@ cv.htlgmm<-function(
         family = "gaussian",
         initial_with_type = "ridge",
         beta_initial = NULL,
+        weight_adaptivelasso=NULL,
         alpha = NULL,
         hat_thetaA = NULL,
         V_thetaA = NULL,
@@ -325,9 +332,9 @@ cv.htlgmm<-function(
     }else{
         V_thetaA_sandwich=robust
         res<-htlgmm.default(y,Z,W,study_info,A,penalty_type,
-                            family,initial_with_type,beta_initial,alpha,
-                            hat_thetaA,V_thetaA,use_offset,
-                            V_thetaA_sandwich,remove_penalty_Z,
+                            family,initial_with_type,beta_initial,
+                            weight_adaptivelasso,alpha,hat_thetaA,V_thetaA,
+                            use_offset,V_thetaA_sandwich,remove_penalty_Z,
                             remove_penalty_W,inference,fix_C,refine_C,
                             sqrt_matrix,use_cv,type_measure,nfolds,foldid,
                             fix_lambda,lambda_list,nlambda,
