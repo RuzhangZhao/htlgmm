@@ -1657,7 +1657,7 @@ htlgmm.default<-function(
                 }else if(tune_weight_method %in%c("exact","1se")){
                     weight<-cv_res$final_weight
                     if(tune_weight_method == "exact"){
-                        inv_C_weight<-inv_C+diag(c(rep(weight,(pZ+pA+pW)),rep(weight2,pZ)))
+                        inv_C_weight<-inv_C+diag(c(rep(weight,(pZ+pA+pW)),rep(0,pZ)))
                     }else{
                         inv_C_weight<-inv_C+diag(c(cur_weight*diag(inv_C)[1:(pA+pZ+pW)],rep(0,pZ)))
                     }
