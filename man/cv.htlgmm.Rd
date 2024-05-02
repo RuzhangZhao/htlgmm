@@ -14,6 +14,7 @@ cv.htlgmm(
   family = "gaussian",
   initial_with_type = "ridge",
   beta_initial = NULL,
+  weight_adaptivelasso = NULL,
   alpha = NULL,
   hat_thetaA = NULL,
   V_thetaA = NULL,
@@ -23,6 +24,7 @@ cv.htlgmm(
   remove_penalty_W = FALSE,
   inference = TRUE,
   fix_C = NULL,
+  fix_inv_C = NULL,
   refine_C = FALSE,
   sqrt_matrix = "cholesky",
   use_cv = TRUE,
@@ -76,6 +78,9 @@ for continuous y, we use ordinary least square, and for binary y, we use logisti
 E.g., one may input htlgmm result as beta_initial for more rounds to refine the final estimation.
 The default is NULL, and main study is used for initial estimation according to 'initial_with_type'.}
 
+\item{weight_adaptivelasso}{The weight of adaptive lasso when using penalty_type = 'adaptivelasso'. The default is NULL. When using default weight_adaptivelasso, user may follow the instruction from 'Zou, H. (2006). The adaptive lasso and its oracle properties.'
+The input of 'weight_adaptivelasso' can either be with all features (the same length as beta_initial) or without intercept.}
+
 \item{alpha}{The elasticnet mixing parameter, between 0 and 1, which is corresponding to the alpha for glmnet. Only used when penalty_type == 'elasticnet'.}
 
 \item{hat_thetaA}{If A is not NULL, one can provide hat_thetaA as the input. If 'hat_thetaA = NULL', we estimate hat_thetaA with glm by main study.}
@@ -94,6 +99,8 @@ For coxph model, robust is also about whether we apply the robust variance for t
 \item{inference}{Whether to do inference without penalty or post-selection inference with adaptive lasso penalty. The default is TRUE.}
 
 \item{fix_C}{When fix_C = NULL, the optimal C is computed. When user wants to customize the fix_C, please match its dimension as dim(A)+2*dim(Z)+dim(W) and make sure it is positive definite.}
+
+\item{fix_inv_C}{When fix_inv_C = NULL, the optimal C is computed. When user wants to customize the fix_inv_C, please match its dimension as dim(A)+2*dim(Z)+dim(W) and make sure it is positive definite. When fix_C and fix_inv_C are both given, the fix_C will be used.}
 
 \item{refine_C}{When computing the variance, whether recompute the weighting matrix C using final estimated beta.}
 

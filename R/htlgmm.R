@@ -40,6 +40,7 @@
 #' @param remove_penalty_W Not penalize W if it is TRUE. The default is FALSE.
 #' @param inference Whether to do inference without penalty or post-selection inference with adaptive lasso penalty. The default is TRUE.
 #' @param fix_C When fix_C = NULL, the optimal C is computed. When user wants to customize the fix_C, please match its dimension as dim(A)+2*dim(Z)+dim(W) and make sure it is positive definite.
+#' @param fix_inv_C When fix_inv_C = NULL, the optimal C is computed. When user wants to customize the fix_inv_C, please match its dimension as dim(A)+2*dim(Z)+dim(W) and make sure it is positive definite. When fix_C and fix_inv_C are both given, the fix_C will be used.
 #' @param refine_C When computing the variance, whether recompute the weighting matrix C using final estimated beta. The default is FALSE.
 #' @param sqrt_matrix The method to split weighting matrix into square root matrix. Select from c('svd','cholesky'), where 'cholesky' generates faster computation.
 #' @param fix_lambda Without cross validation, fix the lambda. The default is NULL.
@@ -100,6 +101,7 @@ htlgmm<-function(
         remove_penalty_W = FALSE,
         inference = TRUE,
         fix_C = NULL,
+        fix_inv_C = NULL,
         refine_C = FALSE,
         sqrt_matrix ="cholesky",
         fix_lambda = NULL,
@@ -150,7 +152,7 @@ htlgmm<-function(
                             weight_adaptivelasso,alpha,
                             hat_thetaA,V_thetaA,use_offset,
                             V_thetaA_sandwich,remove_penalty_Z,
-                            remove_penalty_W,inference,fix_C,refine_C,
+                            remove_penalty_W,inference,fix_C,fix_inv_C,refine_C,
                             sqrt_matrix,use_cv,type_measure,nfolds,foldid,
                             fix_lambda,lambda_list,nlambda,
                             lambda.min.ratio,tune_ratio,fix_ratio,
@@ -205,6 +207,7 @@ htlgmm<-function(
 #' @param remove_penalty_W Not penalize W if it is TRUE. The default is FALSE.
 #' @param inference Whether to do inference without penalty or post-selection inference with adaptive lasso penalty. The default is TRUE.
 #' @param fix_C When fix_C = NULL, the optimal C is computed. When user wants to customize the fix_C, please match its dimension as dim(A)+2*dim(Z)+dim(W) and make sure it is positive definite.
+#' @param fix_inv_C When fix_inv_C = NULL, the optimal C is computed. When user wants to customize the fix_inv_C, please match its dimension as dim(A)+2*dim(Z)+dim(W) and make sure it is positive definite. When fix_C and fix_inv_C are both given, the fix_C will be used.
 #' @param refine_C When computing the variance, whether recompute the weighting matrix C using final estimated beta.
 #' @param sqrt_matrix The method to split weighting matrix into square root matrix. Select from c('svd','cholesky'), where 'cholesky' generates faster computation.
 #' @param use_cv Whether to use cross validation to determine the best lambda (or ratio).
@@ -284,6 +287,7 @@ cv.htlgmm<-function(
         remove_penalty_W = FALSE,
         inference = TRUE,
         fix_C = NULL,
+        fix_inv_C=NULL,
         refine_C = FALSE,
         sqrt_matrix = 'cholesky',
         use_cv = TRUE,
@@ -335,7 +339,7 @@ cv.htlgmm<-function(
                             family,initial_with_type,beta_initial,
                             weight_adaptivelasso,alpha,hat_thetaA,V_thetaA,
                             use_offset,V_thetaA_sandwich,remove_penalty_Z,
-                            remove_penalty_W,inference,fix_C,refine_C,
+                            remove_penalty_W,inference,fix_C,fix_inv_C,refine_C,
                             sqrt_matrix,use_cv,type_measure,nfolds,foldid,
                             fix_lambda,lambda_list,nlambda,
                             lambda.min.ratio,tune_ratio,fix_ratio,
@@ -468,4 +472,6 @@ choinv<-function(X){
     }
     choinv_rcpp(X)
 }
+
+
 

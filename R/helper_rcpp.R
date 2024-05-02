@@ -9,7 +9,7 @@ sqrtchoinv_rcpp2<-function(inv_C){
         if(is.null(C_half)){inv_adjust=inv_adjust*10}else{break}
         iter <- iter + 1
     }
-    if(iter>0)print(iter)
+    if(iter!=0){print(paste0("iteration:",iter))}
     if(is.null(C_half)){
         stop("Error: Cholesky decomposition failed after finite iteration of penalty.")}
     C_half
@@ -26,7 +26,7 @@ sqrtcho_rcpp2<-function(fix_C){
         if(is.null(C_half)){inv_adjust=inv_adjust*10}else{break}
         iter <- iter + 1
     }
-    if(iter>0)print(iter)
+    if(iter!=0){print(paste0("iteration:",iter))}
     if(is.null(C_half)){
         stop("Error: Cholesky decomposition failed after finite iteration of penalty.")}
     C_half
@@ -43,7 +43,7 @@ choinv_rcpp2<-function(fix_C){
         if(is.null(inv_C)){inv_adjust=inv_adjust*10}else{break}
         iter <- iter + 1
     }
-    if(iter>0)print(iter)
+    if(iter!=0){print(paste0("iteration:",iter))}
     if(is.null(inv_C)){
         stop("Error: Cholesky decomposition failed after finite iteration of penalty.")}
     inv_C
@@ -1149,6 +1149,7 @@ htlgmm.default<-function(
         remove_penalty_W = FALSE,
         inference = TRUE,
         fix_C = NULL,
+        fix_inv_C = NULL,
         refine_C = FALSE,
         sqrt_matrix ="cholesky",
         use_cv = TRUE,
@@ -1398,7 +1399,7 @@ htlgmm.default<-function(
     ###########--------------###########
     # estimation of C
 
-    if(is.null(fix_C)){
+    if(is.null(fix_C) & is.null(fix_inv_C)){
 
         inv_C = Delta_opt_rcpp(y=y,Z=Z,W=W,
                                family=family,
@@ -1423,10 +1424,15 @@ htlgmm.default<-function(
                 C_half<-sqrtchoinv_rcpp2(inv_C)
             }
         }
-    }else{
+    }else if(is.null(fix_inv_C)){
         if(nrow(fix_C)!=pA+pZ+pW+pZ){
             stop("Input fix_C dimension is wrong!")}
         C_half<-sqrtcho_rcpp2(fix_C)
+    }else{
+        if(nrow(fix_inv_C)!=pA+pZ+pW+pZ){
+            stop("Input fix_inv_C dimension is wrong!")}
+        C_half<-sqrtchoinv_rcpp2(fix_C)
+
     }
 
     if(!is.null(fix_weight)){
@@ -1922,7 +1928,7 @@ htlgmm.default<-function(
                     inv_psXtX_non0<-choinv_rcpp2(psXtX_non0)
                     inv_psXtX_final<-inv_psXtX_non0
                     use_sparseC<-T
-                    if(!is.null(fix_C)|final.weight.min!=1|final.weight.min!=0 |use_sparseC){
+                    if(!is.null(fix_C)|!is.null(fix_inv_C)|final.weight.min!=1|final.weight.min!=0 |use_sparseC){
                         inv_C_half<-sqrtcho_rcpp2(inv_C+diag(1e-15,nrow(inv_C)))
                         psX_mid<-prod_rcpp(inv_C_half,crossprod_rcpp(C_half,psX))
                         psXtX_mid<-self_crossprod_rcpp(psX_mid)
@@ -1996,7 +2002,7 @@ htlgmm.default<-function(
             ###########--------------###########
             # When the C using is not optimal C,
 
-            if(!is.null(fix_C)|final.weight.min!=1|final.weight.min!=0 |use_sparseC){
+            if(!is.null(fix_C)|!is.null(fix_inv_C)|final.weight.min!=1|final.weight.min!=0 |use_sparseC){
                 inv_C_half<-sqrtcho_rcpp2(inv_C+diag(1e-15,nrow(inv_C)))
                 psX_mid<-prod_rcpp(inv_C_half,crossprod_rcpp(C_half,psX))
                 psXtX_mid<-self_crossprod_rcpp(psX_mid)
@@ -2030,7 +2036,7 @@ htlgmm.default<-function(
                            ))
 
         }}
-    if(is.null(fix_C)){
+    if(is.null(fix_C) & is.null(fix_inv_C)){
         return_list<-c(return_list,list("Delta_opt"=inv_C))
     }
     return(return_list)
