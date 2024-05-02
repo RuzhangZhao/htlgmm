@@ -937,7 +937,10 @@ cv_dev_lambda_Cweight_func3<-function(index_fold,Z,W,A,y,family,
 
     dev_lam_weight_fold<-lapply(1:length(weight_list),function(weight_id){
         cur_weight=weight_list[weight_id]
+        inv_C_train0_scale<-mean(diag(inv_C_train)[1:(pA+pZ+pW)])
         inv_C_train<-inv_C_train+diag(c(rep(cur_weight,(pZ+pA+pW)),rep(0,pZ)))
+        inv_C_train<-inv_C_train*inv_C_train0_scale/mean(diag(inv_C_train)[1:(pA+pZ+pW)])
+
         C_half_weight<-sqrtchoinv_rcpp2(inv_C_train)
 
         pseudo_Xy_list_train<-pseudo_Xy(C_half_weight,Ztrain,Wtrain,Atrain,
@@ -1659,6 +1662,7 @@ htlgmm.default<-function(
                     weight<-cv_res$final_weight
                     if(tune_weight_method == "exact"){
                         inv_C_weight<-inv_C+diag(c(rep(weight,(pZ+pA+pW)),rep(0,pZ)))
+                        inv_C_weight<-inv_C_weight*mean(diag(inv_C)[1:(pA+pZ+pW)])/mean(diag(inv_C_weight)[1:(pA+pZ+pW)])
                     }else{
                         inv_C_weight<-inv_C+diag(c(weight*diag(inv_C)[1:(pA+pZ+pW)],rep(0,pZ)))
                         inv_C_weight<-inv_C_weight/(1+weight)
