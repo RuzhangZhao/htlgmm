@@ -824,7 +824,9 @@ cv_dev_lambda_Cweight_func2<-function(index_fold,Z,W,A,y,family,
 
     dev_lam_weight_fold<-lapply(1:length(weight_list),function(weight_id){
         cur_weight=weight_list[weight_id]
-        inv_C_train<-inv_C_train+diag(c(rep(cur_weight,(pZ+pA+pW)),rep(cur_weight,pZ)))
+        #inv_C_train<-inv_C_train+diag(c(rep(cur_weight,(pZ+pA+pW)),rep(cur_weight,pZ)))
+
+        inv_C_train<-inv_C_train+diag(c(cur_weight*diag(inv_C_train)[1:(pA+pZ+pW)],rep(0,pZ)))
         C_half_weight<-sqrtchoinv_rcpp2(inv_C_train)
 
         pseudo_Xy_list_train<-pseudo_Xy(C_half_weight,Ztrain,Wtrain,Atrain,
@@ -871,7 +873,6 @@ cv_dev_lambda_Cweight_func2<-function(index_fold,Z,W,A,y,family,
                 "deviance"=cv_dev1,
                 "auc"=cv_auc1))
 }
-
 
 cv_dev_lambda_Cweight_func3<-function(index_fold,Z,W,A,y,family,
                                       C_half,beta_initial,
@@ -1655,8 +1656,12 @@ htlgmm.default<-function(
 
                 }else if(tune_weight_method %in%c("exact","1se")){
                     weight<-cv_res$final_weight
-                    weight2<-ifelse(tune_weight_method == "exact",0,weight)
-                    inv_C_weight<-inv_C+diag(c(rep(weight,(pZ+pA+pW)),rep(weight2,pZ)))
+                    if(tune_weight_method == "exact"){
+                        inv_C_weight<-inv_C+diag(c(rep(weight,(pZ+pA+pW)),rep(weight2,pZ)))
+                    }else{
+                        inv_C_weight<-inv_C+diag(c(cur_weight*diag(inv_C)[1:(pA+pZ+pW)],rep(0,pZ)))
+                    }
+
                     C_half<-sqrtchoinv_rcpp2(inv_C_weight)
 
                     if(weight!=0){
