@@ -1431,8 +1431,7 @@ htlgmm.default<-function(
     }else{
         if(nrow(fix_inv_C)!=pA+pZ+pW+pZ){
             stop("Input fix_inv_C dimension is wrong!")}
-        C_half<-sqrtchoinv_rcpp2(fix_C)
-
+        C_half<-sqrtchoinv_rcpp2(fix_inv_C)
     }
 
     if(!is.null(fix_weight)){
