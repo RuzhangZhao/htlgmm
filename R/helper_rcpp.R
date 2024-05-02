@@ -1659,7 +1659,7 @@ htlgmm.default<-function(
                     if(tune_weight_method == "exact"){
                         inv_C_weight<-inv_C+diag(c(rep(weight,(pZ+pA+pW)),rep(0,pZ)))
                     }else{
-                        inv_C_weight<-inv_C+diag(c(cur_weight*diag(inv_C)[1:(pA+pZ+pW)],rep(0,pZ)))
+                        inv_C_weight<-inv_C+diag(c(weight*diag(inv_C)[1:(pA+pZ+pW)],rep(0,pZ)))
                     }
 
                     C_half<-sqrtchoinv_rcpp2(inv_C_weight)
