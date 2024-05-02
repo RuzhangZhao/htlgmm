@@ -827,6 +827,7 @@ cv_dev_lambda_Cweight_func2<-function(index_fold,Z,W,A,y,family,
         #inv_C_train<-inv_C_train+diag(c(rep(cur_weight,(pZ+pA+pW)),rep(cur_weight,pZ)))
 
         inv_C_train<-inv_C_train+diag(c(cur_weight*diag(inv_C_train)[1:(pA+pZ+pW)],rep(0,pZ)))
+        inv_C_train<-inv_C_train/(cur_weight+1)
         C_half_weight<-sqrtchoinv_rcpp2(inv_C_train)
 
         pseudo_Xy_list_train<-pseudo_Xy(C_half_weight,Ztrain,Wtrain,Atrain,
@@ -1660,6 +1661,7 @@ htlgmm.default<-function(
                         inv_C_weight<-inv_C+diag(c(rep(weight,(pZ+pA+pW)),rep(0,pZ)))
                     }else{
                         inv_C_weight<-inv_C+diag(c(weight*diag(inv_C)[1:(pA+pZ+pW)],rep(0,pZ)))
+                        inv_C_weight<-inv_C_weight/(1+weight)
                     }
 
                     C_half<-sqrtchoinv_rcpp2(inv_C_weight)
