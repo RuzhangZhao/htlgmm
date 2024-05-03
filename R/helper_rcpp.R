@@ -1717,7 +1717,7 @@ htlgmm.default<-function(
                 }else if(tune_weight_method == "1se"){
                     cv_dev_lambda_Cweight_func = cv_dev_lambda_Cweight_func2
                     #if(!is.null(beta_initial1se)){beta_initial<-beta_initial1se}
-                }else if(tune_weight_method == "holdout"){
+                }else if(tune_weight_method == "raw"){
                     cv_dev_lambda_Cweight_func = cv_dev_lambda_Cweight_func5
                 }
                 fold_self_beta = TRUE
