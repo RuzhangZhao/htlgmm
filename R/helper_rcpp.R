@@ -836,7 +836,9 @@ cv_dev_lambda_Cweight_func2<-function(index_fold,Z,W,A,y,family,
 
     dev_lam_weight_fold<-lapply(1:length(weight_list),function(weight_id){
         cur_weight=weight_list[weight_id]
-        inv_C_train[c(1:(pA+pZ+pW)),c(1:(pA+pZ+pW))]<-inv_C_train[c(1:(pA+pZ+pW)),c(1:(pA+pZ+pW))]*cur_weight
+        #inv_C_train[c(1:(pA+pZ+pW)),c(1:(pA+pZ+pW))]<-inv_C_train[c(1:(pA+pZ+pW)),c(1:(pA+pZ+pW))]*cur_weight
+        diag(inv_C_train)<-diag(inv_C_train)*cur_weight
+
         C_half_weight<-sqrtchoinv_rcpp2(inv_C_train)
 
         pseudo_Xy_list_train<-pseudo_Xy(C_half_weight,Ztrain,Wtrain,Atrain,
@@ -948,7 +950,8 @@ cv_dev_lambda_Cweight_func3<-function(index_fold,Z,W,A,y,family,
         cur_weight=weight_list[weight_id]
 
         #inv_C_train<-inv_C_train+diag(c(rep(cur_weight,(pZ+pA+pW)),rep(0,pZ)))
-        diag(inv_C_train)[1:(pA+pZ+pW)]<-diag(inv_C_train)[1:(pA+pZ+pW)]+rep(cur_weight*mean(diag(inv_C_train)[1:(pA+pZ+pW)]),pA+pZ+pW)
+        #diag(inv_C_train)[1:(pA+pZ+pW)]<-diag(inv_C_train)[1:(pA+pZ+pW)]+rep(cur_weight*mean(diag(inv_C_train)[1:(pA+pZ+pW)]),pA+pZ+pW)
+        diag(inv_C_train)<-diag(inv_C_train)+rep(cur_weight*mean(diag(inv_C_train)),pA+pZ+pW+pZ)
 
         C_half_weight<-sqrtchoinv_rcpp2(inv_C_train)
 
@@ -967,7 +970,7 @@ cv_dev_lambda_Cweight_func3<-function(index_fold,Z,W,A,y,family,
             lambda_list_weight <-exp(seq(log(lambda.max),log(lambda.max*lambda.min.ratio),
                                          length.out=nlambda))
         }
-        if(weight_id == 2){lambda_list_weight<<-lambda_list_weight}
+
         sapply(lambda_list_weight,function(cur_lam){
             cv_fit<-glmnet(x=pseudo_X_train,y=pseudo_y_train,
                            standardize=F,intercept=F,alpha = final_alpha,
@@ -1653,7 +1656,6 @@ htlgmm.default<-function(
                                        w_adaptive,final_alpha,pseudo_Xy)
 
                     cv_auc1<-res_weight$auc
-                    cv_auc2<<-cv_auc1
                     max_id<-which.max(cv_auc1)
                     final.lambda.min<-lambda_list[max_id]
 
@@ -1674,11 +1676,12 @@ htlgmm.default<-function(
                     if(tune_weight_method == "exact"){
                         inv_C_weight<-inv_C
                         #inv_C_weight<-inv_C+diag(c(rep(weight,(pZ+pA+pW)),rep(0,pZ)))
-                        diag(inv_C_weight)[1:(pA+pZ+pW)]<-diag(inv_C)[1:(pA+pZ+pW)]+rep(weight*mean(diag(inv_C)[1:(pA+pZ+pW)]),pA+pZ+pW)
+                        #diag(inv_C_weight)[1:(pA+pZ+pW)]<-diag(inv_C)[1:(pA+pZ+pW)]+rep(weight*mean(diag(inv_C)[1:(pA+pZ+pW)]),pA+pZ+pW)
+                        diag(inv_C_weight)<-diag(inv_C)+rep(weight*mean(diag(inv_C)),pA+pZ+pW+pZ)
                     }else{
                         inv_C_weight<-inv_C
-                        inv_C_weight[c(1:(pA+pZ+pW)),c(1:(pA+pZ+pW))]<-inv_C_weight[c(1:(pA+pZ+pW)),c(1:(pA+pZ+pW))]*weight
-                        #inv_C_weight<-inv_C_weight/(1+weight)
+                        #inv_C_weight[c(1:(pA+pZ+pW)),c(1:(pA+pZ+pW))]<-inv_C_weight[c(1:(pA+pZ+pW)),c(1:(pA+pZ+pW))]*weight
+                        diag(inv_C_weight)<-diag(inv_C)*weight
                     }
 
                     C_half<-sqrtchoinv_rcpp2(inv_C_weight)
@@ -1698,7 +1701,7 @@ htlgmm.default<-function(
                             lambda.max<-max(abs(innerprod))/nrow(pseudo_X)
                             lambda_list <-exp(seq(log(lambda.max),log(lambda.max*lambda.min.ratio),
                                                   length.out=nlambda))
-                            lambda_listfinal<<-lambda_list
+
                         }
                     }
                     pseudo_X_dev<-pseudo_X
@@ -1711,7 +1714,6 @@ htlgmm.default<-function(
                                                    w_adaptive,final_alpha,pseudo_Xy)
 
                     cv_auc1<-res_weight$auc
-                    cv_auc1<<-cv_auc1
                     max_id<-which.max(cv_auc1)
                     final.lambda.min<-lambda_list[max_id]
 
