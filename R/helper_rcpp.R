@@ -826,7 +826,8 @@ cv_dev_lambda_Cweight_func2<-function(index_fold,Z,W,A,y,family,
         cur_weight=weight_list[weight_id]
         #inv_C_train<-inv_C_train+diag(c(rep(cur_weight,(pZ+pA+pW)),rep(cur_weight,pZ)))
 
-        inv_C_train<-inv_C_train+diag(c(cur_weight*diag(inv_C_train)[1:(pA+pZ+pW)],rep(0,pZ)))
+        #inv_C_train<-inv_C_train+diag(c(cur_weight*diag(inv_C_train)[1:(pA+pZ+pW)],rep(0,pZ)))
+        inv_C_train[c(1:(pA+pZ+pW)),c(1:(pA+pZ+pW))]<-inv_C_train[c(1:(pA+pZ+pW)),c(1:(pA+pZ+pW))]*cur_weight
         #inv_C_train<-inv_C_train/(cur_weight+1)
         C_half_weight<-sqrtchoinv_rcpp2(inv_C_train)
 
@@ -912,6 +913,7 @@ cv_dev_lambda_Cweight_func3<-function(index_fold,Z,W,A,y,family,
     ytest<-y[index_test]
 
     # renew the initial value
+    fold_self_beta=F
     if(fold_self_beta){
         initial_res1<-beta_initial_func(ytrain,cbind(Atrain,Ztrain,Wtrain),
                                         Atrain,pA,family,initial_with_type,w_adaptive)
@@ -936,6 +938,7 @@ cv_dev_lambda_Cweight_func3<-function(index_fold,Z,W,A,y,family,
     if(use_sparseC){inv_C_train<-diag(diag(inv_C_train))}
     }else{
         inv_C_train<-inv_C
+        hat_thetaA1=hat_thetaA
         }
     dev_lam_weight_fold<-lapply(1:length(weight_list),function(weight_id){
         cur_weight=weight_list[weight_id]
@@ -1666,7 +1669,9 @@ htlgmm.default<-function(
                         inv_C_weight<-inv_C+diag(c(rep(weight,(pZ+pA+pW)),rep(0,pZ)))
                         #inv_C_weight<-inv_C_weight*mean(diag(inv_C)[1:(pA+pZ+pW)])/mean(diag(inv_C_weight)[1:(pA+pZ+pW)])
                     }else{
-                        inv_C_weight<-inv_C+diag(c(weight*diag(inv_C)[1:(pA+pZ+pW)],rep(0,pZ)))
+                        #inv_C_weight<-inv_C+diag(c(weight*diag(inv_C)[1:(pA+pZ+pW)],rep(0,pZ)))
+                        inv_C_weight<-inv_C
+                        inv_C_weight[c(1:(pA+pZ+pW)),c(1:(pA+pZ+pW))]<-inv_C_weight[c(1:(pA+pZ+pW)),c(1:(pA+pZ+pW))]*weight
                         #inv_C_weight<-inv_C_weight/(1+weight)
                     }
 
