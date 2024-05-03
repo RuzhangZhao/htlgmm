@@ -913,7 +913,6 @@ cv_dev_lambda_Cweight_func3<-function(index_fold,Z,W,A,y,family,
     ytest<-y[index_test]
 
     # renew the initial value
-    fold_self_beta=F
     if(fold_self_beta){
         initial_res1<-beta_initial_func(ytrain,cbind(Atrain,Ztrain,Wtrain),
                                         Atrain,pA,family,initial_with_type,w_adaptive)
@@ -921,7 +920,7 @@ cv_dev_lambda_Cweight_func3<-function(index_fold,Z,W,A,y,family,
     }else{
         beta_initial1<-beta_initial
     }
-    if(0){
+
     thetaA_list<-thetaA_func(pA,Ztrain,Atrain,ytrain,study_info,
                              family,use_offset,
                              V_thetaA_sandwich)
@@ -936,10 +935,7 @@ cv_dev_lambda_Cweight_func3<-function(index_fold,Z,W,A,y,family,
                                  V_thetaA=V_thetaA1,
                                  use_offset=use_offset)
     if(use_sparseC){inv_C_train<-diag(diag(inv_C_train))}
-    }else{
-        inv_C_train<-inv_C
-        hat_thetaA1=hat_thetaA
-        }
+
     dev_lam_weight_fold<-lapply(1:length(weight_list),function(weight_id){
         cur_weight=weight_list[weight_id]
         #inv_C_train0_scale<-mean(diag(inv_C_train)[1:(pA+pZ+pW)])
