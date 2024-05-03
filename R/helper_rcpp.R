@@ -1,4 +1,8 @@
 sqrtchoinv_rcpp2<-function(inv_C){
+    C_half <- tryCatch(
+        sqrtchoinv_rcpp(inv_C),
+        error = function(e) NULL)
+    if(!is.null(C_half)){return(C_half)}
     inv_adjust=1e-15
     iter=0
     max_iter=min(100,round(mean(diag(inv_C))/inv_adjust))
@@ -16,6 +20,10 @@ sqrtchoinv_rcpp2<-function(inv_C){
 }
 
 sqrtcho_rcpp2<-function(fix_C){
+    C_half <- tryCatch(
+        sqrtcho_rcpp(fix_C),
+        error = function(e) NULL)
+    if(!is.null(C_half)){return(C_half)}
     inv_adjust=1e-15
     iter=0
     max_iter=min(100,round(mean(diag(fix_C))/inv_adjust))
@@ -33,6 +41,10 @@ sqrtcho_rcpp2<-function(fix_C){
 }
 
 choinv_rcpp2<-function(fix_C){
+    inv_C <- tryCatch(
+        choinv_rcpp(fix_C),
+        error = function(e) NULL)
+    if(!is.null(inv_C)){return(inv_C)}
     inv_adjust=1e-15
     iter=0
     max_iter=min(100,round(mean(diag(fix_C))/inv_adjust))
@@ -828,7 +840,7 @@ cv_dev_lambda_Cweight_func2<-function(index_fold,Z,W,A,y,family,
 
         #inv_C_train<-inv_C_train+diag(c(cur_weight*diag(inv_C_train)[1:(pA+pZ+pW)],rep(0,pZ)))
         inv_C_train[c(1:(pA+pZ+pW)),c(1:(pA+pZ+pW))]<-inv_C_train[c(1:(pA+pZ+pW)),c(1:(pA+pZ+pW))]*cur_weight
-        #inv_C_train<-inv_C_train/(cur_weight+1)
+        inv_C_train<-inv_C_train/cur_weight
         C_half_weight<-sqrtchoinv_rcpp2(inv_C_train)
 
         pseudo_Xy_list_train<-pseudo_Xy(C_half_weight,Ztrain,Wtrain,Atrain,
@@ -938,9 +950,9 @@ cv_dev_lambda_Cweight_func3<-function(index_fold,Z,W,A,y,family,
 
     dev_lam_weight_fold<-lapply(1:length(weight_list),function(weight_id){
         cur_weight=weight_list[weight_id]
-        #inv_C_train0_scale<-mean(diag(inv_C_train)[1:(pA+pZ+pW)])
+        inv_C_train0_scale<-mean(diag(inv_C_train)[1:(pA+pZ+pW)])
         inv_C_train<-inv_C_train+diag(c(rep(cur_weight,(pZ+pA+pW)),rep(0,pZ)))
-        #inv_C_train<-inv_C_train*inv_C_train0_scale/mean(diag(inv_C_train)[1:(pA+pZ+pW)])
+        inv_C_train<-inv_C_train*inv_C_train0_scale/mean(diag(inv_C_train)[1:(pA+pZ+pW)])
 
         C_half_weight<-sqrtchoinv_rcpp2(inv_C_train)
 
