@@ -1942,50 +1942,6 @@ htlgmm.default<-function(
 
             }else{
 
-                if(alpha == 11){
-                    pseudo_Xy_list<-pseudo_Xy(C_half=C_half,Z=Z,W=W,A=A,y=y,
-                                              beta=beta,hat_thetaA=hat_thetaA,
-                                              study_info=study_info,X=X,XR=XR)
-                    psX<-pseudo_Xy_list$pseudo_X/nZ
-
-                    psXtX<-self_crossprod_rcpp(psX)
-                    psXtX_non0<-psXtX[index_nonzero,index_nonzero,drop=F]
-                    inv_psXtX_non0<-choinv_rcpp2(psXtX_non0)
-                    inv_psXtX_final<-inv_psXtX_non0
-                    use_sparseC<-T
-                    if(!is.null(fix_C)|!is.null(fix_inv_C)|final.weight.min!=1|final.weight.min!=0 |use_sparseC){
-                        inv_C_half<-sqrtcho_rcpp2(inv_C+diag(1e-15,nrow(inv_C)))
-                        psX_mid<-prod_rcpp(inv_C_half,crossprod_rcpp(C_half,psX))
-                        psXtX_mid<-self_crossprod_rcpp(psX_mid)
-                        psXtX_mid_non0<-psXtX_mid[index_nonzero,index_nonzero,drop=F]
-                        inv_psXtX_final<-prod_rcpp(prod_rcpp(inv_psXtX_non0,psXtX_mid_non0),inv_psXtX_non0)
-
-                        if(sum(diag(inv_psXtX_non0)<=0)>0){
-                            psXtX_mid_non0_half<-sqrtcho_rcpp2(psXtX_mid_non0+diag(1e-15,nrow(psXtX_mid_non0)))
-                            inv_psXtX_final<-self_crossprod_rcpp(prod_rcpp(psXtX_mid_non0_half,inv_psXtX_non0))
-                        }
-                    }
-
-                    final_vcov<-inv_psXtX_final/nZ
-                    final_v<-diag(final_vcov)
-
-                    pval_final<-pchisq(beta[index_nonzero]^2/final_v,1,lower.tail = F)
-                    pval_final1<-p.adjust(pval_final,method = "BH")
-
-                    selected_pos<-index_nonzero[which(pval_final1<0.05)]
-                    return_list<-c(return_list,
-                                   list("selected_vars2"=
-                                            list("position"=index_nonzero,
-                                                 "name"=Xcolnames[index_nonzero],
-                                                 "coef"=beta[index_nonzero],
-                                                 "variance"=final_v,
-                                                 "variance_covariance"=final_vcov,
-                                                 "pval"=pval_final,
-                                                 "FDR_adjust_position"=selected_pos,
-                                                 "FDR_adjust_name"=Xcolnames[selected_pos])
-                                   ))
-                }
-
                 sC_half<-diag(1/sqrt(diag(inv_C)))
                 if(use_sparseC){
                     C_half<-sC_half
