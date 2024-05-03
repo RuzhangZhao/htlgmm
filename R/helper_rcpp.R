@@ -443,7 +443,7 @@ cv_dev_lambda_ratio_func<-function(index_fold,Z,W,A,y,
 
 
 cv_mse_lambda_Cweight_func<-function(index_fold,Z,W,A,y,family,
-                                     C_half,beta_initial,hat_thetaA,
+                                     C_half,inv_C,beta_initial,hat_thetaA,
                                      study_info,
                                      weight_list,pZ,pW,pA,
                                      w_adaptive,final_alpha,
@@ -527,7 +527,7 @@ cv_mse_lambda_Cweight_func<-function(index_fold,Z,W,A,y,family,
 }
 
 cv_dev_lambda_Cweight_func<-function(index_fold,Z,W,A,y,family,
-                                     C_half,beta_initial,
+                                     C_half,inv_C,beta_initial,
                                      initial_with_type,
                                      hat_thetaA,
                                      study_info,
@@ -629,7 +629,7 @@ cv_dev_lambda_Cweight_func<-function(index_fold,Z,W,A,y,family,
 
 
 cv_dev_lambda_Cweight_func21<-function(index_fold,Z,W,A,y,family,
-                                      C_half,beta_initial,
+                                      C_half,inv_C,beta_initial,
                                       initial_with_type,
                                       hat_thetaA,
                                       study_info,
@@ -763,7 +763,7 @@ cv_dev_lambda_Cweight_func21<-function(index_fold,Z,W,A,y,family,
 }
 
 cv_dev_lambda_Cweight_func2<-function(index_fold,Z,W,A,y,family,
-                                      C_half,beta_initial,
+                                      C_half,inv_C,beta_initial,
                                       initial_with_type,
                                       hat_thetaA,
                                       study_info,
@@ -827,7 +827,7 @@ cv_dev_lambda_Cweight_func2<-function(index_fold,Z,W,A,y,family,
         #inv_C_train<-inv_C_train+diag(c(rep(cur_weight,(pZ+pA+pW)),rep(cur_weight,pZ)))
 
         inv_C_train<-inv_C_train+diag(c(cur_weight*diag(inv_C_train)[1:(pA+pZ+pW)],rep(0,pZ)))
-        inv_C_train<-inv_C_train/(cur_weight+1)
+        #inv_C_train<-inv_C_train/(cur_weight+1)
         C_half_weight<-sqrtchoinv_rcpp2(inv_C_train)
 
         pseudo_Xy_list_train<-pseudo_Xy(C_half_weight,Ztrain,Wtrain,Atrain,
@@ -876,7 +876,7 @@ cv_dev_lambda_Cweight_func2<-function(index_fold,Z,W,A,y,family,
 }
 
 cv_dev_lambda_Cweight_func3<-function(index_fold,Z,W,A,y,family,
-                                      C_half,beta_initial,
+                                      C_half,inv_C,beta_initial,
                                       initial_with_type,
                                       hat_thetaA,
                                       study_info,
@@ -919,7 +919,7 @@ cv_dev_lambda_Cweight_func3<-function(index_fold,Z,W,A,y,family,
     }else{
         beta_initial1<-beta_initial
     }
-
+    if(0){
     thetaA_list<-thetaA_func(pA,Ztrain,Atrain,ytrain,study_info,
                              family,use_offset,
                              V_thetaA_sandwich)
@@ -934,12 +934,14 @@ cv_dev_lambda_Cweight_func3<-function(index_fold,Z,W,A,y,family,
                                  V_thetaA=V_thetaA1,
                                  use_offset=use_offset)
     if(use_sparseC){inv_C_train<-diag(diag(inv_C_train))}
-
+    }else{
+        inv_C_train<-inv_C
+        }
     dev_lam_weight_fold<-lapply(1:length(weight_list),function(weight_id){
         cur_weight=weight_list[weight_id]
-        inv_C_train0_scale<-mean(diag(inv_C_train)[1:(pA+pZ+pW)])
+        #inv_C_train0_scale<-mean(diag(inv_C_train)[1:(pA+pZ+pW)])
         inv_C_train<-inv_C_train+diag(c(rep(cur_weight,(pZ+pA+pW)),rep(0,pZ)))
-        inv_C_train<-inv_C_train*inv_C_train0_scale/mean(diag(inv_C_train)[1:(pA+pZ+pW)])
+        #inv_C_train<-inv_C_train*inv_C_train0_scale/mean(diag(inv_C_train)[1:(pA+pZ+pW)])
 
         C_half_weight<-sqrtchoinv_rcpp2(inv_C_train)
 
@@ -990,7 +992,7 @@ cv_dev_lambda_Cweight_func3<-function(index_fold,Z,W,A,y,family,
 
 
 cv_dev_lambda_Cweight_func4<-function(index_fold,Z,W,A,y,family,
-                                      C_half,beta_initial,
+                                      C_half,inv_C,beta_initial,
                                       initial_with_type,
                                       hat_thetaA,
                                       study_info,
@@ -1562,7 +1564,7 @@ htlgmm.default<-function(
         if(tune_weight & !tune_ratio){
             if(family == "gaussian"){
                 cv_res<-cv_mse_lambda_Cweight_func(index_fold,Z,W,A,y,family,
-                                                   C_half,beta_initial,hat_thetaA,
+                                                   C_half,inv_C,beta_initial,hat_thetaA,
                                                    study_info,
                                                    weight_list,pZ,pW,pA,
                                                    w_adaptive,final_alpha,
@@ -1585,7 +1587,7 @@ htlgmm.default<-function(
                 }
                 fold_self_beta = TRUE
                 cv_res<-cv_dev_lambda_Cweight_func(index_fold,Z,W,A,y,family,
-                                                   C_half,beta_initial,
+                                                   C_half,inv_C,beta_initial,
                                                    initial_with_type,
                                                    hat_thetaA,
                                                    study_info,
@@ -1662,10 +1664,10 @@ htlgmm.default<-function(
                     weight<-cv_res$final_weight
                     if(tune_weight_method == "exact"){
                         inv_C_weight<-inv_C+diag(c(rep(weight,(pZ+pA+pW)),rep(0,pZ)))
-                        inv_C_weight<-inv_C_weight*mean(diag(inv_C)[1:(pA+pZ+pW)])/mean(diag(inv_C_weight)[1:(pA+pZ+pW)])
+                        #inv_C_weight<-inv_C_weight*mean(diag(inv_C)[1:(pA+pZ+pW)])/mean(diag(inv_C_weight)[1:(pA+pZ+pW)])
                     }else{
                         inv_C_weight<-inv_C+diag(c(weight*diag(inv_C)[1:(pA+pZ+pW)],rep(0,pZ)))
-                        inv_C_weight<-inv_C_weight/(1+weight)
+                        #inv_C_weight<-inv_C_weight/(1+weight)
                     }
 
                     C_half<-sqrtchoinv_rcpp2(inv_C_weight)
