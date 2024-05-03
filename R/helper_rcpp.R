@@ -837,7 +837,7 @@ cv_dev_lambda_Cweight_func2<-function(index_fold,Z,W,A,y,family,
     dev_lam_weight_fold<-lapply(1:length(weight_list),function(weight_id){
         cur_weight=weight_list[weight_id]
         #inv_C_train[c(1:(pA+pZ+pW)),c(1:(pA+pZ+pW))]<-inv_C_train[c(1:(pA+pZ+pW)),c(1:(pA+pZ+pW))]*cur_weight
-        diag(inv_C_train[c(1:(pA+pZ+pW))])<-diag(inv_C_train[c(1:(pA+pZ+pW))])*cur_weight
+        diag(inv_C_train)[c(1:(pA+pZ+pW))]<-diag(inv_C_train)[c(1:(pA+pZ+pW))]*cur_weight
         C_half_weight<-sqrtchoinv_rcpp2(inv_C_train)
 
         pseudo_Xy_list_train<-pseudo_Xy(C_half_weight,Ztrain,Wtrain,Atrain,
