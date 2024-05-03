@@ -1592,7 +1592,8 @@ htlgmm.default<-function(
                     cv_dev_lambda_Cweight_func = cv_dev_lambda_Cweight_func2
                     #if(!is.null(beta_initial1se)){beta_initial<-beta_initial1se}
                 }
-                fold_self_beta = TRUE
+                #fold_self_beta = TRUE
+                fold_self_beta = F
                 cv_res<-cv_dev_lambda_Cweight_func(index_fold,Z,W,A,y,family,
                                                    C_half,inv_C,beta_initial,
                                                    initial_with_type,
