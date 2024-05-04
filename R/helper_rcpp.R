@@ -949,7 +949,8 @@ cv_dev_lambda_Cweight_func3<-function(index_fold,Z,W,A,y,family,
         cur_weight=weight_list[weight_id]
 
         #inv_C_train<-inv_C_train+diag(c(rep(cur_weight,(pZ+pA+pW)),rep(0,pZ)))
-        diag(inv_C_train)[1:(pA+pZ+pW)]<-diag(inv_C_train)[1:(pA+pZ+pW)]+rep(cur_weight*mean(diag(inv_C_train)[1:(pA+pZ+pW)]),pA+pZ+pW)
+        #diag(inv_C_train)[1:(pA+pZ+pW)]<-diag(inv_C_train)[1:(pA+pZ+pW)]+rep(cur_weight*mean(diag(inv_C_train)[1:(pA+pZ+pW)]),pA+pZ+pW)
+        diag(inv_C_train)<-diag(inv_C_train)+rep(cur_weight*mean(diag(inv_C_train)),pA+pZ+pW)
 
         C_half_weight<-sqrtchoinv_rcpp2(inv_C_train)
 
@@ -1800,7 +1801,8 @@ htlgmm.default<-function(
                     if(tune_weight_method == "exact"){
                         inv_C_weight<-inv_C
                         #inv_C_weight<-inv_C+diag(c(rep(weight,(pZ+pA+pW)),rep(0,pZ)))
-                        diag(inv_C_weight)[1:(pA+pZ+pW)]<-diag(inv_C)[1:(pA+pZ+pW)]+rep(weight*mean(diag(inv_C)[1:(pA+pZ+pW)]),pA+pZ+pW)
+                        #diag(inv_C_weight)[1:(pA+pZ+pW)]<-diag(inv_C)[1:(pA+pZ+pW)]+rep(weight*mean(diag(inv_C)[1:(pA+pZ+pW)]),pA+pZ+pW)
+                        diag(inv_C_weight)<-diag(inv_C)+rep(weight*mean(diag(inv_C)),pA+pZ+pW)
                     }else{
                         inv_C_weight<-inv_C
                         #inv_C_weight[c(1:(pA+pZ+pW)),c(1:(pA+pZ+pW))]<-inv_C_weight[c(1:(pA+pZ+pW)),c(1:(pA+pZ+pW))]*weight
