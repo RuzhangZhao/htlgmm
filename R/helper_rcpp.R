@@ -566,7 +566,7 @@ weighted_C_half_func<-function(inv_C_train,weight,dim_U1,dim_U2,tune_weight_meth
     return(C_half_train)
 }
 
-cv_dev_lambda_Cweight_func<-function(tune_weight_method,
+cv_mse_lambda_Cweight_func<-function(tune_weight_method,
                                      index_fold,Z,W,A,y,family,
                                      C_half,inv_C,beta_initial,
                                      initial_with_type,
@@ -581,8 +581,7 @@ cv_dev_lambda_Cweight_func<-function(tune_weight_method,
                                      X=NULL,XR=NULL,
                                      fix_lambda_list=NULL,sC_half=NULL){
     sample_p<-0.3
-    index_test<-c(sample(which(y==1),round(sum(y)*sample_p)),
-                  sample(which(y==0),round(sum(1-y)*sample_p)))
+    index_test<-c(sample(1:length(y),round(length(y)*sample_p)))
 
     Ztrain<-Z[-index_test,,drop=FALSE]
     Ztest<-Z[index_test,,drop=FALSE]
@@ -623,7 +622,7 @@ cv_dev_lambda_Cweight_func<-function(tune_weight_method,
     if(use_sparseC){inv_C_train<-diag(diag(inv_C_train))}
     C_half_train<-sqrtchoinv_rcpp2(inv_C_train)
 
-    dev_lam_weight_fold<-lapply(1:length(weight_list),function(weight_id){
+    mse_lam_weight_fold<-lapply(1:length(weight_list),function(weight_id){
         cur_weight=weight_list[weight_id]
 
         C_half_weight<-weighted_C_half_func(inv_C_train,cur_weight,pA+pZ+pW,pZ,tune_weight_method,C_half_train)
@@ -650,26 +649,19 @@ cv_dev_lambda_Cweight_func<-function(tune_weight_method,
                            penalty.factor = w_adaptive,
                            lambda = cur_lam)
             cur_beta<-coef.glmnet(cv_fit)[-1]
-            probtest <- expit_rcpp(prodv_rcpp(cbind(Atest,Ztest,Wtest),cur_beta))
-            cur_dev <- -2*sum( ytest * log(probtest) + (1 - ytest) * log(1 - probtest) )
-            suppressMessages(cur_auc<-c(auc(ytest,probtest,direction = "<")))
-            c(cur_dev,cur_auc)
+            cur_mse<-mean((prodv_rcpp(cbind(Atest,Ztest,Wtest),cur_beta) - ytest)^2)
+            c(cur_mse,cur_mse)
         })
     })
     # row is weight_list & col is lambda_list
-    cv_dev1<-do.call(rbind, lapply(dev_lam_weight_fold, function(m) m[1,]))
-    cv_auc1<-do.call(rbind, lapply(dev_lam_weight_fold, function(m) m[2,]))
+    cv_mse1<-do.call(rbind, lapply(mse_lam_weight_fold, function(m) m[1,]))
 
-    ids_dev<-which(cv_dev1==min(cv_dev1),arr.ind = TRUE)
-    ids_auc<-which(cv_auc1==max(cv_auc1),arr.ind = TRUE)
+    ids_mse<-which(cv_mse1==min(cv_mse1),arr.ind = TRUE)
 
-    final_weight<-weight_list[ids_auc[1,1]] #nrow(ids_auc)
-    final_weight_dev<-weight_list[ids_dev[1,1]] #nrow(ids_dev)
+    final_weight<-weight_list[ids_mse[1,1]] #nrow(ids_mse)
 
     return(list("final_weight"=final_weight,
-                "final_weight_dev"=final_weight_dev,
-                "deviance"=cv_dev1,
-                "auc"=cv_auc1))
+                "mse"=cv_mse1))
 }
 
 
@@ -1124,22 +1116,26 @@ htlgmm.default<-function(
         # Mode 1: lambda and weight
 
         if(tune_weight & !tune_ratio){
+            fold_self_beta = TRUE
             if(family == "gaussian"){
-                cv_res<-cv_mse_lambda_Cweight_func(index_fold,Z,W,A,y,family,
-                                                   C_half,inv_C,beta_initial,hat_thetaA,
+                cv_res<-cv_mse_lambda_Cweight_func(tune_weight_method,
+                                                   index_fold,Z,W,A,y,family,
+                                                   C_half,inv_C,beta_initial,
+                                                   initial_with_type,
+                                                   hat_thetaA,
                                                    study_info,
                                                    weight_list,pZ,pW,pA,
                                                    w_adaptive,final_alpha,
                                                    pseudo_Xy,lambda.min.ratio,
-                                                   nlambda,X,XR,
-                                                   fix_lambda_list,sC_half)
+                                                   nlambda,V_thetaA,use_sparseC,
+                                                   use_offset,V_thetaA_sandwich,
+                                                   fold_self_beta,
+                                                   X,XR,fix_lambda_list,sC_half)
                 cv_mse<-cv_res$mse
                 ids<-which(cv_mse==min(cv_mse),arr.ind = TRUE)[1,]
-                final.weight.min<-weight_list[ids[1]]
-                final.lambda.min<-cv_res$items[[ids[1]]]$lambda_list[ids[2]]
+                print(paste0("mse_weightid:",ids[1]))
                 return_list<-list("cv_mse"=cv_mse)
             }else if(family == "binomial"){
-                fold_self_beta = TRUE
                 cv_res<-cv_dev_lambda_Cweight_func(tune_weight_method,
                                                    index_fold,Z,W,A,y,family,
                                                    C_half,inv_C,beta_initial,
@@ -1160,39 +1156,39 @@ htlgmm.default<-function(
                 ids_dev<-which(cv_dev==min(cv_dev),arr.ind = TRUE)
                 ids_dev<-ids_dev[1,] #nrow(ids_dev)
                 print(paste0("auc_weightid:",ids_auc[1]))
+            }
 
-                final.ratio.min<-1
+            final.ratio.min<-1
+            weight<-cv_res$final_weight
+            final.weight.min<-weight
+            C_half<-weighted_C_half_func(inv_C,weight,pA+pZ+pW,pZ,tune_weight_method,C_half)
+            if( !((tune_weight_method%in%c(1,4,5,6) & weight == 1)|
+                  (tune_weight_method%in%c(2,3) & weight == 0)) ){
+                pseudo_Xy_list<-pseudo_Xy(C_half=C_half,Z=Z,W=W,A=A,y=y,
+                                          beta=beta_initial,hat_thetaA=hat_thetaA,
+                                          study_info=study_info,X=X,XR=XR)
 
-                weight<-cv_res$final_weight
-                C_half<-weighted_C_half_func(inv_C,weight,pA+pZ+pW,pZ,tune_weight_method,C_half)
-                if( !((tune_weight_method%in%c(1,4,5,6) & weight == 1)|
-                      (tune_weight_method%in%c(2,3) & weight == 0)) ){
-                    pseudo_Xy_list<-pseudo_Xy(C_half=C_half,Z=Z,W=W,A=A,y=y,
-                                              beta=beta_initial,hat_thetaA=hat_thetaA,
-                                              study_info=study_info,X=X,XR=XR)
-
-                    initial_sf<-nrow(Z)/sqrt(nrow(pseudo_Xy_list$pseudo_X))
-                    pseudo_X<-pseudo_Xy_list$pseudo_X/initial_sf
-                    pseudo_y<-pseudo_Xy_list$pseudo_y/initial_sf
-                    if(!is.null(fix_lambda_list)){
-                        lambda_list<-fix_lambda_list
-                    }else{
-                        innerprod<-crossprodv_rcpp(pseudo_X,pseudo_y)[which(w_adaptive!=0)]
-                        lambda.max<-max(abs(innerprod))/nrow(pseudo_X)
-                        lambda_list <-exp(seq(log(lambda.max),log(lambda.max*lambda.min.ratio),
-                                              length.out=nlambda))
-                    }
+                initial_sf<-nrow(Z)/sqrt(nrow(pseudo_Xy_list$pseudo_X))
+                pseudo_X<-pseudo_Xy_list$pseudo_X/initial_sf
+                pseudo_y<-pseudo_Xy_list$pseudo_y/initial_sf
+                if(!is.null(fix_lambda_list)){
+                    lambda_list<-fix_lambda_list
+                }else{
+                    innerprod<-crossprodv_rcpp(pseudo_X,pseudo_y)[which(w_adaptive!=0)]
+                    lambda.max<-max(abs(innerprod))/nrow(pseudo_X)
+                    lambda_list <-exp(seq(log(lambda.max),log(lambda.max*lambda.min.ratio),
+                                          length.out=nlambda))
                 }
+            }
 
+            if(family == "binomial"){
                 pseudo_X_dev<-pseudo_X
                 pseudo_y_dev<-pseudo_y
-                final.weight.min<-weight
 
                 res_weight<-cv_dev_lambda_func(index_fold,Z,W,A,y,
                                                C_half,beta_initial,hat_thetaA,
                                                study_info,lambda_list,
                                                w_adaptive,final_alpha,pseudo_Xy)
-
                 cv_auc1<-res_weight$auc
                 max_id<-which.max(cv_auc1)
                 final.lambda.min<-lambda_list[max_id]
@@ -1204,11 +1200,21 @@ htlgmm.default<-function(
 
                 return_list<-list("cv_auc"=cv_auc,"cv_dev"=cv_dev)
                 final.ratio.dev.min<-1
-                return_list<-c(return_list,
-                               list("lambda_list"=lambda_list,
-                                    "weight_list"=weight_list))
 
+            }else{
+                res_weight<-cv_mse_lambda_func(index_fold,Z,W,A,y,
+                                               C_half,beta_initial,hat_thetaA,
+                                               study_info,lambda_list,
+                                               w_adaptive,final_alpha,pseudo_Xy)
+                cv_mse1<-res_weight
+                min_id<-which.min(cv_mse1)
+                final.lambda.min<-lambda_list[min_id]
+                return_list<-list("cv_mse"=cv_mse)
             }
+
+            return_list<-c(return_list,
+                           list("lambda_list"=lambda_list,
+                                "weight_list"=weight_list))
 
         }
 
@@ -1396,18 +1402,16 @@ htlgmm.default<-function(
                         C_half<-sqrtchoinv_rcpp2(inv_C)
                     }
                 }
-
-                if(tune_weight_method == "exact"){
+                runsandwich<-F
+                if(tune_weight){
                     weight<-final.weight.min
-                    weight2<-ifelse(tune_weight_method == "exact",0,weight)
-                    inv_C_weight<-inv_C+diag(c(rep(weight,(pZ+pA+pW)),rep(weight2,pZ)))
-                    C_half<-sqrtchoinv_rcpp2(inv_C_weight)
-                }else{
-                    C_half[(pZ+pA+pW+1):nrow(C_half),(pZ+pA+pW+1):nrow(C_half)]=
-                        C_half[(pZ+pA+pW+1):nrow(C_half),(pZ+pA+pW+1):nrow(C_half)]*sqrt(abs(final.weight.min))
+                    C_half<-weighted_C_half_func(inv_C,weight,pA+pZ+pW,pZ,tune_weight_method,C_half)
+                    if(!((tune_weight_method%in%c(1,4,5,6) & weight == 1)|
+                         (tune_weight_method%in%c(2,3) & weight == 0))){
+                        runsandwich<-T
+                    }
                 }
-                use_sparseC<-T
-
+            if(!is.null(fix_C)|!is.null(fix_inv_C)|use_sparseC){runsandwich<-T}
             ###########--------------###########
             # Compute new pseudo_X
 
@@ -1423,7 +1427,7 @@ htlgmm.default<-function(
             ###########--------------###########
             # When the C using is not optimal C,
 
-            if(!is.null(fix_C)|!is.null(fix_inv_C)|final.weight.min!=1|final.weight.min!=0 |use_sparseC){
+            if(runsandwich){
                 inv_C_half<-sqrtcho_rcpp2(inv_C+diag(1e-15,nrow(inv_C)))
                 psX_mid<-prod_rcpp(inv_C_half,crossprod_rcpp(C_half,psX))
                 psXtX_mid<-self_crossprod_rcpp(psX_mid)
