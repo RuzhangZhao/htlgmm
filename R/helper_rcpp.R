@@ -13,7 +13,7 @@ sqrtchoinv_rcpp2<-function(inv_C){
         if(is.null(C_half)){inv_adjust=inv_adjust*10}else{break}
         iter <- iter + 1
     }
-    if(iter!=0){print(paste0("iteration:",iter))}
+    #if(iter!=0){print(paste0("iteration:",iter))}
     if(is.null(C_half)){
         stop("Error: Cholesky decomposition failed after finite iteration of penalty.")}
     C_half
@@ -34,7 +34,7 @@ sqrtcho_rcpp2<-function(fix_C){
         if(is.null(C_half)){inv_adjust=inv_adjust*10}else{break}
         iter <- iter + 1
     }
-    if(iter!=0){print(paste0("iteration:",iter))}
+    #if(iter!=0){print(paste0("iteration:",iter))}
     if(is.null(C_half)){
         stop("Error: Cholesky decomposition failed after finite iteration of penalty.")}
     C_half
@@ -55,7 +55,7 @@ choinv_rcpp2<-function(fix_C){
         if(is.null(inv_C)){inv_adjust=inv_adjust*10}else{break}
         iter <- iter + 1
     }
-    if(iter!=0){print(paste0("iteration:",iter))}
+    #if(iter!=0){print(paste0("iteration:",iter))}
     if(is.null(inv_C)){
         stop("Error: Cholesky decomposition failed after finite iteration of penalty.")}
     inv_C
@@ -1239,7 +1239,7 @@ htlgmm.default<-function(
                                                    X,XR,fix_lambda_list,sC_half)
                 cv_mse<-cv_res$mse
                 ids<-which(cv_mse==min(cv_mse),arr.ind = TRUE)[1,]
-                print(paste0("mse_weightid:",ids[1]))
+                #print(paste0("mse_weightid:",ids[1]))
                 return_list<-list("cv_mse"=cv_mse)
             }else if(family == "binomial"){
                 cv_res<-cv_dev_lambda_Cweight_func(tune_weight_method,
@@ -1261,7 +1261,7 @@ htlgmm.default<-function(
                 cv_dev<-cv_res$deviance
                 ids_dev<-which(cv_dev==min(cv_dev),arr.ind = TRUE)
                 ids_dev<-ids_dev[1,] #nrow(ids_dev)
-                print(paste0("auc_weightid:",ids_auc[1]))
+                #print(paste0("auc_weightid:",ids_auc[1]))
             }
 
             final.ratio.min<-1
