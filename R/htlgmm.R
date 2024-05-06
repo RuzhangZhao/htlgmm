@@ -38,14 +38,14 @@
 #' For coxph model, robust is also about whether we apply the robust variance for the estimating equations.
 #' @param remove_penalty_Z Not penalize Z if it is TRUE. The default is FALSE.
 #' @param remove_penalty_W Not penalize W if it is TRUE. The default is FALSE.
-#' @param inference Whether to do inference without penalty or post-selection inference with adaptive lasso penalty. The default is TRUE.
+#' @param inference Whether to do inference without penalty or post-selection inference with adaptive lasso penalty. The default is FALSE.
 #' @param fix_C When fix_C = NULL, the optimal C is computed. When user wants to customize the fix_C, please match its dimension as dim(A)+2*dim(Z)+dim(W) and make sure it is positive definite.
 #' @param fix_inv_C When fix_inv_C = NULL, the optimal C is computed. When user wants to customize the fix_inv_C, please match its dimension as dim(A)+2*dim(Z)+dim(W) and make sure it is positive definite. When fix_C and fix_inv_C are both given, the fix_C will be used.
 #' @param refine_C When computing the variance, whether recompute the weighting matrix C using final estimated beta. The default is FALSE.
 #' @param sqrt_matrix The method to split weighting matrix into square root matrix. Select from c('svd','cholesky'), where 'cholesky' generates faster computation.
 #' @param fix_lambda Without cross validation, fix the lambda. The default is NULL.
 #' @param lambda_list Customize the input lambda list for validation. The default is NULL to generate lambda list according to glmnet.
-#' @param fix_ratio The fixed ratio for two-lambda strategy. The ratio is multiplied for Z features. The default is NULL. If it is NULL, select the best ratio via cross validation or holdout validation.
+#' @param fix_ratio The fixed ratio for two-lambda strategy. The ratio is multiplied for Z features. The default is NULL. If it is NULL, select the best ratio via cross validation.
 #' @param fix_weight The fixed weight for weighting matrix of external study.
 #' @param gamma_adaptivelasso The gamma for adaptive lasso. Select from c(1/2,1,2). The default is 1/2.
 #' @param use_sparseC Whether to use approximate version of weighting matrix C using only diagonal terms as nonzeros.
@@ -58,7 +58,7 @@
 #' @return \itemize{
 #'  \item{beta:} The target coefficient estimation, the features will go in the order of (A,Z,W).
 #'  \item{lambda_list:} The lambda list for cross validation.
-#'  \item{ratio_list:} The ratio list for validation (cross validation or holdout validation).
+#'  \item{ratio_list:} The ratio list for cross validation.
 #'  \item{fix_lambda:} If the fix_lambda is not null, we output fix_lambda.
 #'  \item{fix_ratio:} If the fix_ratio is not null, we output fix_ratio.
 #'  \item{selected_vars:} For inference or post-selection inference, we output the inference results by a list. \itemize{
@@ -99,7 +99,7 @@ htlgmm<-function(
         robust = FALSE,
         remove_penalty_Z = FALSE,
         remove_penalty_W = FALSE,
-        inference = TRUE,
+        inference = FALSE,
         fix_C = NULL,
         fix_inv_C = NULL,
         refine_C = FALSE,
@@ -133,7 +133,7 @@ htlgmm<-function(
     ratio_list = NULL
     tune_weight = FALSE
     weight_list = NULL
-    tune_weight_method = "holdout"
+    tune_weight_method = 1
     type_measure = "default"
     nlambda = 100
     lambda.min.ratio = 0.0001
@@ -205,7 +205,7 @@ htlgmm<-function(
 #' For coxph model, robust is also about whether we apply the robust variance for the estimating equations.
 #' @param remove_penalty_Z Not penalize Z if it is TRUE. The default is FALSE.
 #' @param remove_penalty_W Not penalize W if it is TRUE. The default is FALSE.
-#' @param inference Whether to do inference without penalty or post-selection inference with adaptive lasso penalty. The default is TRUE.
+#' @param inference Whether to do inference without penalty or post-selection inference with adaptive lasso penalty. The default is FALSE.
 #' @param fix_C When fix_C = NULL, the optimal C is computed. When user wants to customize the fix_C, please match its dimension as dim(A)+2*dim(Z)+dim(W) and make sure it is positive definite.
 #' @param fix_inv_C When fix_inv_C = NULL, the optimal C is computed. When user wants to customize the fix_inv_C, please match its dimension as dim(A)+2*dim(Z)+dim(W) and make sure it is positive definite. When fix_C and fix_inv_C are both given, the fix_C will be used.
 #' @param refine_C When computing the variance, whether recompute the weighting matrix C using final estimated beta.
@@ -236,7 +236,7 @@ htlgmm<-function(
 #' @return \itemize{
 #'  \item{beta:} The target coefficient estimation, the features will go in the order of (A,Z,W).
 #'  \item{lambda_list:} The lambda list for cross validation.
-#'  \item{ratio_list:} The ratio list for validation (cross validation or holdout validation).
+#'  \item{ratio_list:} The ratio list for cross validation.
 #'  \item{fix_lambda:} If the fix_lambda is not null, we output fix_lambda.
 #'  \item{fix_ratio:} If the fix_ratio is not null, we output fix_ratio.
 #'  \item{lambda_min:} The selected best lambda by cross validation.
@@ -285,7 +285,7 @@ cv.htlgmm<-function(
         robust = FALSE,
         remove_penalty_Z = FALSE,
         remove_penalty_W = FALSE,
-        inference = TRUE,
+        inference = FALSE,
         fix_C = NULL,
         fix_inv_C=NULL,
         refine_C = FALSE,
@@ -304,7 +304,7 @@ cv.htlgmm<-function(
         tune_weight = FALSE,
         fix_weight = NULL,
         weight_list = NULL,
-        tune_weight_method = "holdout",
+        tune_weight_method = 1,
         gamma_adaptivelasso = 1/2,
         use_sparseC = TRUE,
         seed.use = 97,
