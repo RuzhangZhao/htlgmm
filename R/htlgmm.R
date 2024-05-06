@@ -19,11 +19,11 @@
 #' For binary variable, we use intercept term by 'A=1' to adjust for different binary trait ratios in main and external studies.
 #' If there is only intercept term in A, we use 'A=1'.
 #' A are the features working for adjustment in reduced model, but A is not summarized in summary statistics(input:study_info).
-#' @param penalty_type The penalty type for htlgmm, chosen from c("none","lasso","adaptivelasso","ridge","elasticnet"). The default is "adaptivelasso".
+#' @param penalty_type The penalty type for htlgmm, chosen from c("none","lasso","adaptivelasso","ridge","elasticnet"). The default is "none".
 #' If 'penalty_type = 'none' ', we use without penalty. (For continuous y, we use ordinary least square, and for binary y, we use logistic regression without penalty.)
 #' @param family The family is chosen from c("gaussian","binomial"). Linear regression for "gaussian" and logistic regression for "binomial".
 #' @param initial_with_type Get initial estimation for beta using main study data only
-#' by cross validation using (penalty) regression, chosen from c("ridge","lasso","glm"). The default is "ridge". If penalty_type = 'glm',
+#' by cross validation using (penalty) regression, chosen from c("ridge","lasso","glm"). The default is "glm". If penalty_type = 'glm',
 #' for continuous y, we use ordinary least square, and for binary y, we use logistic regression without penalty.)
 #' @param beta_initial The initial estimation for beta if a consistent estimator is available.
 #' E.g., one may input htlgmm result as beta_initial for more rounds to refine the final estimation.
@@ -186,11 +186,11 @@ htlgmm<-function(
 #' For binary variable, we use intercept term by 'A=1' to adjust for different binary trait ratios in main and external studies.
 #' If there is only intercept term in A, we use 'A=1'.
 #' A are the features working for adjustment in reduced model, but A is not summarized in summary statistics(input:study_info).
-#' @param penalty_type The penalty type for htlgmm, chosen from c("none","lasso","adaptivelasso","ridge","elasticnet"). The default is "adaptivelasso".
+#' @param penalty_type The penalty type for htlgmm, chosen from c("none","lasso","adaptivelasso","ridge","elasticnet"). The default is "lasso".
 #' If 'penalty_type = 'none' ', we use without penalty. (For continuous y, we use ordinary least square, and for binary y, we use logistic regression without penalty.)
 #' @param family The family is chosen from c("gaussian","binomial"). Linear regression for "gaussian" and logistic regression for "binomial".
 #' @param initial_with_type Get initial estimation for beta using main study data only
-#' by cross validation using penalty regression, chosen from c("ridge","lasso","glm"). The default is "ridge". If penalty_type = 'glm',
+#' by cross validation using penalty regression, chosen from c("ridge","lasso","glm"). The default is "lasso". If penalty_type = 'glm',
 #' for continuous y, we use ordinary least square, and for binary y, we use logistic regression without penalty.)
 #' @param beta_initial The initial estimation for beta if a consistent estimator is available.
 #' E.g., one may input htlgmm result as beta_initial for more rounds to refine the final estimation.
@@ -273,9 +273,9 @@ cv.htlgmm<-function(
         y,Z,W=NULL,
         study_info=NULL,
         A="default",
-        penalty_type = "adaptivelasso",
+        penalty_type = "lasso",
         family = "gaussian",
-        initial_with_type = "ridge",
+        initial_with_type = "lasso",
         beta_initial = NULL,
         weight_adaptivelasso=NULL,
         alpha = NULL,
