@@ -665,6 +665,112 @@ cv_mse_lambda_Cweight_func<-function(tune_weight_method,
 }
 
 
+cv_dev_lambda_Cweight_func<-function(tune_weight_method,
+                                     index_fold,Z,W,A,y,family,
+                                     C_half,inv_C,beta_initial,
+                                     initial_with_type,
+                                     hat_thetaA,
+                                     study_info,
+                                     weight_list,pZ,pW,pA,
+                                     w_adaptive,final_alpha,
+                                     pseudo_Xy,lambda.min.ratio,
+                                     nlambda,V_thetaA,use_sparseC,
+                                     use_offset,V_thetaA_sandwich,
+                                     fold_self_beta,
+                                     X=NULL,XR=NULL,
+                                     fix_lambda_list=NULL,sC_half=NULL){
+    sample_p<-0.3
+    index_test<-c(sample(which(y==1),round(sum(y)*sample_p)),
+                  sample(which(y==0),round(sum(1-y)*sample_p)))
+
+    Ztrain<-Z[-index_test,,drop=FALSE]
+    Ztest<-Z[index_test,,drop=FALSE]
+    if(!is.null(W)){
+        Wtrain<-W[-index_test,,drop=FALSE]
+        Wtest<-W[index_test,,drop=FALSE]
+    }else{
+        Wtrain<-NULL
+        Wtest<-NULL}
+    if(!is.null(A)){
+        Atrain<-A[-index_test,,drop=FALSE]
+        Atest<-A[index_test,,drop=FALSE]
+    }else{
+        Atrain<-NULL
+        Atest<-NULL}
+    ytrain<-y[-index_test]
+    ytest<-y[index_test]
+
+    # renew the initial value
+    if(fold_self_beta){
+        initial_res1<-beta_initial_func(ytrain,cbind(Atrain,Ztrain,Wtrain),
+                                        Atrain,pA,family,initial_with_type,w_adaptive)
+        beta_initial1<-initial_res1$beta_initial
+    }else{beta_initial1<-beta_initial}
+
+    thetaA_list<-thetaA_func(pA,Ztrain,Atrain,ytrain,study_info,
+                             family,use_offset,V_thetaA_sandwich)
+    hat_thetaA1<-thetaA_list$hat_thetaA
+    V_thetaA1<-thetaA_list$V_thetaA
+
+    inv_C_train = Delta_opt_rcpp(y=ytrain,Z=Ztrain,W=Wtrain,
+                                 family=family,
+                                 study_info=study_info,
+                                 A=Atrain,pA=pA,pZ=pZ,beta=beta_initial1,
+                                 hat_thetaA=hat_thetaA1,
+                                 V_thetaA=V_thetaA1,
+                                 use_offset=use_offset)
+    if(use_sparseC){inv_C_train<-diag(diag(inv_C_train))}
+    C_half_train<-sqrtchoinv_rcpp2(inv_C_train)
+
+    dev_lam_weight_fold<-lapply(1:length(weight_list),function(weight_id){
+        cur_weight=weight_list[weight_id]
+
+        C_half_weight<-weighted_C_half_func(inv_C_train,cur_weight,pA+pZ+pW,pZ,tune_weight_method,C_half_train)
+
+        pseudo_Xy_list_train<-pseudo_Xy(C_half_weight,Ztrain,Wtrain,Atrain,
+                                        ytrain,beta = beta_initial1,hat_thetaA = hat_thetaA1,
+                                        study_info=study_info)
+        initial_sf_train<-nrow(Ztrain)/sqrt(nrow(pseudo_Xy_list_train$pseudo_X))
+        pseudo_X_train<-pseudo_Xy_list_train$pseudo_X/initial_sf_train
+        pseudo_y_train<-pseudo_Xy_list_train$pseudo_y/initial_sf_train
+
+        if(!is.null(fix_lambda_list)){
+            lambda_list_weight<-fix_lambda_list
+        }else{
+            innerprod<-crossprodv_rcpp(pseudo_X_train,pseudo_y_train)[which(w_adaptive!=0)]
+            lambda.max<-max(abs(innerprod))/nrow(pseudo_X_train)
+            lambda_list_weight <-exp(seq(log(lambda.max),log(lambda.max*lambda.min.ratio),
+                                         length.out=nlambda))
+        }
+
+        sapply(lambda_list_weight,function(cur_lam){
+            cv_fit<-glmnet(x=pseudo_X_train,y=pseudo_y_train,
+                           standardize=F,intercept=F,alpha = final_alpha,
+                           penalty.factor = w_adaptive,
+                           lambda = cur_lam)
+            cur_beta<-coef.glmnet(cv_fit)[-1]
+            probtest <- expit_rcpp(prodv_rcpp(cbind(Atest,Ztest,Wtest),cur_beta))
+            cur_dev <- -2*sum( ytest * log(probtest) + (1 - ytest) * log(1 - probtest) )
+            suppressMessages(cur_auc<-c(auc(ytest,probtest,direction = "<")))
+            c(cur_dev,cur_auc)
+        })
+    })
+    # row is weight_list & col is lambda_list
+    cv_dev1<-do.call(rbind, lapply(dev_lam_weight_fold, function(m) m[1,]))
+    cv_auc1<-do.call(rbind, lapply(dev_lam_weight_fold, function(m) m[2,]))
+
+    ids_dev<-which(cv_dev1==min(cv_dev1),arr.ind = TRUE)
+    ids_auc<-which(cv_auc1==max(cv_auc1),arr.ind = TRUE)
+
+    final_weight<-weight_list[ids_auc[1,1]] #nrow(ids_auc)
+    final_weight_dev<-weight_list[ids_dev[1,1]] #nrow(ids_dev)
+
+    return(list("final_weight"=final_weight,
+                "final_weight_dev"=final_weight_dev,
+                "deviance"=cv_dev1,
+                "auc"=cv_auc1))
+}
+
 
 
 #
