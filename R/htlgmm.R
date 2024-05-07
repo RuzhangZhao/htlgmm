@@ -1,4 +1,4 @@
-#' htlgmm:
+#' htlgmm
 #'
 #' htlgmm fits a generalized linear model or cox proportional hazard model via penalized generalized method of moments,
 #' i.e. Heterogeneous Transfer Learning via Generalized Method of Moments.
