@@ -38,7 +38,7 @@
 #' For coxph model, robust is also about whether we apply the robust variance for the estimating equations.
 #' @param remove_penalty_Z Not penalize Z if it is TRUE. The default is FALSE.
 #' @param remove_penalty_W Not penalize W if it is TRUE. The default is FALSE.
-#' @param inference Whether to do inference without penalty or post-selection inference with adaptive lasso penalty. The default is FALSE.
+#' @param inference Whether to do inference without penalty or post-selection inference with adaptive lasso penalty. The default is 'default', which is TRUE when penalty_type = 'none' or 'adaptivelasso', and FALSE otherwise.
 #' @param fix_C When fix_C = NULL, the optimal C is computed. When user wants to customize the fix_C, please match its dimension as dim(A)+2*dim(Z)+dim(W) and make sure it is positive definite.
 #' @param fix_inv_C When fix_inv_C = NULL, the optimal C is computed. When user wants to customize the fix_inv_C, please match its dimension as dim(A)+2*dim(Z)+dim(W) and make sure it is positive definite. When fix_C and fix_inv_C are both given, the fix_C will be used.
 #' @param refine_C When computing the variance, whether recompute the weighting matrix C using final estimated beta. The default is FALSE.
@@ -99,7 +99,7 @@ htlgmm<-function(
         robust = FALSE,
         remove_penalty_Z = FALSE,
         remove_penalty_W = FALSE,
-        inference = FALSE,
+        inference = 'default',
         fix_C = NULL,
         fix_inv_C = NULL,
         refine_C = FALSE,
@@ -205,7 +205,7 @@ htlgmm<-function(
 #' For coxph model, robust is also about whether we apply the robust variance for the estimating equations.
 #' @param remove_penalty_Z Not penalize Z if it is TRUE. The default is FALSE.
 #' @param remove_penalty_W Not penalize W if it is TRUE. The default is FALSE.
-#' @param inference Whether to do inference without penalty or post-selection inference with adaptive lasso penalty. The default is FALSE.
+#' @param inference Whether to do inference without penalty or post-selection inference with adaptive lasso penalty. The default is 'default', which is TRUE when penalty_type = 'none' or 'adaptivelasso', and FALSE otherwise.
 #' @param fix_C When fix_C = NULL, the optimal C is computed. When user wants to customize the fix_C, please match its dimension as dim(A)+2*dim(Z)+dim(W) and make sure it is positive definite.
 #' @param fix_inv_C When fix_inv_C = NULL, the optimal C is computed. When user wants to customize the fix_inv_C, please match its dimension as dim(A)+2*dim(Z)+dim(W) and make sure it is positive definite. When fix_C and fix_inv_C are both given, the fix_C will be used.
 #' @param refine_C When computing the variance, whether recompute the weighting matrix C using final estimated beta.
@@ -248,7 +248,8 @@ htlgmm<-function(
 #'  \item{position:} The index of nonzero positions, the index comes from X = (A,Z,W).
 #'  \item{name:} The feature name of nonzero positions. If there is no default name, we name it after Ai, Zi, Wi.
 #'  \item{coef:} The coefficients of nonzero positions.
-#'  \item{variance:} The variances for features with glm inference, for selected features with post-selection inference.
+#'  \item{variance:} The variances for features with none penalty inference or for selected features with post-selection inference.
+#'  \item{variance_covariance:} The variance-covariance matrix for features with none penalty inference or for selected features with post-selection inference.
 #'  \item{pval:} For p values for nonzero positions.
 #'  \item{FDR_adjust_position:} The FDR adjusted positions passing significant level 0.05 after BH adjustment (Benjamini & Hochberg).
 #'  \item{FDR_adjust_name:} The feature name based on FDR_adjust_position.
@@ -285,7 +286,7 @@ cv.htlgmm<-function(
         robust = FALSE,
         remove_penalty_Z = FALSE,
         remove_penalty_W = FALSE,
-        inference = FALSE,
+        inference = 'default',
         fix_C = NULL,
         fix_inv_C=NULL,
         refine_C = FALSE,
