@@ -873,17 +873,17 @@ htlgmm.default<-function(
     }
     ###########--------------###########
     # determine which kind of penalty for the final model
-    if(!is.null(alpha_for_elasticnet) & penalty_type != "elasticnet"){
-        warning("When using alpha_for_elasticnet between 0 and 1, please set penalty_type to be 'elasticnet'.")
+    if(!is.null(alpha) & penalty_type != "elasticnet"){
+        warning("When using alpha between 0 and 1, please set penalty_type to be 'elasticnet'.")
     }
     if(penalty_type%in%c("adaptivelasso","lasso")){final_alpha = 1}
     if(penalty_type == "ridge"){final_alpha = 0}
     if(penalty_type == "elasticnet"){
-        if(is.null(alpha_for_elasticnet)|!is.numeric(alpha_for_elasticnet)){
-            stop("When using penalty_type is 'elasticnet', need the input of alpha_for_elasticnet between 0 and 1.")
-        }else if(alpha_for_elasticnet<0|alpha_for_elasticnet>1){
-            stop("When using penalty_type is 'elasticnet', need the input of alpha_for_elasticnet between 0 and 1.")
-        }else{final_alpha=alpha_for_elasticnet}
+        if(is.null(alpha)|!is.numeric(alpha)){
+            stop("When using penalty_type is 'elasticnet', need the input of alpha between 0 and 1.")
+        }else if(alpha<0|alpha>1){
+            stop("When using penalty_type is 'elasticnet', need the input of alpha between 0 and 1.")
+        }else{final_alpha=alpha}
     }
 
     ###########--------------###########
