@@ -10,9 +10,9 @@
 #' @param y The outcome variable, which can be continuous, binary or time-to-event data. For coxph model, y should be a list with two items including 'time' and 'event'.
 #' @param Z The overlapping features in both main and external studies.
 #' @param W The unmatched features only in main study, the default is NULL. Without W, the problem is degenerated to problem similar to meta-analysis.
-#' @param study_info The trained model from external study, including estimated coefficients, estimated variance-covariance matrix and sample size.
-#' The 'study_info' is in the format of list. The first item is 'Coeff', the second item is 'Covariance', and the third item (optional) is 'Sample_size'.
-#' E.g. study_info = list(list("Coeff"=coeff,"Covariance"=covariance,"Sample_size"=sample_size))
+#' @param ext_study_info The trained model from external study, including estimated coefficients, and estimated variance-covariance matrix.
+#' The 'ext_study_info' is in the format of list. The first item is 'Coeff', the second item is 'Covariance'.
+#' E.g. ext_study_info = list(list("Coeff"=coeff,"Covariance"=covariance))
 #' @param A The covariates for study-specific adjustment. The default is 'default', which is 'NULL' for 'gaussian' family or 'cox' family, '1' for 'binomial' family.
 #' Other than c('default',NULL,1), A must be a matrix whose dimension is the same as the sample dimension or Z and W.
 #' For continuous variable, we suggest scaling the features Z, W to eliminate intercept term.  If 'A = NULL', there is no intercept term included.
@@ -85,7 +85,7 @@
 #'
 htlgmm<-function(
         y,Z,W=NULL,
-        study_info=NULL,
+        ext_study_info=NULL,
         A="default",
         penalty_type = "none",
         family = "gaussian",
@@ -138,7 +138,7 @@ htlgmm<-function(
     nlambda = 100
     lambda.min.ratio = 0.0001
     if(family == 'cox'){
-        res<-htlgmm.cox.default(y,Z,W,study_info,A,penalty_type,
+        res<-htlgmm.cox.default(y,Z,W,ext_study_info,A,penalty_type,
                                 initial_with_type,beta_initial,
                                 hat_thetaA,V_thetaA,robust,remove_penalty_Z,
                                 remove_penalty_W,inference,fix_C,refine_C,
@@ -147,7 +147,7 @@ htlgmm<-function(
                                 gamma_adaptivelasso,use_sparseC,seed.use)
     }else{
         V_thetaA_sandwich=robust
-        res<-htlgmm.default(y,Z,W,study_info,A,penalty_type,
+        res<-htlgmm.default(y,Z,W,ext_study_info,A,penalty_type,
                             family,initial_with_type,beta_initial,
                             weight_adaptivelasso,alpha,
                             hat_thetaA,V_thetaA,use_offset,
@@ -178,14 +178,15 @@ htlgmm<-function(
 #' @param y The variable of interest, which can be continuous or binary.
 #' @param Z The overlapping features in both main and external studies.
 #' @param W The unmatched features only in main study, the default is NULL.
-#' @param study_info The trained model from external study, including estimate coefficients, estimated variance-covariance matrix and sample size.
-#' The 'study_info' is in the format of list. The first item is 'Coeff', the second iterm is 'Covariance', and the third item is 'Sample_size'.
+#' @param ext_study_info The trained model from external study, including estimated coefficients, and estimated variance-covariance matrix.
+#' The 'ext_study_info' is in the format of list. The first item is 'Coeff', the second item is 'Covariance'.
+#' E.g. ext_study_info = list(list("Coeff"=coeff,"Covariance"=covariance))
 #' @param A The covariates for study-specific adjustment. The default is 'default', which is 'NULL' for 'gaussian' family, '1' for 'binomial' family.
 #' Other than c('default',NULL,1), A must be a matrix whose dimension is the same as the sample dimension or Z and W.
 #' For continuous variable, we suggest scaling the features Z, W to eliminate intercept term.  If 'A = NULL', there is no intercept term included.
 #' For binary variable, we use intercept term by 'A=1' to adjust for different binary trait ratios in main and external studies.
 #' If there is only intercept term in A, we use 'A=1'.
-#' A are the features working for adjustment in reduced model, but A is not summarized in summary statistics(input:study_info).
+#' A are the features working for adjustment in reduced model, but A is not summarized in summary statistics(input:ext_study_info).
 #' @param penalty_type The penalty type for htlgmm, chosen from c("none","lasso","adaptivelasso","ridge","elasticnet"). The default is "lasso".
 #' If 'penalty_type = 'none' ', we use without penalty. (For continuous y, we use ordinary least square, and for binary y, we use logistic regression without penalty.)
 #' @param family The family is chosen from c("gaussian","binomial"). Linear regression for "gaussian" and logistic regression for "binomial".
@@ -272,7 +273,7 @@ htlgmm<-function(
 #'
 cv.htlgmm<-function(
         y,Z,W=NULL,
-        study_info=NULL,
+        ext_study_info=NULL,
         A="default",
         penalty_type = "lasso",
         family = "gaussian",
@@ -327,7 +328,7 @@ cv.htlgmm<-function(
         }}
 
     if(family == 'cox'){
-        res<-htlgmm.cox.default(y,Z,W,study_info,A,penalty_type,
+        res<-htlgmm.cox.default(y,Z,W,ext_study_info,A,penalty_type,
                                 initial_with_type,beta_initial,
                                 hat_thetaA,V_thetaA,robust,remove_penalty_Z,
                                 remove_penalty_W,inference,fix_C,refine_C,
@@ -336,7 +337,7 @@ cv.htlgmm<-function(
                                 gamma_adaptivelasso,use_sparseC,seed.use)
     }else{
         V_thetaA_sandwich=robust
-        res<-htlgmm.default(y,Z,W,study_info,A,penalty_type,
+        res<-htlgmm.default(y,Z,W,ext_study_info,A,penalty_type,
                             family,initial_with_type,beta_initial,
                             weight_adaptivelasso,alpha,hat_thetaA,V_thetaA,
                             use_offset,V_thetaA_sandwich,remove_penalty_Z,
@@ -363,16 +364,17 @@ cv.htlgmm<-function(
 #' @param y The variable of interest, which can be continuous or binary.
 #' @param Z The overlapping features in both main and external studies.
 #' @param W The unmatched features only in main study, the default is NULL.
-#' @param study_info The trained model from external study, including estimate coefficients, estimated variance-covariance matrix and sample size.
-#' The 'study_info' is in the format of list. The first item is 'Coeff', the second iterm is 'Covariance', and the third item is 'Sample_size'.
+#' @param ext_study_info The trained model from external GWAS study, including estimated coefficients, and estimated variance.
+#' The 'ext_study_info' is in the format of list. The first item is 'Coeff', the second item is 'Covariance'.
+#' E.g. ext_study_info = list(list("Coeff"=coeff,"Covariance"=variance))
 #' @param A The covariates for study-specific adjustment. The default is 'default', which is 'NULL' for 'gaussian' family, '1' for 'binomial' family.
 #' Other than c('default',NULL,1), A must be a matrix whose dimension is the same as the sample dimension or Z and W.
 #' For continuous variable, we suggest scaling the features Z, W to eliminate intercept term.  If 'A = NULL', there is no intercept term included.
 #' For binary variable, we use intercept term by 'A=1' to adjust for different binary trait ratios in main and external studies.
 #' If there is only intercept term in A, we use 'A=1'.
-#' A are the features working for adjustment in reduced model, but A is not summarized in summary statistics(input:study_info).
+#' A are the features working for adjustment in reduced model, but A is not summarized in summary statistics(input:ext_study_info).
 #' @param family The family is chosen from c("gaussian","binomial"). Linear regression for "gaussian" and logistic regression for "binomial".
-#' @param beta_initial The beta_initial list matching study_info, which provides the initial value of beta, e.g. fitting full model using plink2. If there is only one SNP, the beta_initial can be a vector.
+#' @param beta_initial The beta_initial list matching ext_study_info, which provides the initial value of beta, e.g. fitting full model using plink2. If there is only one SNP, the beta_initial can be a vector.
 #' The default is NULL. The beta_initial should go in the order of (A,W,Z), where Z is for each SNP.
 #' @param repeated_term Default is NULL, which includes A_hat_thetaA, V_thetaA, and inv_GammaAA.
 #' @param refine_C When computing the variance, whether recompute the weighting matrix C using final estimated beta.
@@ -399,7 +401,7 @@ cv.htlgmm<-function(
 #'
 gwas.htlgmm<-function(
         y,Z,W=NULL,
-        study_info=NULL,
+        ext_study_info=NULL,
         A='default',
         family = "gaussian",
         beta_initial=NULL,
@@ -423,7 +425,7 @@ gwas.htlgmm<-function(
                 warning("If A is not selected from c('default',NULL,1), A must be a matrix.")
             }}
 
-    res<-htlgmm.gwas.default(y,Z,W,study_info,A,family,beta_initial,
+    res<-htlgmm.gwas.default(y,Z,W,ext_study_info,A,family,beta_initial,
                              repeated_term,refine_C,
                              output_SNP_only,seed.use,
                              verbose,output_tmp)

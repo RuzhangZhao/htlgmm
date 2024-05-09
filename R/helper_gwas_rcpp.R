@@ -55,7 +55,7 @@ direct_fast_beta<-function(
     ps_y2=crossprodv_rcpp(Z,XR_theta)
     ps_y=c(ps_y0+c(ps_y1,ps_y2))/scale_factor
     ps_Xty = prodv_rcpp(crossprod_rcpp(pseudo_X0,Cn),ps_y)
-    beta = prodv_rcpp(choinv_rcpp(ps_XtX),ps_Xty)
+    beta = prodv_rcpp(choinv_rcpp2(ps_XtX),ps_Xty)
     beta
 }
 direct_fast_var<-function(Cn,y,Z,W,A,X_beta,
@@ -73,13 +73,58 @@ direct_fast_var<-function(Cn,y,Z,W,A,X_beta,
     }
     pseudo_X0=crossprod_rcpp(cbind(X,Z),X*dexpit_beta)/scale_factor
     ps_XtX = prod_rcpp(crossprod_rcpp(pseudo_X0,Cn),pseudo_X0)
-    inv_ps_XtX=choinv_rcpp(ps_XtX)
+    inv_ps_XtX=choinv_rcpp2(ps_XtX)
     diag(inv_ps_XtX)/scale_factor
 }
 
+compute_repeated_term<-function(y,A=NULL,family = "gaussian"){
+    if(is.null(A)){pA=0}else{
+        if(is.null(dim(A)[1])){
+            if(length(A)==1){
+                if(A==1){A=matrix(1,nrow=length(y),ncol=1)}}}
+        pA=ncol(A)
+    }
+
+    Acolnames=NULL
+    if(pA>0){
+        Acolnames=colnames(A)
+        if(is.null(Acolnames[1])){
+            Acolnames=paste0('A',1:pA)}
+        if(length(unique(A[,1])) == 1){
+            if(unique(A[,1]) == 1){
+                Acolnames[1]='intercept'}}
+        colnames(A)=Acolnames
+    }
+    # unique thetaA
+    if(pA!=0){
+        df=data.frame(y,A)
+        if(family=="binomial"){
+            hat_thetaA_glm=speedglm(y~0+.,data = df,family = binomial())
+        }else if(family=="gaussian"){
+            hat_thetaA_glm=speedlm(y~0+.,data = df)
+        }
+        hat_thetaA=c(hat_thetaA_glm$coefficients)
+        V_thetaA=vcov(hat_thetaA_glm)
+        if(is.null(dim(V_thetaA)[1])){V_thetaA = as.matrix(V_thetaA,nrow=pA,ncol=pA)}
+        A_thetaA = prodv_rcpp(A,hat_thetaA)
+        if(family == "binomial"){
+            expit_A_thetaA=expit_rcpp(A_thetaA)
+            mu_prime_A_thetaA=expit_A_thetaA*(1-expit_A_thetaA)
+        }else{mu_prime_A_thetaA=1}
+        inv_GammaAA=choinv_rcpp2((1/length(y))*crossprod_rcpp(A*c(mu_prime_A_thetaA),A))
+        repeated_term=list("A_thetaA"=A_thetaA,
+                           "V_thetaA"=V_thetaA,
+                           "inv_GammaAA"=inv_GammaAA)
+    }else{
+        repeated_term = NULL
+    }
+    return(repeated_term)
+}
+
+
 htlgmm.gwas.default<-function(
         y,Z,W=NULL,
-        study_info=NULL,
+        ext_study_info=NULL,
         A=NULL,
         family = "gaussian",
         beta_initial = NULL,
@@ -91,13 +136,13 @@ htlgmm.gwas.default<-function(
         output_tmp = FALSE
 ){
     set.seed(seed.use)
-    if (is.null(study_info)){stop("Please input study_info as trained model")}
+    if (is.null(ext_study_info)){stop("Please input ext_study_info as trained model")}
     if(is.null(dim(Z)[1])){
         warning("Z is input as a vector, convert Z into matrix with size nZ*1")
         Z=matrix(Z,ncol=1)
     }
     nZ=nrow(Z)
-    pZ=ncol(Z) # how many study_info
+    pZ=ncol(Z) # how many ext_study_info
     if(is.null(W)){pW=0}else{pW=ncol(W)}
     if(is.null(A)){pA=0}else{
         if(is.null(dim(A)[1])){
@@ -106,8 +151,8 @@ htlgmm.gwas.default<-function(
         pA=ncol(A)
     }
     idZ=pA+pW+1
-    if(length(study_info)!=pZ){
-        stop("When using htlgmm.gwas, input Z as a matrix with size of sample*SNP, and study_info as a list of summary statistics. The columns of Z need to match the study_info.")
+    if(length(ext_study_info)!=pZ){
+        stop("When using htlgmm.gwas, input Z as a matrix with size of sample*SNP, and ext_study_info as a list of summary statistics. The columns of Z need to match the ext_study_info.")
     }
     if(!is.null(beta_initial)){
         if(!is.list(beta_initial)){
@@ -117,10 +162,10 @@ htlgmm.gwas.default<-function(
                 }
                 beta_initial = list(beta_initial)
             }else{
-                stop("The beta_initial should be a list matching study_info.")
+                stop("The beta_initial should be a list matching ext_study_info.")
             }
         }else if(length(beta_initial)!=pZ){
-            stop("The beta_initial should be a list matching study_info.")
+            stop("The beta_initial should be a list matching ext_study_info.")
         }
     }
     Acolnames=NULL
@@ -147,25 +192,7 @@ htlgmm.gwas.default<-function(
     # unique thetaA
     if(pA!=0){
         if(is.null(repeated_term)){
-            df=data.frame(y,A)
-            if(family=="binomial"){
-                hat_thetaA_glm=speedglm(y~0+.,data = df,family = binomial())
-            }else if(family=="gaussian"){
-                hat_thetaA_glm=speedlm(y~0+.,data = df)
-            }
-            hat_thetaA=c(hat_thetaA_glm$coefficients)
-            V_thetaA=vcov(hat_thetaA_glm)
-            if(is.null(dim(V_thetaA)[1])){V_thetaA = as.matrix(V_thetaA,nrow=pA,ncol=pA)}
-            A_thetaA = prodv_rcpp(A,hat_thetaA)
-            if(family == "binomial"){
-                expit_A_thetaA=expit_rcpp(A_thetaA)
-                mu_prime_A_thetaA=expit_A_thetaA*(1-expit_A_thetaA)
-            }else{mu_prime_A_thetaA=1}
-            inv_GammaAA=choinv_rcpp((1/nZ)*crossprod_rcpp(A*c(mu_prime_A_thetaA),A)+
-                                        diag(1e-15,pA))
-            repeated_term=list("A_thetaA"=A_thetaA,
-                               "V_thetaA"=V_thetaA,
-                               "inv_GammaAA"=inv_GammaAA)
+            repeated_term<-compute_repeated_term(y,A,family)
         }else if(length(repeated_term)!=3){
             stop("When inputing A_thetaA, V_thetaA & inv_GammaAA are needed.")
         }else{
@@ -180,13 +207,13 @@ htlgmm.gwas.default<-function(
     # Estimation of C
     beta_var_list<-lapply(1:pZ, function(id){
         if(verbose){message(id)}
-        if(is.null(study_info[[id]]$Coeff[1])){
+        if(is.null(ext_study_info[[id]]$Coeff[1])){
             return_list<-list("beta"=NULL,
                               "variance"=NULL)
         }else{
             Zid = Z[,id,drop=FALSE]
-            Z_thetaZ = c(Zid*study_info[[id]]$Coeff)
-            V_thetaZ = as.matrix(study_info[[id]]$Covariance,1,1)
+            Z_thetaZ = c(Zid*ext_study_info[[id]]$Coeff)
+            V_thetaZ = as.matrix(ext_study_info[[id]]$Covariance,1,1)
             X = cbind(A,W,Zid)
             if(!is.null(beta_initial)){
                 X_beta = prodv_rcpp(X,beta_initial[[id]])

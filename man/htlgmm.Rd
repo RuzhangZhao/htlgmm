@@ -2,13 +2,13 @@
 % Please edit documentation in R/htlgmm.R
 \name{htlgmm}
 \alias{htlgmm}
-\title{htlgmm:}
+\title{htlgmm}
 \usage{
 htlgmm(
   y,
   Z,
   W = NULL,
-  study_info = NULL,
+  ext_study_info = NULL,
   A = "default",
   penalty_type = "none",
   family = "gaussian",
@@ -22,7 +22,7 @@ htlgmm(
   robust = FALSE,
   remove_penalty_Z = FALSE,
   remove_penalty_W = FALSE,
-  inference = TRUE,
+  inference = "default",
   fix_C = NULL,
   fix_inv_C = NULL,
   refine_C = FALSE,
@@ -44,9 +44,9 @@ htlgmm(
 
 \item{W}{The unmatched features only in main study, the default is NULL. Without W, the problem is degenerated to problem similar to meta-analysis.}
 
-\item{study_info}{The trained model from external study, including estimated coefficients, estimated variance-covariance matrix and sample size.
-The 'study_info' is in the format of list. The first item is 'Coeff', the second item is 'Covariance', and the third item (optional) is 'Sample_size'.
-E.g. study_info = list(list("Coeff"=coeff,"Covariance"=covariance,"Sample_size"=sample_size))}
+\item{ext_study_info}{The trained model from external study, including estimated coefficients, and estimated variance-covariance matrix.
+The 'ext_study_info' is in the format of list. The first item is 'Coeff', the second item is 'Covariance'.
+E.g. ext_study_info = list(list("Coeff"=coeff,"Covariance"=covariance))}
 
 \item{A}{The covariates for study-specific adjustment. The default is 'default', which is 'NULL' for 'gaussian' family or 'cox' family, '1' for 'binomial' family.
 Other than c('default',NULL,1), A must be a matrix whose dimension is the same as the sample dimension or Z and W.
@@ -55,13 +55,13 @@ For binary variable, we use intercept term by 'A=1' to adjust for different bina
 If there is only intercept term in A, we use 'A=1'.
 A are the features working for adjustment in reduced model, but A is not summarized in summary statistics(input:study_info).}
 
-\item{penalty_type}{The penalty type for htlgmm, chosen from c("none","lasso","adaptivelasso","ridge","elasticnet"). The default is "adaptivelasso".
+\item{penalty_type}{The penalty type for htlgmm, chosen from c("none","lasso","adaptivelasso","ridge","elasticnet"). The default is "none".
 If 'penalty_type = 'none' ', we use without penalty. (For continuous y, we use ordinary least square, and for binary y, we use logistic regression without penalty.)}
 
 \item{family}{The family is chosen from c("gaussian","binomial"). Linear regression for "gaussian" and logistic regression for "binomial".}
 
 \item{initial_with_type}{Get initial estimation for beta using main study data only
-by cross validation using (penalty) regression, chosen from c("ridge","lasso","glm"). The default is "ridge". If penalty_type = 'glm',
+by cross validation using (penalty) regression, chosen from c("ridge","lasso","glm"). The default is "glm". If penalty_type = 'glm',
 for continuous y, we use ordinary least square, and for binary y, we use logistic regression without penalty.)}
 
 \item{beta_initial}{The initial estimation for beta if a consistent estimator is available.
@@ -86,7 +86,7 @@ For coxph model, robust is also about whether we apply the robust variance for t
 
 \item{remove_penalty_W}{Not penalize W if it is TRUE. The default is FALSE.}
 
-\item{inference}{Whether to do inference without penalty or post-selection inference with adaptive lasso penalty. The default is TRUE.}
+\item{inference}{Whether to do inference without penalty or post-selection inference with adaptive lasso penalty. The default is 'default', which is TRUE when penalty_type = 'none' or 'adaptivelasso', and FALSE otherwise.}
 
 \item{fix_C}{When fix_C = NULL, the optimal C is computed. When user wants to customize the fix_C, please match its dimension as dim(A)+2*dim(Z)+dim(W) and make sure it is positive definite.}
 
@@ -100,7 +100,7 @@ For coxph model, robust is also about whether we apply the robust variance for t
 
 \item{lambda_list}{Customize the input lambda list for validation. The default is NULL to generate lambda list according to glmnet.}
 
-\item{fix_ratio}{The fixed ratio for two-lambda strategy. The ratio is multiplied for Z features. The default is NULL. If it is NULL, select the best ratio via cross validation or holdout validation.}
+\item{fix_ratio}{The fixed ratio for two-lambda strategy. The ratio is multiplied for Z features. The default is NULL. If it is NULL, select the best ratio via cross validation.}
 
 \item{fix_weight}{The fixed weight for weighting matrix of external study.}
 
@@ -119,7 +119,7 @@ When main study sample size is large enough, use_sparseC = FALSE is recommended.
 \itemize{
  \item{beta:} The target coefficient estimation, the features will go in the order of (A,Z,W).
  \item{lambda_list:} The lambda list for cross validation.
- \item{ratio_list:} The ratio list for validation (cross validation or holdout validation).
+ \item{ratio_list:} The ratio list for cross validation.
  \item{fix_lambda:} If the fix_lambda is not null, we output fix_lambda.
  \item{fix_ratio:} If the fix_ratio is not null, we output fix_ratio.
  \item{selected_vars:} For inference or post-selection inference, we output the inference results by a list. \itemize{

@@ -8,7 +8,7 @@ gwas.htlgmm(
   y,
   Z,
   W = NULL,
-  study_info = NULL,
+  ext_study_info = NULL,
   A = "default",
   family = "gaussian",
   beta_initial = NULL,
@@ -27,19 +27,20 @@ gwas.htlgmm(
 
 \item{W}{The unmatched features only in main study, the default is NULL.}
 
-\item{study_info}{The trained model from external study, including estimate coefficients, estimated variance-covariance matrix and sample size.
-The 'study_info' is in the format of list. The first item is 'Coeff', the second iterm is 'Covariance', and the third item is 'Sample_size'.}
+\item{ext_study_info}{The trained model from external GWAS study, including estimated coefficients, and estimated variance.
+The 'ext_study_info' is in the format of list. The first item is 'Coeff', the second item is 'Covariance'.
+E.g. ext_study_info = list(list("Coeff"=coeff,"Covariance"=variance))}
 
 \item{A}{The covariates for study-specific adjustment. The default is 'default', which is 'NULL' for 'gaussian' family, '1' for 'binomial' family.
 Other than c('default',NULL,1), A must be a matrix whose dimension is the same as the sample dimension or Z and W.
 For continuous variable, we suggest scaling the features Z, W to eliminate intercept term.  If 'A = NULL', there is no intercept term included.
 For binary variable, we use intercept term by 'A=1' to adjust for different binary trait ratios in main and external studies.
 If there is only intercept term in A, we use 'A=1'.
-A are the features working for adjustment in reduced model, but A is not summarized in summary statistics(input:study_info).}
+A are the features working for adjustment in reduced model, but A is not summarized in summary statistics(input:ext_study_info).}
 
 \item{family}{The family is chosen from c("gaussian","binomial"). Linear regression for "gaussian" and logistic regression for "binomial".}
 
-\item{beta_initial}{The beta_initial list matching study_info, which provides the initial value of beta, e.g. fitting full model using plink2. If there is only one SNP, the beta_initial can be a vector.
+\item{beta_initial}{The beta_initial list matching ext_study_info, which provides the initial value of beta, e.g. fitting full model using plink2. If there is only one SNP, the beta_initial can be a vector.
 The default is NULL. The beta_initial should go in the order of (A,W,Z), where Z is for each SNP.}
 
 \item{repeated_term}{Default is NULL, which includes A_hat_thetaA, V_thetaA, and inv_GammaAA.}

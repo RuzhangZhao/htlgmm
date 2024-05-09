@@ -60,12 +60,13 @@ choinv_rcpp2<-function(fix_C){
         stop("Error: Cholesky decomposition failed after finite iteration of penalty.")}
     inv_C
 }
+
 Delta_opt_rcpp<-function(y,Z,W,family,
-                    study_info,A=NULL,pA=NULL,pZ=NULL,
+                    ext_study_info,A=NULL,pA=NULL,pZ=NULL,
                     beta=NULL,hat_thetaA=NULL,
                     V_thetaA=NULL,use_offset=TRUE,X=NULL,XR=NULL){
     n_main=length(y)
-    tilde_thetaZ=study_info[[1]]$Coeff
+    tilde_thetaZ=ext_study_info[[1]]$Coeff
     tilde_theta=c(hat_thetaA,tilde_thetaZ)
     if(is.null(X)){X=cbind(A,Z,W)}
     if(is.null(XR)){XR=cbind(A,Z)}
@@ -83,7 +84,7 @@ Delta_opt_rcpp<-function(y,Z,W,family,
     V_U2=(1/n_main)*self_crossprod_rcpp(DZ)
     Cov_U1U2=(1/n_main)*crossprod_rcpp(DX,DZ)
     GammaZZ=(1/n_main)*crossprod_rcpp(DZ2,Z)
-    V_thetaZ=study_info[[1]]$Covariance
+    V_thetaZ=ext_study_info[[1]]$Covariance
     if(is.null(dim(V_thetaZ)[1])){V_thetaZ=as.matrix(V_thetaZ,nrow=pZ,ncol=pZ)}
     Delta22=V_U2+prod_rcpp(prod_rcpp(GammaZZ,(n_main*V_thetaZ)),t(GammaZZ))
     Delta12=Cov_U1U2
@@ -108,11 +109,11 @@ Delta_opt_rcpp<-function(y,Z,W,family,
     Delta
 }
 
-vcov_sandwich_rcpp<-function(y,A,Z,family,study_info,pA,
+vcov_sandwich_rcpp<-function(y,A,Z,family,ext_study_info,pA,
                         hat_thetaA,use_offset,XR=NULL){
     n_main = length(y)
     if(is.null(dim(XR)[1])){XR=cbind(A,Z)}
-    tilde_thetaZ=study_info[[1]]$Coeff
+    tilde_thetaZ=ext_study_info[[1]]$Coeff
     tilde_theta=c(hat_thetaA,tilde_thetaZ)
     mu_XR_theta=prodv_rcpp(cbind(A,Z),tilde_theta)
     if(family == "binomial"){
@@ -128,8 +129,8 @@ vcov_sandwich_rcpp<-function(y,A,Z,family,study_info,pA,
     }
 }
 pseudo_Xy_gaussian_rcpp<-function(
-        C_half,Z,W,A,y,beta=NULL,hat_thetaA=NULL,study_info=NULL,X=NULL,XR=NULL){
-    tilde_thetaZ=study_info[[1]]$Coeff
+        C_half,Z,W,A,y,beta=NULL,hat_thetaA=NULL,ext_study_info=NULL,X=NULL,XR=NULL){
+    tilde_thetaZ=ext_study_info[[1]]$Coeff
     tilde_theta=c(hat_thetaA,tilde_thetaZ)
     if(is.null(X)){X=cbind(A,Z,W)}
     if(is.null(XR)){XR=cbind(A,Z)}
@@ -141,8 +142,8 @@ pseudo_Xy_gaussian_rcpp<-function(
 }
 
 pseudo_Xy_binomial_rcpp<-function(
-        C_half,Z,W,A,y,beta=NULL,hat_thetaA=NULL,study_info=NULL,X=NULL,XR=NULL){
-    tilde_thetaZ=study_info[[1]]$Coeff
+        C_half,Z,W,A,y,beta=NULL,hat_thetaA=NULL,ext_study_info=NULL,X=NULL,XR=NULL){
+    tilde_thetaZ=ext_study_info[[1]]$Coeff
     tilde_theta=c(hat_thetaA,tilde_thetaZ)
     if(is.null(dim(X)[1])){X=cbind(A,Z,W)}
     if(is.null(dim(XR)[1])){XR=cbind(A,Z)}
@@ -169,14 +170,12 @@ beta_initial_func<-function(y,X,A,pA,
                 fit_initial=speedlm(y~0+.,data = df)
             }
             beta_initial=fit_initial$coefficients
-            beta_initial1se=beta_initial
         }else if(pA == 0){
             fit_initial=cv.glmnet(x=X,y= y,
                                   alpha = initial_alpha,
                                   penalty.factor = fix_penalty,
                                   family=family)
             beta_initial=c(coef.glmnet(fit_initial,s="lambda.min")[-1])
-            beta_initial1se=c(coef.glmnet(fit_initial,s="lambda.1se")[-1])
         }else if(length(unique(A[,1]))==1){
             if(unique(A[,1])==1){
                 fit_initial=cv.glmnet(x=X[,-1,drop=F],y=y,
@@ -184,7 +183,6 @@ beta_initial_func<-function(y,X,A,pA,
                                       penalty.factor = fix_penalty[-1],
                                       family=family)
                 beta_initial=as.vector(coef.glmnet(fit_initial,s="lambda.min"))
-                beta_initial1se=as.vector(coef.glmnet(fit_initial,s="lambda.1se"))
             }else{
                 stop("The first column of A is constant, then it should be 1 for intercept.")
             }
@@ -194,22 +192,21 @@ beta_initial_func<-function(y,X,A,pA,
                                   penalty.factor = fix_penalty,
                                   family=family)
             beta_initial=c(coef.glmnet(fit_initial,s="lambda.min")[-1])
-            beta_initial1se=c(coef.glmnet(fit_initial,s="lambda.1se")[-1])
         }
     }else{stop("Select Initial Type from c('glm','ridge','lasso')")}
 
-    list("beta_initial"=beta_initial,"beta_initial1se"=beta_initial1se)
+    list("beta_initial"=beta_initial)
 
 }
 
-thetaA_func<-function(pA,Z,A,y,study_info,family,use_offset,V_thetaA_sandwich,hat_thetaA=NULL,V_thetaA=NULL){
+thetaA_func<-function(pA,Z,A,y,ext_study_info,family,use_offset,V_thetaA_sandwich,hat_thetaA=NULL,V_thetaA=NULL){
     if(pA!=0){
         if(is.null(hat_thetaA)){
             if(!is.null(V_thetaA)){
                 stop("With customized hat_thetaA input, V_thetaA is also needed")
             }
             if(use_offset){
-                offset_term = prodv_rcpp(Z,study_info[[1]]$Coeff)
+                offset_term = prodv_rcpp(Z,ext_study_info[[1]]$Coeff)
                 df=data.frame(y,A)
                 if(family=="binomial"){
                     hat_thetaA_glm=speedglm(y~0+.,data = df,offset = offset_term,family = binomial())
@@ -220,7 +217,7 @@ thetaA_func<-function(pA,Z,A,y,study_info,family,use_offset,V_thetaA_sandwich,ha
                 hat_thetaA=hat_thetaA_glm$coefficients
                 if(V_thetaA_sandwich){
                     V_thetaA=vcov_sandwich_rcpp(y=y,A=A,Z=Z,family=family,
-                                                study_info=study_info,pA=pA,
+                                                ext_study_info=ext_study_info,pA=pA,
                                                 hat_thetaA=hat_thetaA,
                                                 use_offset=use_offset)
                 }else{V_thetaA=vcov(hat_thetaA_glm)}
@@ -233,7 +230,7 @@ thetaA_func<-function(pA,Z,A,y,study_info,family,use_offset,V_thetaA_sandwich,ha
                 }
                 hat_thetaA=hat_thetaA_glm$coefficients[1:pA]
                 if(V_thetaA_sandwich){
-                    V_thetaA=vcov_sandwich_rcpp(y,A,Z,family,study_info,pA,
+                    V_thetaA=vcov_sandwich_rcpp(y,A,Z,family,ext_study_info,pA,
                                                 hat_thetaA,use_offset)
                 }else{V_thetaA=vcov(hat_thetaA_glm)[1:pA,1:pA,drop=F]}
             }
@@ -250,7 +247,7 @@ thetaA_func<-function(pA,Z,A,y,study_info,family,use_offset,V_thetaA_sandwich,ha
 ## cross validation function for continuous y with lambda only
 cv_mse_lambda_func<-function(index_fold,Z,W,A,y,
                              C_half,beta_initial,hat_thetaA,
-                             study_info,lambda_list,
+                             ext_study_info,lambda_list,
                              w_adaptive,final_alpha,
                              pseudo_Xy){
     fold_mse_lambda<-sapply(1:length(index_fold), function(cur_fold){
@@ -273,7 +270,7 @@ cv_mse_lambda_func<-function(index_fold,Z,W,A,y,
         ytest<-y[index_test]
         pseudo_Xy_list_train<-pseudo_Xy(C_half,Ztrain,Wtrain,Atrain,
                                         ytrain,beta = beta_initial,hat_thetaA = hat_thetaA,
-                                        study_info=study_info)
+                                        ext_study_info=ext_study_info)
         initial_sf_train<-nrow(Ztrain)/sqrt(nrow(pseudo_Xy_list_train$pseudo_X))
         pseudo_X_train<-pseudo_Xy_list_train$pseudo_X/initial_sf_train
         pseudo_y_train<-pseudo_Xy_list_train$pseudo_y/initial_sf_train
@@ -292,7 +289,7 @@ cv_mse_lambda_func<-function(index_fold,Z,W,A,y,
 ## cross validation function for continuous y with lambda and ratio
 cv_mse_lambda_ratio_func<-function(index_fold,Z,W,A,y,
                                    C_half,beta_initial,hat_thetaA,
-                                   study_info,lambda_list,
+                                   ext_study_info,lambda_list,
                                    ratio_range,pZ,pW,pA,
                                    w_adaptive,final_alpha,
                                    pseudo_Xy){
@@ -316,7 +313,7 @@ cv_mse_lambda_ratio_func<-function(index_fold,Z,W,A,y,
         ytest<-y[index_test]
         pseudo_Xy_list_train<-pseudo_Xy(C_half,Ztrain,Wtrain,Atrain,
                                         ytrain,beta = beta_initial,hat_thetaA = hat_thetaA,
-                                        study_info=study_info)
+                                        ext_study_info=ext_study_info)
         initial_sf_train<-nrow(Ztrain)/sqrt(nrow(pseudo_Xy_list_train$pseudo_X))
         pseudo_X_train<-pseudo_Xy_list_train$pseudo_X/initial_sf_train
         pseudo_y_train<-pseudo_Xy_list_train$pseudo_y/initial_sf_train
@@ -342,7 +339,7 @@ cv_mse_lambda_ratio_func<-function(index_fold,Z,W,A,y,
 ## cross validation function for binary y with lambda only
 cv_dev_lambda_func<-function(index_fold,Z,W,A,y,
                              C_half,beta_initial,hat_thetaA,
-                             study_info,lambda_list,
+                             ext_study_info,lambda_list,
                              w_adaptive,final_alpha,
                              pseudo_Xy){
     dev_fold<-lapply(1:length(index_fold), function(cur_fold){
@@ -365,7 +362,7 @@ cv_dev_lambda_func<-function(index_fold,Z,W,A,y,
         ytest<-y[index_test]
         pseudo_Xy_list_train<-pseudo_Xy(C_half,Ztrain,Wtrain,Atrain,
                                         ytrain,beta = beta_initial,hat_thetaA = hat_thetaA,
-                                        study_info=study_info)
+                                        ext_study_info=ext_study_info)
         initial_sf_train<-nrow(Ztrain)/sqrt(nrow(pseudo_Xy_list_train$pseudo_X))
         pseudo_X_train<-pseudo_Xy_list_train$pseudo_X/initial_sf_train
         pseudo_y_train<-pseudo_Xy_list_train$pseudo_y/initial_sf_train
@@ -396,7 +393,7 @@ cv_dev_lambda_func<-function(index_fold,Z,W,A,y,
 ## cross validation function for continuous y with lambda and ratio
 cv_dev_lambda_ratio_func<-function(index_fold,Z,W,A,y,
                                    C_half,beta_initial,hat_thetaA,
-                                   study_info,lambda_list,
+                                   ext_study_info,lambda_list,
                                    ratio_range,pZ,pW,pA,
                                    w_adaptive,final_alpha,
                                    pseudo_Xy){
@@ -420,7 +417,7 @@ cv_dev_lambda_ratio_func<-function(index_fold,Z,W,A,y,
         ytest<-y[index_test]
         pseudo_Xy_list_train<-pseudo_Xy(C_half,Ztrain,Wtrain,Atrain,
                                         ytrain,beta = beta_initial,hat_thetaA = hat_thetaA,
-                                        study_info=study_info)
+                                        ext_study_info=ext_study_info)
         initial_sf_train<-nrow(Ztrain)/sqrt(nrow(pseudo_Xy_list_train$pseudo_X))
         pseudo_X_train<-pseudo_Xy_list_train$pseudo_X/initial_sf_train
         pseudo_y_train<-pseudo_Xy_list_train$pseudo_y/initial_sf_train
@@ -456,7 +453,7 @@ cv_dev_lambda_ratio_func<-function(index_fold,Z,W,A,y,
 
 cv_mse_lambda_Cweight_func<-function(index_fold,Z,W,A,y,family,
                                      C_half,inv_C,beta_initial,hat_thetaA,
-                                     study_info,
+                                     ext_study_info,
                                      weight_list,pZ,pW,pA,
                                      w_adaptive,final_alpha,
                                      pseudo_Xy,lambda.min.ratio,
@@ -474,7 +471,7 @@ cv_mse_lambda_Cweight_func<-function(index_fold,Z,W,A,y,family,
             C_half[(pZ+pA+pW+1):nrow(C_half),(pZ+pA+pW+1):nrow(C_half)]*sqrt(abs(weight))
         pseudo_Xy_list<-pseudo_Xy(C_half=C_half_weight,Z=Z,W=W,A=A,y=y,
                                   beta=beta_initial,hat_thetaA=hat_thetaA,
-                                  study_info=study_info,X=X,XR=XR)
+                                  ext_study_info=ext_study_info,X=X,XR=XR)
 
         initial_sf<-nrow(Z)/sqrt(nrow(pseudo_Xy_list$pseudo_X))
         pseudo_X_weight<-pseudo_Xy_list$pseudo_X/initial_sf
@@ -518,7 +515,7 @@ cv_mse_lambda_Cweight_func<-function(index_fold,Z,W,A,y,family,
             lambda_list_weight = item_weight_list[[weight_id]]$lambda_list
             pseudo_Xy_list_train<-pseudo_Xy(C_half_weight,Ztrain,Wtrain,Atrain,
                                             ytrain,beta = beta_initial,hat_thetaA = hat_thetaA,
-                                            study_info=study_info)
+                                            ext_study_info=ext_study_info)
             initial_sf_train<-nrow(Ztrain)/sqrt(nrow(pseudo_Xy_list_train$pseudo_X))
             pseudo_X_train<-pseudo_Xy_list_train$pseudo_X/initial_sf_train
             pseudo_y_train<-pseudo_Xy_list_train$pseudo_y/initial_sf_train
@@ -571,7 +568,7 @@ cv_mse_lambda_Cweight_func<-function(tune_weight_method,
                                      C_half,inv_C,beta_initial,
                                      initial_with_type,
                                      hat_thetaA,
-                                     study_info,
+                                     ext_study_info,
                                      weight_list,pZ,pW,pA,
                                      w_adaptive,final_alpha,
                                      pseudo_Xy,lambda.min.ratio,
@@ -607,14 +604,14 @@ cv_mse_lambda_Cweight_func<-function(tune_weight_method,
         beta_initial1<-initial_res1$beta_initial
     }else{beta_initial1<-beta_initial}
 
-    thetaA_list<-thetaA_func(pA,Ztrain,Atrain,ytrain,study_info,
+    thetaA_list<-thetaA_func(pA,Ztrain,Atrain,ytrain,ext_study_info,
                              family,use_offset,V_thetaA_sandwich)
     hat_thetaA1<-thetaA_list$hat_thetaA
     V_thetaA1<-thetaA_list$V_thetaA
 
     inv_C_train = Delta_opt_rcpp(y=ytrain,Z=Ztrain,W=Wtrain,
                                  family=family,
-                                 study_info=study_info,
+                                 ext_study_info=ext_study_info,
                                  A=Atrain,pA=pA,pZ=pZ,beta=beta_initial1,
                                  hat_thetaA=hat_thetaA1,
                                  V_thetaA=V_thetaA1,
@@ -629,7 +626,7 @@ cv_mse_lambda_Cweight_func<-function(tune_weight_method,
 
         pseudo_Xy_list_train<-pseudo_Xy(C_half_weight,Ztrain,Wtrain,Atrain,
                                         ytrain,beta = beta_initial1,hat_thetaA = hat_thetaA1,
-                                        study_info=study_info)
+                                        ext_study_info=ext_study_info)
         initial_sf_train<-nrow(Ztrain)/sqrt(nrow(pseudo_Xy_list_train$pseudo_X))
         pseudo_X_train<-pseudo_Xy_list_train$pseudo_X/initial_sf_train
         pseudo_y_train<-pseudo_Xy_list_train$pseudo_y/initial_sf_train
@@ -670,7 +667,7 @@ cv_dev_lambda_Cweight_func<-function(tune_weight_method,
                                      C_half,inv_C,beta_initial,
                                      initial_with_type,
                                      hat_thetaA,
-                                     study_info,
+                                     ext_study_info,
                                      weight_list,pZ,pW,pA,
                                      w_adaptive,final_alpha,
                                      pseudo_Xy,lambda.min.ratio,
@@ -707,14 +704,14 @@ cv_dev_lambda_Cweight_func<-function(tune_weight_method,
         beta_initial1<-initial_res1$beta_initial
     }else{beta_initial1<-beta_initial}
 
-    thetaA_list<-thetaA_func(pA,Ztrain,Atrain,ytrain,study_info,
+    thetaA_list<-thetaA_func(pA,Ztrain,Atrain,ytrain,ext_study_info,
                              family,use_offset,V_thetaA_sandwich)
     hat_thetaA1<-thetaA_list$hat_thetaA
     V_thetaA1<-thetaA_list$V_thetaA
 
     inv_C_train = Delta_opt_rcpp(y=ytrain,Z=Ztrain,W=Wtrain,
                                  family=family,
-                                 study_info=study_info,
+                                 ext_study_info=ext_study_info,
                                  A=Atrain,pA=pA,pZ=pZ,beta=beta_initial1,
                                  hat_thetaA=hat_thetaA1,
                                  V_thetaA=V_thetaA1,
@@ -729,7 +726,7 @@ cv_dev_lambda_Cweight_func<-function(tune_weight_method,
 
         pseudo_Xy_list_train<-pseudo_Xy(C_half_weight,Ztrain,Wtrain,Atrain,
                                         ytrain,beta = beta_initial1,hat_thetaA = hat_thetaA1,
-                                        study_info=study_info)
+                                        ext_study_info=ext_study_info)
         initial_sf_train<-nrow(Ztrain)/sqrt(nrow(pseudo_Xy_list_train$pseudo_X))
         pseudo_X_train<-pseudo_Xy_list_train$pseudo_X/initial_sf_train
         pseudo_y_train<-pseudo_Xy_list_train$pseudo_y/initial_sf_train
@@ -775,7 +772,7 @@ cv_dev_lambda_Cweight_func<-function(tune_weight_method,
 
 #
 # ## cross validation function for continuous y with lambda and ratio
-# cv_auc_ext<-function(index_fold,Z,W,A,y,study_info,hat_thetaA){
+# cv_auc_ext<-function(index_fold,Z,W,A,y,ext_study_info,hat_thetaA){
 #     sapply(1:length(index_fold), function(cur_fold){
 #         index_test<-index_fold[[cur_fold]]
 #         Ztrain<-Z[-index_test,,drop=FALSE]
@@ -788,7 +785,7 @@ cv_dev_lambda_Cweight_func<-function(tune_weight_method,
 #             Atest<-NULL}
 #         ytrain<-y[-index_test]
 #         ytest<-y[index_test]
-#         hat_theta<-c(hat_thetaA,study_info[[1]]$Coeff)
+#         hat_theta<-c(hat_thetaA,ext_study_info[[1]]$Coeff)
 #         probtest <- expit_rcpp(prodv_rcpp(cbind(Atest,Ztest),hat_theta))
 #         suppressMessages(cur_auc<-c(auc(ytest,probtest,direction = "<")))
 #         cur_auc
@@ -801,7 +798,7 @@ cv_dev_lambda_Cweight_func<-function(tune_weight_method,
 
 htlgmm.default<-function(
         y,Z,W=NULL,
-        study_info=NULL,
+        ext_study_info=NULL,
         A=1,
         penalty_type = "lasso",
         family = "gaussian",
@@ -834,7 +831,7 @@ htlgmm.default<-function(
         tune_weight = FALSE,
         fix_weight = NULL,
         weight_list = NULL,
-        tune_weight_method = "holdout",
+        tune_weight_method = 1,
         gamma_adaptivelasso = 1/2,
         use_sparseC = TRUE,
         seed.use = 97,
@@ -847,7 +844,11 @@ htlgmm.default<-function(
     if(sum(is.na(Z))>0){stop("Z includes NA")}
     if(!is.null(W)&sum(is.na(W))>0){stop("W includes NA")}
     if(!is.null(A)&sum(is.na(A))>0){stop("A includes NA")}
-    if (is.null(study_info)){stop("Please input study_info as trained model")}
+    if (is.null(ext_study_info)){stop("Please input ext_study_info as trained model")}
+    if(length(ext_study_info[[1]]$Coeff) != ncol(Z)){
+        stop("Please match ext_study_info with Z. (Current input length not match!)")
+    }
+
     if(!penalty_type %in% c("none","adaptivelasso","lasso","ridge","elasticnet")){
         stop("Select penalty type from c('none','adaptivelasso','lasso','ridge','elasticnet').")
     }
@@ -915,8 +916,8 @@ htlgmm.default<-function(
     ###########--------------###########
     # define dimensions for A,Z,W
     nZ=nrow(Z)
-    if(length(study_info[[1]])==3){
-        nZext=study_info[[1]]$Sample_size
+    if(length(ext_study_info[[1]])==3){
+        nZext=ext_study_info[[1]]$Sample_size
     }else{nZext=NULL}
     pZ=ncol(Z)
     if(is.null(W)){pW=0}else{pW=ncol(W)}
@@ -929,6 +930,33 @@ htlgmm.default<-function(
         pA=ncol(A)
     }
     #if(nZ<2*pZ+pW+pA){use_sparseC=TRUE}
+
+    if(!is.null(beta_initial) & length(beta_initial)!=pA+pZ+pW){
+        warning("beta_initial should be from A,Z,W.\n Length not match, compute default initial instead.")
+        beta_initial=NULL
+    }
+
+    ext_study_info_name<-names(ext_study_info[[1]]$Coeff)
+    # if(!is.null(beta_initial)){
+    #     beta_initial_name<-names(beta_initial)
+    #     beta_initial_name_Z<-beta_initial_name[(pA+1):(pA+pZ)]
+    #     beta_initial_name_W<-beta_initial_name[(pA+pZ+1):(pA+pZ+pW)]
+    # }
+    Z_name<-colnames(Z)
+    # W_name<-colnames(W)
+
+    # match external with Z if both have names
+    if(!is.null(ext_study_info_name) & !is.null(Z_name) ){
+        if(sum(!ext_study_info_name%in%Z_name) > 0 |
+           sum(!Z_name%in%ext_study_info_name) > 0 ){
+            stop("ext_study_info and Z both provide names, but not match.")
+        }else if(sum(ext_study_info_name!=Z_name) >0){
+            match_id<-match(Z_name,ext_study_info_name)
+            ext_study_info[[1]]$Coeff<-ext_study_info[[1]]$Coeff[match_id]
+            ext_study_info[[1]]$Covariance<-ext_study_info[[1]]$Covariance[match_id,match_id]
+        }
+    }
+
 
     if(family == "gaussian"){pseudo_Xy=pseudo_Xy_gaussian_rcpp
     }else if(family == "binomial"){pseudo_Xy=pseudo_Xy_binomial_rcpp}
@@ -964,50 +992,7 @@ htlgmm.default<-function(
 
     ###########--------------###########
     # compute hat_thetaA and V_thetaA
-
-    # if(pA!=0){
-    #     if(is.null(hat_thetaA)){
-    #         if(!is.null(V_thetaA)){
-    #             stop("With customized hat_thetaA input, V_thetaA is also needed")
-    #         }
-    #         if(use_offset){
-    #             offset_term = prodv_rcpp(Z,study_info[[1]]$Coeff)
-    #             df=data.frame(y,A)
-    #             if(family=="binomial"){
-    #                 hat_thetaA_glm=speedglm(y~0+.,data = df,offset = offset_term,family = binomial())
-    #             }else if(family=="gaussian"){
-    #                 hat_thetaA_glm=speedlm(y~0+.,data = df,offset = offset_term)
-    #                 #hat_thetaA_glm=lm(y~0+.,data = df,offset = offset_term)
-    #             }
-    #             hat_thetaA=hat_thetaA_glm$coefficients
-    #             if(V_thetaA_sandwich){
-    #                 V_thetaA=vcov_sandwich_rcpp(y=y,A=A,Z=Z,family=family,
-    #                                             study_info=study_info,pA=pA,
-    #                                             hat_thetaA=hat_thetaA,
-    #                                             use_offset=use_offset,
-    #                                             XR=XR)
-    #             }else{V_thetaA=vcov(hat_thetaA_glm)}
-    #         }else{
-    #             df=data.frame(y,A,Z)
-    #             if(family=="binomial"){
-    #                 hat_thetaA_glm=speedglm(y~0+.,data = df,family = binomial())
-    #             }else if(family=="gaussian"){
-    #                 hat_thetaA_glm=speedlm(y~0+.,data = df)
-    #             }
-    #             hat_thetaA=hat_thetaA_glm$coefficients[1:pA]
-    #             if(V_thetaA_sandwich){
-    #                 V_thetaA=vcov_sandwich_rcpp(y,A,Z,family,study_info,pA,
-    #                                        hat_thetaA,use_offset)
-    #             }else{V_thetaA=vcov(hat_thetaA_glm)[1:pA,1:pA,drop=F]}
-    #         }
-    #     }
-    #
-    #     if(is.null(dim(V_thetaA)[1])){
-    #         V_thetaA = as.matrix(V_thetaA,nrow=pA,ncol=pA)
-    #     }
-    # }
-
-    thetaA_list<-thetaA_func(pA,Z,A,y,study_info,
+    thetaA_list<-thetaA_func(pA,Z,A,y,ext_study_info,
                              family,use_offset,
                              V_thetaA_sandwich,
                              hat_thetaA,V_thetaA)
@@ -1029,23 +1014,18 @@ htlgmm.default<-function(
 
     ###########--------------###########
     # compute initial beta if not given
-    beta_initial1se<-NULL
     if(penalty_type == "none"){
         initial_with_type = "glm"
         use_cv = FALSE
         tune_ratio = FALSE
     }
-    if(!is.null(beta_initial) & length(beta_initial)!=pA+pZ+pW){
-        warning("beta_initial should be from A,Z,W.\n Length not match, compute default initial instead.")
-        beta_initial=NULL
-    }
+
     if(is.null(beta_initial)){
         initial_res<-beta_initial_func(y,X,A,pA,
                                     family,
                                     initial_with_type,
                                     fix_penalty)
         beta_initial<-initial_res$beta_initial
-        beta_initial1se<-initial_res$beta_initial1se
     }
     if (penalty_type == "adaptivelasso"){
         if(is.null(weight_adaptivelasso)){
@@ -1075,7 +1055,7 @@ htlgmm.default<-function(
 
         inv_C = Delta_opt_rcpp(y=y,Z=Z,W=W,
                                family=family,
-                               study_info=study_info,
+                               ext_study_info=ext_study_info,
                                A=A,pA=pA,pZ=pZ,beta=beta_initial,
                                hat_thetaA=hat_thetaA,
                                V_thetaA=V_thetaA,
@@ -1118,7 +1098,7 @@ htlgmm.default<-function(
 
     pseudo_Xy_list<-pseudo_Xy(C_half=C_half,Z=Z,W=W,A=A,y=y,
                               beta=beta_initial,hat_thetaA=hat_thetaA,
-                              study_info=study_info,X=X,XR=XR)
+                              ext_study_info=ext_study_info,X=X,XR=XR)
 
     initial_sf<-nZ/sqrt(nrow(pseudo_Xy_list$pseudo_X))
     pseudo_X<-pseudo_Xy_list$pseudo_X/initial_sf
@@ -1155,7 +1135,7 @@ htlgmm.default<-function(
     if(tune_ratio & !remove_penalty_Z & !remove_penalty_W){
         if(is.null(ratio_list)){
             if(is.null(nZext)){
-                warning("No sample size is in study_info, ratio estimation will be bad.")
+                warning("No sample size is in ext_study_info, ratio estimation will be bad.")
                 nZext=nZ
             }
             # ratio_lower<-sqrt(nZ/(nZ+nZext))/2
@@ -1233,7 +1213,7 @@ htlgmm.default<-function(
                                                    C_half,inv_C,beta_initial,
                                                    initial_with_type,
                                                    hat_thetaA,
-                                                   study_info,
+                                                   ext_study_info,
                                                    weight_list,pZ,pW,pA,
                                                    w_adaptive,final_alpha,
                                                    pseudo_Xy,lambda.min.ratio,
@@ -1251,7 +1231,7 @@ htlgmm.default<-function(
                                                    C_half,inv_C,beta_initial,
                                                    initial_with_type,
                                                    hat_thetaA,
-                                                   study_info,
+                                                   ext_study_info,
                                                    weight_list,pZ,pW,pA,
                                                    w_adaptive,final_alpha,
                                                    pseudo_Xy,lambda.min.ratio,
@@ -1276,7 +1256,7 @@ htlgmm.default<-function(
                   (tune_weight_method%in%c(2,3) & weight == 0)) ){
                 pseudo_Xy_list<-pseudo_Xy(C_half=C_half,Z=Z,W=W,A=A,y=y,
                                           beta=beta_initial,hat_thetaA=hat_thetaA,
-                                          study_info=study_info,X=X,XR=XR)
+                                          ext_study_info=ext_study_info,X=X,XR=XR)
 
                 initial_sf<-nrow(Z)/sqrt(nrow(pseudo_Xy_list$pseudo_X))
                 pseudo_X<-pseudo_Xy_list$pseudo_X/initial_sf
@@ -1297,7 +1277,7 @@ htlgmm.default<-function(
 
                 res_weight<-cv_dev_lambda_func(index_fold,Z,W,A,y,
                                                C_half,beta_initial,hat_thetaA,
-                                               study_info,lambda_list,
+                                               ext_study_info,lambda_list,
                                                w_adaptive,final_alpha,pseudo_Xy)
                 cv_auc1<-res_weight$auc
                 max_id<-which.max(cv_auc1)
@@ -1314,7 +1294,7 @@ htlgmm.default<-function(
             }else{
                 res_weight<-cv_mse_lambda_func(index_fold,Z,W,A,y,
                                                C_half,beta_initial,hat_thetaA,
-                                               study_info,lambda_list,
+                                               ext_study_info,lambda_list,
                                                w_adaptive,final_alpha,pseudo_Xy)
                 cv_mse1<-res_weight
                 min_id<-which.min(cv_mse1)
@@ -1336,7 +1316,7 @@ htlgmm.default<-function(
             if(family == "gaussian"){
                 cv_mse<-cv_mse_lambda_ratio_func(index_fold,Z,W,A,y,
                                                  C_half,beta_initial,hat_thetaA,
-                                                 study_info,lambda_list,
+                                                 ext_study_info,lambda_list,
                                                  ratio_list,pZ,pW,pA,
                                                  w_adaptive,final_alpha,pseudo_Xy)
                 ids<-which(cv_mse==min(cv_mse),arr.ind = TRUE)
@@ -1346,7 +1326,7 @@ htlgmm.default<-function(
             }else if(family == "binomial"){
                 cv_res<-cv_dev_lambda_ratio_func(index_fold,Z,W,A,y,
                                                  C_half,beta_initial,hat_thetaA,
-                                                 study_info,lambda_list,
+                                                 ext_study_info,lambda_list,
                                                  ratio_list,pZ,pW,pA,
                                                  w_adaptive,final_alpha,pseudo_Xy)
                 cv_auc<-cv_res$auc
@@ -1395,14 +1375,14 @@ htlgmm.default<-function(
             if(family == "gaussian"){
                 cv_mse<-cv_mse_lambda_func(index_fold,Z,W,A,y,
                                            C_half,beta_initial,hat_thetaA,
-                                           study_info,lambda_list,
+                                           ext_study_info,lambda_list,
                                            w_adaptive,final_alpha,pseudo_Xy)
                 final.lambda.min<-lambda_list[which.min(cv_mse)]
                 return_list<-list("cv_mse"=cv_mse)
             }else if(family == "binomial"){
                 cv_res<-cv_dev_lambda_func(index_fold,Z,W,A,y,
                                            C_half,beta_initial,hat_thetaA,
-                                           study_info,lambda_list,
+                                           ext_study_info,lambda_list,
                                            w_adaptive,final_alpha,pseudo_Xy)
                 cv_auc<-cv_res$auc
                 #cv_auc_sd<-cv_dev$auc_sd
@@ -1481,7 +1461,7 @@ htlgmm.default<-function(
             # refine C will cover the previously used C
             inv_C = Delta_opt_rcpp(y=y,Z=Z,W=W,
                                    family=family,
-                                   study_info=study_info,
+                                   ext_study_info=ext_study_info,
                                    A=A,pA=pA,pZ=pZ,beta=beta,
                                    hat_thetaA=hat_thetaA,
                                    V_thetaA = V_thetaA,
@@ -1491,7 +1471,7 @@ htlgmm.default<-function(
                 C_half<-sqrtchoinv_rcpp2(inv_C)
                 pseudo_Xy_list<-pseudo_Xy(C_half=C_half,Z=Z,W=W,A=A,y=y,
                                           beta=beta,hat_thetaA=hat_thetaA,
-                                          study_info=study_info,X=X,XR=XR)
+                                          ext_study_info=ext_study_info,X=X,XR=XR)
                 psX<-pseudo_Xy_list$pseudo_X/nZ
 
                 psXtX<-self_crossprod_rcpp(psX)
@@ -1527,7 +1507,7 @@ htlgmm.default<-function(
 
             pseudo_Xy_list<-pseudo_Xy(C_half=C_half,Z=Z,W=W,A=A,y=y,
                                       beta=beta,hat_thetaA=hat_thetaA,
-                                      study_info=study_info,X=X,XR=XR)
+                                      ext_study_info=ext_study_info,X=X,XR=XR)
             psX<-pseudo_Xy_list$pseudo_X/nZ
 
             psXtX<-self_crossprod_rcpp(psX)
