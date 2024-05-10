@@ -432,6 +432,29 @@ gwas.htlgmm<-function(
     return(res)
 }
 
+
+#' Function to compute repeated term in gwas.htlgmm
+#'
+#' @details expit(s)=exp(s)/{1+exp(s)}
+#'
+#' @param y response variable
+#' @param A covariates adjusted in external GWAS
+#' @param family gaussian or binomial
+#' @return the repeated term list.
+#'
+#'
+#' @useDynLib htlgmm
+#' @import Rcpp
+#' @importFrom speedglm speedglm speedlm
+#' @export
+#'
+#'
+gwas.htlgmm.repeated.term<-function(y,A=NULL,family = "gaussian"){
+    compute_repeated_term(y,A,family)
+}
+
+
+
 #' Expit Function from Rcpp
 #'
 #' @details expit(s)=exp(s)/{1+exp(s)}
