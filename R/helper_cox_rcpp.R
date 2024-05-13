@@ -316,6 +316,7 @@ thetaA_cox_func<-function(pA,Z,A,surv_data,tilde_thetaZ,robust,hat_thetaA=NULL,V
                 "V_thetaA"=V_thetaA))
 }
 
+
 cv_C_lambda_Cweight_func<-function(tune_weight_method,
                                    index_fold,Z,W,A,times,events,
                                    C_half,inv_C,beta_initial,
@@ -327,7 +328,7 @@ cv_C_lambda_Cweight_func<-function(tune_weight_method,
                                    w_adaptive,final_alpha,
                                    pseudo_Xy_cox,lambda.min.ratio,
                                    nlambda,V_thetaA,use_sparseC,
-                                   use_offset,V_thetaA_sandwich,
+                                   robust,
                                    fold_self_beta,
                                    X=NULL,XR=NULL,
                                    fix_lambda_list=NULL,sC_half=NULL){
@@ -368,8 +369,8 @@ cv_C_lambda_Cweight_func<-function(tune_weight_method,
     }else{beta_initial1<-beta_initial}
 
 
-    thetaA_list<-thetaA_cox_func(pA,Ztrain,Atrain,surv_data_train,tilde_thetaZ,
-                                 robust)
+    thetaA_list<-thetaA_cox_func(pA,Ztrain,Atrain,surv_data_train,
+                                 tilde_thetaZ,robust)
     hat_thetaA1<-thetaA_list$hat_thetaA
     V_thetaA1<-thetaA_list$V_thetaA
 
@@ -438,55 +439,20 @@ cv_C_lambda_Cweight_func<-function(tune_weight_method,
 }
 
 
-
-
-beta_initial = NULL,
-weight_adaptivelasso = NULL,
-alpha = NULL,
-hat_thetaA = NULL,
-V_thetaA = NULL,
-use_offset = TRUE,
-V_thetaA_sandwich = FALSE,
-remove_penalty_Z = FALSE,
-remove_penalty_W = FALSE,
-inference = 'default',
-fix_C = NULL,
-fix_inv_C = NULL,
-refine_C = FALSE,
-sqrt_matrix ="cholesky",
-use_cv = TRUE,
-type_measure = "default",
-nfolds = 10,
-foldid = NULL,
-fix_lambda = NULL,
-lambda_list = NULL,
-nlambda = 100,
-lambda.min.ratio = 0.0001,
-tune_ratio = FALSE,
-fix_ratio = NULL,
-ratio_list = NULL,
-tune_weight = FALSE,
-fix_weight = NULL,
-weight_list = NULL,
-tune_weight_method = 1,
-gamma_adaptivelasso = 1/2,
-use_sparseC = TRUE,
-seed.use = 97,
-output_all_betas=FALSE
-
-
 htlgmm.cox.default<-function(y,Z,W=NULL,
                              ext_study_info=NULL,
                              A=NULL,
                              penalty_type = "lasso",
                              initial_with_type = "lasso",
                              beta_initial = NULL,
+                             weight_adaptivelasso = NULL,
+                             alpha = NULL,
                              hat_thetaA = NULL,
                              V_thetaA = NULL,
                              robust = TRUE,
                              remove_penalty_Z = FALSE,
                              remove_penalty_W = FALSE,
-                             inference = TRUE,
+                             inference = "default",
                              fix_C = NULL,
                              fix_inv_C = NULL,
                              refine_C = FALSE,
@@ -494,6 +460,7 @@ htlgmm.cox.default<-function(y,Z,W=NULL,
                              use_cv = TRUE,
                              type_measure = "C",
                              nfolds = 10,
+                             foldid = NULL,
                              fix_lambda = NULL,
                              lambda_list = NULL,
                              nlambda = 100,
@@ -528,6 +495,39 @@ htlgmm.cox.default<-function(y,Z,W=NULL,
         Z=matrix(Z,ncol=1)}
     final_alpha = 1
     if(penalty_type == "ridge"){final_alpha = 0}
+
+    if(length(ext_study_info[[1]]$Coeff) != ncol(Z)){
+        stop("Please match ext_study_info with Z. (Current input length not match!)")
+    }
+
+    if(!penalty_type %in% c("none","adaptivelasso","lasso","ridge","elasticnet")){
+        stop("Select penalty type from c('none','adaptivelasso','lasso','ridge','elasticnet').")
+    }
+    if(!sqrt_matrix %in% c("cholesky","svd")){
+        stop("Select penalty type from c('cholesky','svd').")
+    }
+
+    if(inference == 'default'){
+        if(penalty_type%in%c("none","adaptivelasso")){
+            inference = TRUE
+        }else{inference = FALSE}
+    }
+
+    ###########--------------###########
+    # determine which kind of penalty for the final model
+    if(!is.null(alpha) & penalty_type != "elasticnet"){
+        warning("When using alpha between 0 and 1, please set penalty_type to be 'elasticnet'.")
+    }
+    if(penalty_type%in%c("adaptivelasso","lasso")){final_alpha = 1}
+    if(penalty_type == "ridge"){final_alpha = 0}
+    if(penalty_type == "elasticnet"){
+        if(is.null(alpha)|!is.numeric(alpha)){
+            stop("When using penalty_type is 'elasticnet', need the input of alpha between 0 and 1.")
+        }else if(alpha<0|alpha>1){
+            stop("When using penalty_type is 'elasticnet', need the input of alpha between 0 and 1.")
+        }else{final_alpha=alpha}
+    }
+
 
     tilde_thetaZ = ext_study_info[[1]]$Coeff
     V_thetaZ = ext_study_info[[1]]$Covariance
@@ -606,10 +606,26 @@ htlgmm.cox.default<-function(y,Z,W=NULL,
         beta_initial<-beta_initial_cox_func(surv_data,X,initial_with_type,
                                         fix_penalty)
     }
+
     if (penalty_type == "adaptivelasso"){
-        w_adaptive<-1/abs(beta_initial)^gamma_adaptivelasso
-        w_adaptive[is.infinite(w_adaptive)]<-max(w_adaptive[!is.infinite(w_adaptive)])*100
-        w_adaptive<-w_adaptive*fix_penalty
+        if(is.null(weight_adaptivelasso)){
+            w_adaptive<-1/abs(beta_initial)^gamma_adaptivelasso
+            w_adaptive[is.infinite(w_adaptive)]<-max(w_adaptive[!is.infinite(w_adaptive)])*100
+            w_adaptive<-w_adaptive*fix_penalty
+        }else{
+            if(length(weight_adaptivelasso) != length(fix_penalty) & length(weight_adaptivelasso) != length(fix_penalty)-1 ){
+                stop("The length of 'weight_adaptivelasso' is invalid. Either the same length as beta_initial or without intercept is accepted.")
+            }else{
+                if(length(weight_adaptivelasso) == length(fix_penalty)){
+                    w_adaptive<-weight_adaptivelasso*fix_penalty
+                }else if(Acolnames[1] == "intercept"){
+                    w_adaptive<-c(0,weight_adaptivelasso)*fix_penalty
+                }else{
+                    stop("The length of 'weight_adaptivelasso' is invalid. Either the same length as beta_initial or without intercept is accepted.")
+                }
+            }
+
+        }
     }else{w_adaptive<-fix_penalty}
 
     if(is.null(fix_C) & is.null(fix_inv_C)){
@@ -715,7 +731,15 @@ htlgmm.cox.default<-function(y,Z,W=NULL,
     }
 
     if(use_cv){
-        index_fold = createFolds(events,k = nfolds)
+        if(is.null(foldid)){
+            index_fold = createFolds(events,k = nfolds)
+        }else{
+            uni_fold=sort(unique(foldid))
+            nfolds=length(uni_fold)
+            index_fold<-lapply(1:length(uni_fold),function(i){which(foldid==uni_fold[i])})
+        }
+
+
 
         if(tune_weight){
             fold_self_beta = TRUE
@@ -730,7 +754,7 @@ htlgmm.cox.default<-function(y,Z,W=NULL,
                                              w_adaptive,final_alpha,
                                              pseudo_Xy_cox,lambda.min.ratio,
                                              nlambda,V_thetaA,use_sparseC,
-                                             use_offset,robust,
+                                             robust,
                                              fold_self_beta,
                                              X,XR,fix_lambda_list,sC_half)
 
@@ -776,7 +800,7 @@ htlgmm.cox.default<-function(y,Z,W=NULL,
             cv_auc1<-res_weight
             max_id<-which.max(cv_auc1)
             final.lambda.min<-lambda_list[max_id]
-            return_list<-list("cv_C"=cv_auc1)
+            return_list<-list("cv_Cindex"=cv_auc1)
 
             return_list<-c(return_list,
                            list("lambda_list"=lambda_list,
@@ -791,7 +815,6 @@ htlgmm.cox.default<-function(y,Z,W=NULL,
                                       w_adaptive,final_alpha)
             final.lambda.min=lambda_list[which.max(cv_res)]
             final.weight.min = 1
-            beta=coef(fit_final)[-1]
             return_list<-list("lambda_list"=lambda_list)
             if(type_measure == "C"){
                 return_list = c(return_list,list("cv_Cindex"=cv_res))
@@ -822,7 +845,6 @@ htlgmm.cox.default<-function(y,Z,W=NULL,
                 warning("Current penalty is lasso, please turn to adaptivelasso for inference")
             }
             # refine C
-            if(use_sparseC){C_half=C_half0}
             if(refine_C){
                 inv_C = Delta_opt_cox_rcpp(Z,W,A,times,events,
                                            beta=beta,

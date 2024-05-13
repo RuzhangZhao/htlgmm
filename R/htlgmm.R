@@ -137,13 +137,16 @@ htlgmm<-function(
     type_measure = "default"
     nlambda = 100
     lambda.min.ratio = 0.0001
+
     if(family == 'cox'){
         res<-htlgmm.cox.default(y,Z,W,ext_study_info,A,penalty_type,
                                 initial_with_type,beta_initial,
+                                weight_adaptivelasso,alpha,
                                 hat_thetaA,V_thetaA,robust,remove_penalty_Z,
-                                remove_penalty_W,inference,fix_C,refine_C,
-                                use_cv,type_measure,nfolds,fix_lambda,
+                                remove_penalty_W,inference,fix_C,fix_inv_C,refine_C,
+                                sqrt_matrix,use_cv,type_measure,nfolds,foldid,fix_lambda,
                                 lambda_list,nlambda,lambda.min.ratio,
+                                tune_weight,fix_weight,weight_list,tune_weight_method,
                                 gamma_adaptivelasso,use_sparseC,seed.use)
     }else{
         V_thetaA_sandwich=robust
@@ -330,10 +333,12 @@ cv.htlgmm<-function(
     if(family == 'cox'){
         res<-htlgmm.cox.default(y,Z,W,ext_study_info,A,penalty_type,
                                 initial_with_type,beta_initial,
+                                weight_adaptivelasso,alpha,
                                 hat_thetaA,V_thetaA,robust,remove_penalty_Z,
-                                remove_penalty_W,inference,fix_C,refine_C,
-                                use_cv,type_measure,nfolds,fix_lambda,
+                                remove_penalty_W,inference,fix_C,fix_inv_C,refine_C,
+                                sqrt_matrix,use_cv,type_measure,nfolds,foldid,fix_lambda,
                                 lambda_list,nlambda,lambda.min.ratio,
+                                tune_weight,fix_weight,weight_list,tune_weight_method,
                                 gamma_adaptivelasso,use_sparseC,seed.use)
     }else{
         V_thetaA_sandwich=robust
