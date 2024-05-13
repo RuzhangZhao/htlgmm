@@ -451,7 +451,7 @@ cv_dev_lambda_ratio_func<-function(index_fold,Z,W,A,y,
 }
 
 
-cv_mse_lambda_Cweight_func<-function(index_fold,Z,W,A,y,family,
+cv_mse_lambda_Cweight_func_old<-function(index_fold,Z,W,A,y,family,
                                      C_half,inv_C,beta_initial,hat_thetaA,
                                      ext_study_info,
                                      weight_list,pZ,pW,pA,
