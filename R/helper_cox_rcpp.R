@@ -376,7 +376,7 @@ cv_C_lambda_Cweight_func<-function(tune_weight_method,
 
     inv_C_train = Delta_opt_cox_rcpp(Z=Ztrain,W=Wtrain,A=Atrain,
                                      times=timestrain,events=eventstrain,
-                                     beta=beta_initial,
+                                     beta=beta_initial1,
                                      tilde_thetaZ=tilde_thetaZ,
                                      V_thetaZ=V_thetaZ,
                                      left_equal_id = left_equal_id_train,
@@ -538,8 +538,8 @@ htlgmm.cox.default<-function(y,Z,W=NULL,
     if(is.null(A)){pA=0}else{pA=ncol(A)}
 
 
-    thetaA_list<-thetaA_cox_func(pA,Z,A,surv_data,tilde_thetaZ
-                                 ,robust,hat_thetaA,V_thetaA)
+    thetaA_list<-thetaA_cox_func(pA,Z,A,surv_data,tilde_thetaZ,
+                                 robust,hat_thetaA,V_thetaA)
     hat_thetaA<-thetaA_list$hat_thetaA
     V_thetaA<-thetaA_list$V_thetaA
 
@@ -838,42 +838,99 @@ htlgmm.cox.default<-function(y,Z,W=NULL,
 
     }
 
+
+    ###########--------------###########
+    # perform inference
+
     if(inference){
         index_nonzero<-which(beta!=0)
         if(length(index_nonzero) > 1){
             if(penalty_type == "lasso"){
                 warning("Current penalty is lasso, please turn to adaptivelasso for inference")
             }
-            # refine C
+
+            ###########--------------###########
+            # refine C will cover the previously used C
+            inv_C = Delta_opt_cox_rcpp(Z,W,A,times,events,
+                                       beta=beta,
+                                       tilde_thetaZ=tilde_thetaZ,
+                                       V_thetaZ=V_thetaZ,
+                                       left_equal_id,
+                                       right_equal_id,
+                                       hat_thetaA=hat_thetaA,
+                                       V_thetaA=V_thetaA,
+                                       X=X,XR=XR)
             if(refine_C){
-                inv_C = Delta_opt_cox_rcpp(Z,W,A,times,events,
-                                           beta=beta,
-                                           tilde_thetaZ=tilde_thetaZ,
-                                           V_thetaZ=V_thetaZ,
-                                           left_equal_id,
-                                           right_equal_id,
-                                           hat_thetaA=hat_thetaA,
-                                           V_thetaA=V_thetaA,
-                                           X=X,XR=XR)
-                C_half<-sqrtchoinv_rcpp(inv_C+diag(1e-15,nrow(inv_C)))
+                C_half<-sqrtchoinv_rcpp2(inv_C)
+                pseudo_Xy_list<-pseudo_Xy_cox(C_half,Z,W,A,times,events,
+                                     beta=beta,tilde_thetaZ=tilde_thetaZ,
+                                     hat_thetaA=hat_thetaA,X=X,XR=XR,
+                                     left_equal_id=left_equal_id)
+                psX<-pseudo_Xy_list$pseudo_X/nZ
+                psXtX<-self_crossprod_rcpp(psX)
+                psXtX_non0<-psXtX[index_nonzero,index_nonzero,drop=F]
+                inv_psXtX_non0<-choinv_rcpp2(psXtX_non0)
+                inv_psXtX_final<-inv_psXtX_non0
+
+            }else{
+
+                sC_half<-diag(1/sqrt(diag(inv_C)))
+                if(use_sparseC){
+                    C_half<-sC_half
+                }else{
+                    if(sqrt_matrix =="svd"){
+                        inv_C_svd=fast.svd(inv_C+diag(1e-15,nrow(inv_C)))
+                        C_half=prod_rcpp(inv_C_svd$v,(t(inv_C_svd$u)*1/sqrt(inv_C_svd$d)))
+                    }else if(sqrt_matrix =="cholesky"){
+                        C_half<-sqrtchoinv_rcpp2(inv_C)
+                    }
+                }
+                runsandwich<-F
+                if(tune_weight){
+                    weight<-final.weight.min
+                    C_half<-weighted_C_half_func(inv_C,weight,pA+pZ+pW,pZ,tune_weight_method,C_half)
+                    if(!((tune_weight_method%in%c(1,4,5,6) & weight == 1)|
+                         (tune_weight_method%in%c(2,3) & weight == 0))){
+                        runsandwich<-T
+                    }
+                }
+                if(!is.null(fix_C)|!is.null(fix_inv_C)|use_sparseC){runsandwich<-T}
+                ###########--------------###########
+                # Compute new pseudo_X
+
+                pseudo_Xy_list<-pseudo_Xy_cox(C_half,Z,W,A,times,events,
+                                              beta=beta,tilde_thetaZ=tilde_thetaZ,
+                                              hat_thetaA=hat_thetaA,X=X,XR=XR,
+                                              left_equal_id=left_equal_id)
+                psX<-pseudo_Xy_list$pseudo_X/nZ
+
+                psXtX<-self_crossprod_rcpp(psX)
+                psXtX_non0<-psXtX[index_nonzero,index_nonzero,drop=F]
+                inv_psXtX_non0<-choinv_rcpp2(psXtX_non0)
+                inv_psXtX_final<-inv_psXtX_non0
+                ###########--------------###########
+                # When the C using is not optimal C,
+
+                if(runsandwich){
+                    inv_C_half<-sqrtcho_rcpp2(inv_C+diag(1e-15,nrow(inv_C)))
+                    psX_mid<-prod_rcpp(inv_C_half,crossprod_rcpp(C_half,psX))
+                    psXtX_mid<-self_crossprod_rcpp(psX_mid)
+                    psXtX_mid_non0<-psXtX_mid[index_nonzero,index_nonzero,drop=F]
+                    inv_psXtX_final<-prod_rcpp(prod_rcpp(inv_psXtX_non0,psXtX_mid_non0),inv_psXtX_non0)
+
+                    if(sum(diag(inv_psXtX_non0)<=0)>0){
+                        psXtX_mid_non0_half<-sqrtcho_rcpp2(psXtX_mid_non0+diag(1e-15,nrow(psXtX_mid_non0)))
+                        inv_psXtX_final<-self_crossprod_rcpp(prod_rcpp(psXtX_mid_non0_half,inv_psXtX_non0))
+                    }
+                }
+
             }
-
-            psXy = pseudo_Xy_cox(C_half,Z,W,A,times,events,
-                                 beta_initial,tilde_thetaZ=tilde_thetaZ,
-                                 hat_thetaA=hat_thetaA,X=X,XR=XR,
-                                 left_equal_id=left_equal_id)
-            initial_sf<-nrow(Z)/sqrt(nrow(psXy$pseudo_X))
-            psX = psXy$pseudo_X/initial_sf
-            psy = psXy$pseudo_y/initial_sf
-            Sigsum_half<-psXy$pseudo_X/nZ
-
-            Sigsum_scaled<-self_crossprod_rcpp(Sigsum_half)
-            Sigsum_scaled_nonzero<-Sigsum_scaled[index_nonzero,index_nonzero,drop=F]
-            inv_Sigsum_scaled_nonzero<-choinv_rcpp(Sigsum_scaled_nonzero)
-            final_v<-diag(inv_Sigsum_scaled_nonzero)/nZ
+            final_vcov<-inv_psXtX_final/nZ
+            final_v<-diag(final_vcov)
 
             pval_final<-pchisq(beta[index_nonzero]^2/final_v,1,lower.tail = F)
             pval_final1<-p.adjust(pval_final,method = "BH")
+
             selected_pos<-index_nonzero[which(pval_final1<0.05)]
             return_list<-c(return_list,
                            list("selected_vars"=
@@ -881,11 +938,17 @@ htlgmm.cox.default<-function(y,Z,W=NULL,
                                          "name"=Xcolnames[index_nonzero],
                                          "coef"=beta[index_nonzero],
                                          "variance"=final_v,
+                                         "variance_covariance"=final_vcov,
                                          "pval"=pval_final,
                                          "FDR_adjust_position"=selected_pos,
                                          "FDR_adjust_name"=Xcolnames[selected_pos])
                            ))
+
         }}
+
+    if(is.null(fix_C) & is.null(fix_inv_C)){
+        return_list<-c(return_list,list("Delta_opt"=inv_C))
+    }
     return(return_list)
 }
 
