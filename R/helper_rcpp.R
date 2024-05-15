@@ -833,7 +833,7 @@ htlgmm.default<-function(
         weight_list = NULL,
         tune_weight_method = 1,
         gamma_adaptivelasso = 1/2,
-        use_sparseC = TRUE,
+        use_sparseC = FALSE,
         seed.use = 97,
         output_all_betas=FALSE
 ){
@@ -1449,14 +1449,32 @@ htlgmm.default<-function(
 
     ###########--------------###########
     # perform inference
-
+    beta1<<-beta
+    y1<<-y
+    Z1<<-Z
+    W1<<-W
+    family1<<-family
+    ext_study_info1<<-ext_study_info
+    A1<<-A
+    pA1<<-pA
+    pZ1<<-pZ
+    hat_thetaA1<<-hat_thetaA
+    V_thetaA1<<-V_thetaA
+    use_offset1<<-use_offset
+    X1<<-X
+    XR1<<-XR
+    C_half1<<-C_half
     if(inference){
         index_nonzero<-which(beta!=0)
         if(length(index_nonzero) > 1){
             if(penalty_type == "lasso"){
                 warning("Current penalty is lasso, please turn to adaptivelasso for inference")
             }
-
+            if(!is.null(alpha)){
+                if(alpha == 11){
+                    C_half1<-C_half
+                }
+            }
             ###########--------------###########
             # refine C will cover the previously used C
             inv_C = Delta_opt_rcpp(y=y,Z=Z,W=W,
@@ -1518,7 +1536,7 @@ htlgmm.default<-function(
             # When the C using is not optimal C,
 
             if(runsandwich){
-                inv_C_half<-sqrtcho_rcpp2(inv_C+diag(1e-15,nrow(inv_C)))
+                inv_C_half<-sqrtcho_rcpp2(inv_C)
                 psX_mid<-prod_rcpp(inv_C_half,crossprod_rcpp(C_half,psX))
                 psXtX_mid<-self_crossprod_rcpp(psX_mid)
                 psXtX_mid_non0<-psXtX_mid[index_nonzero,index_nonzero,drop=F]
@@ -1549,6 +1567,53 @@ htlgmm.default<-function(
                                          "FDR_adjust_position"=selected_pos,
                                          "FDR_adjust_name"=Xcolnames[selected_pos])
                            ))
+
+
+            if(!is.null(alpha )){
+                if(alpha == 11){
+                    print("extra inference")
+                    C_half<-C_half1
+                    pseudo_Xy_list<-pseudo_Xy(C_half=C_half,Z=Z,W=W,A=A,y=y,
+                                              beta=beta,hat_thetaA=hat_thetaA,
+                                              ext_study_info=ext_study_info,X=X,XR=XR)
+                    psX<-pseudo_Xy_list$pseudo_X/nZ
+
+                    psXtX<-self_crossprod_rcpp(psX)
+                    psXtX_non0<-psXtX[index_nonzero,index_nonzero,drop=F]
+                    inv_psXtX_non0<-choinv_rcpp2(psXtX_non0)
+                    inv_psXtX_final<-inv_psXtX_non0
+                    ###########--------------###########
+                    # When the C using is not optimal C,
+
+                    inv_C_half<-sqrtcho_rcpp2(inv_C)
+                    psX_mid<-prod_rcpp(inv_C_half,crossprod_rcpp(C_half,psX))
+                    psXtX_mid<-self_crossprod_rcpp(psX_mid)
+                    psXtX_mid_non0<-psXtX_mid[index_nonzero,index_nonzero,drop=F]
+                    inv_psXtX_final<-prod_rcpp(prod_rcpp(inv_psXtX_non0,psXtX_mid_non0),inv_psXtX_non0)
+
+                    final_vcov<-inv_psXtX_final/nZ
+                    final_v<-diag(final_vcov)
+
+                    pval_final<-pchisq(beta[index_nonzero]^2/final_v,1,lower.tail = F)
+                    pval_final1<-p.adjust(pval_final,method = "BH")
+
+                    selected_pos<-index_nonzero[which(pval_final1<0.05)]
+                    return_list<-c(return_list,
+                                   list("selected_vars2"=
+                                            list("position"=index_nonzero,
+                                                 "name"=Xcolnames[index_nonzero],
+                                                 "coef"=beta[index_nonzero],
+                                                 "variance"=final_v,
+                                                 "variance_covariance"=final_vcov,
+                                                 "pval"=pval_final,
+                                                 "FDR_adjust_position"=selected_pos,
+                                                 "FDR_adjust_name"=Xcolnames[selected_pos])
+                                   ))
+
+
+                }
+            }
+
 
         }}
     if(is.null(fix_C) & is.null(fix_inv_C)){
