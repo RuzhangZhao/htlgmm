@@ -1,8 +1,8 @@
 sqrtchoinv_rcpp2<-function(inv_C){
-    C_half <- tryCatch(
-        sqrtchoinv_rcpp(inv_C),
-        error = function(e) NULL)
-    if(!is.null(C_half)){return(C_half)}
+    # C_half <- tryCatch(
+    #     sqrtchoinv_rcpp(inv_C),
+    #     error = function(e) NULL)
+    # if(!is.null(C_half)){return(C_half)}
     inv_adjust=1e-15
     iter=0
     max_iter=min(100,round(mean(diag(inv_C))/inv_adjust))
@@ -41,10 +41,10 @@ sqrtcho_rcpp2<-function(fix_C){
 }
 
 choinv_rcpp2<-function(fix_C){
-    inv_C <- tryCatch(
-        choinv_rcpp(fix_C),
-        error = function(e) NULL)
-    if(!is.null(inv_C)){return(inv_C)}
+    # inv_C <- tryCatch(
+    #     choinv_rcpp(fix_C),
+    #     error = function(e) NULL)
+    # if(!is.null(inv_C)){return(inv_C)}
     inv_adjust=1e-15
     iter=0
     max_iter=min(100,round(mean(diag(fix_C))/inv_adjust))
@@ -1521,7 +1521,7 @@ htlgmm.default<-function(
             # When the C using is not optimal C,
 
             if(runsandwich){
-                inv_C_half<-sqrtcho_rcpp2(inv_C)
+                inv_C_half<-sqrtcho_rcpp2(inv_C+diag(1e-15,nrow(inv_C)))
                 psX_mid<-prod_rcpp(inv_C_half,crossprod_rcpp(C_half,psX))
                 psXtX_mid<-self_crossprod_rcpp(psX_mid)
                 psXtX_mid_non0<-psXtX_mid[index_nonzero,index_nonzero,drop=F]
