@@ -20,10 +20,10 @@ sqrtchoinv_rcpp2<-function(inv_C){
 }
 
 sqrtcho_rcpp2<-function(fix_C){
-    C_half <- tryCatch(
-        sqrtcho_rcpp(fix_C),
-        error = function(e) NULL)
-    if(!is.null(C_half)){return(C_half)}
+    # C_half <- tryCatch(
+    #     sqrtcho_rcpp(fix_C),
+    #     error = function(e) NULL)
+    # if(!is.null(C_half)){return(C_half)}
     inv_adjust=1e-15
     iter=0
     max_iter=min(100,round(mean(diag(fix_C))/inv_adjust))
@@ -1507,7 +1507,7 @@ htlgmm.default<-function(
             if(!is.null(fix_C)|!is.null(fix_inv_C)|use_sparseC){runsandwich<-T}
             ###########--------------###########
             # Compute new pseudo_X
-
+            runsandwich<-T
             pseudo_Xy_list<-pseudo_Xy(C_half=C_half,Z=Z,W=W,A=A,y=y,
                                       beta=beta,hat_thetaA=hat_thetaA,
                                       ext_study_info=ext_study_info,X=X,XR=XR)
@@ -1554,7 +1554,7 @@ htlgmm.default<-function(
                            ))
 
 
-            if(!is.null(alpha )){
+            if(!is.null(alpha)){
                 if(alpha == 11){
                     print("extra inference")
                     C_half<-C_half1
