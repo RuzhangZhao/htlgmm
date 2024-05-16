@@ -1,8 +1,8 @@
 sqrtchoinv_rcpp2<-function(inv_C){
-    # C_half <- tryCatch(
-    #     sqrtchoinv_rcpp(inv_C),
-    #     error = function(e) NULL)
-    # if(!is.null(C_half)){return(C_half)}
+    C_half <- tryCatch(
+        sqrtchoinv_rcpp(inv_C),
+        error = function(e) NULL)
+    if(!is.null(C_half)){return(C_half)}
     inv_adjust=1e-15
     iter=0
     max_iter=min(100,round(mean(diag(inv_C))/inv_adjust))
@@ -20,10 +20,10 @@ sqrtchoinv_rcpp2<-function(inv_C){
 }
 
 sqrtcho_rcpp2<-function(fix_C){
-    # C_half <- tryCatch(
-    #     sqrtcho_rcpp(fix_C),
-    #     error = function(e) NULL)
-    # if(!is.null(C_half)){return(C_half)}
+    C_half <- tryCatch(
+        sqrtcho_rcpp(fix_C),
+        error = function(e) NULL)
+    if(!is.null(C_half)){return(C_half)}
     inv_adjust=1e-15
     iter=0
     max_iter=min(100,round(mean(diag(fix_C))/inv_adjust))
@@ -41,10 +41,10 @@ sqrtcho_rcpp2<-function(fix_C){
 }
 
 choinv_rcpp2<-function(fix_C){
-    # inv_C <- tryCatch(
-    #     choinv_rcpp(fix_C),
-    #     error = function(e) NULL)
-    # if(!is.null(inv_C)){return(inv_C)}
+    inv_C <- tryCatch(
+        choinv_rcpp(fix_C),
+        error = function(e) NULL)
+    if(!is.null(inv_C)){return(inv_C)}
     inv_adjust=1e-15
     iter=0
     max_iter=min(100,round(mean(diag(fix_C))/inv_adjust))
@@ -1061,9 +1061,9 @@ htlgmm.default<-function(
                                V_thetaA=V_thetaA,
                                use_offset = use_offset,
                                X=X,XR=XR)
-        if(refine_C){
-            return(list("Delta_opt"=inv_C))
-        }
+        # if(refine_C){
+        #     return(list("Delta_opt"=inv_C))
+        # }
 
         sC_half<-diag(1/sqrt(diag(inv_C)))
         if(use_sparseC){
@@ -1449,6 +1449,22 @@ htlgmm.default<-function(
 
     ###########--------------###########
     # perform inference
+
+    y1<<-y
+    Z1<<-Z
+    W1<<-W
+    family1<<-family
+    study_info1<<-study_info
+    A1<<-A
+    pA1<<-pA
+    pZ1<<-pZ
+    beta1<<-beta
+    hat_thetaA1<<-hat_thetaA
+    V_thetaA1<<-V_thetaA
+    use_offset1<<-use_offset
+    X1<<-X
+    XR1<<-XR
+    beta1<<-beta
     if(inference){
         index_nonzero<-which(beta!=0)
         if(length(index_nonzero) > 1){
@@ -1462,27 +1478,15 @@ htlgmm.default<-function(
             }
             ###########--------------###########
             # refine C will cover the previously used C
-            inv_C = Delta_opt_rcpp(y=y,Z=Z,W=W,
-                                   family=family,
-                                   ext_study_info=ext_study_info,
-                                   A=A,pA=pA,pZ=pZ,beta=beta,
-                                   hat_thetaA=hat_thetaA,
-                                   V_thetaA = V_thetaA,
-                                   use_offset = use_offset,
-                                   X=X,XR=XR)
             if(refine_C){
-                C_half<-sqrtchoinv_rcpp2(inv_C)
-                pseudo_Xy_list<-pseudo_Xy(C_half=C_half,Z=Z,W=W,A=A,y=y,
-                                          beta=beta,hat_thetaA=hat_thetaA,
-                                          ext_study_info=ext_study_info,X=X,XR=XR)
-                psX<-pseudo_Xy_list$pseudo_X/nZ
-
-                psXtX<-self_crossprod_rcpp(psX)
-                psXtX_non0<-psXtX[index_nonzero,index_nonzero,drop=F]
-                inv_psXtX_non0<-choinv_rcpp2(psXtX_non0)
-                inv_psXtX_final<-inv_psXtX_non0
-
-            }else{
+                inv_C = Delta_opt_rcpp(y=y,Z=Z,W=W,
+                                       family=family,
+                                       ext_study_info=ext_study_info,
+                                       A=A,pA=pA,pZ=pZ,beta=beta,
+                                       hat_thetaA=hat_thetaA,
+                                       V_thetaA = V_thetaA,
+                                       use_offset = use_offset,
+                                       X=X,XR=XR)
 
                 sC_half<-diag(1/sqrt(diag(inv_C)))
                 if(use_sparseC){
@@ -1495,6 +1499,19 @@ htlgmm.default<-function(
                         C_half<-sqrtchoinv_rcpp2(inv_C)
                     }
                 }
+                # C_half<-sqrtchoinv_rcpp2(inv_C)
+                # pseudo_Xy_list<-pseudo_Xy(C_half=C_half,Z=Z,W=W,A=A,y=y,
+                #                           beta=beta,hat_thetaA=hat_thetaA,
+                #                           ext_study_info=ext_study_info,X=X,XR=XR)
+                # psX<-pseudo_Xy_list$pseudo_X/nZ
+                #
+                # psXtX<-self_crossprod_rcpp(psX)
+                # psXtX_non0<-psXtX[index_nonzero,index_nonzero,drop=F]
+                # inv_psXtX_non0<-choinv_rcpp2(psXtX_non0)
+                # inv_psXtX_final<-inv_psXtX_non0
+
+            }else{
+
                 runsandwich<-F
                 if(tune_weight){
                     weight<-final.weight.min
@@ -1507,7 +1524,7 @@ htlgmm.default<-function(
             if(!is.null(fix_C)|!is.null(fix_inv_C)|use_sparseC){runsandwich<-T}
             ###########--------------###########
             # Compute new pseudo_X
-            runsandwich<-T
+
             pseudo_Xy_list<-pseudo_Xy(C_half=C_half,Z=Z,W=W,A=A,y=y,
                                       beta=beta,hat_thetaA=hat_thetaA,
                                       ext_study_info=ext_study_info,X=X,XR=XR)
@@ -1521,14 +1538,14 @@ htlgmm.default<-function(
             # When the C using is not optimal C,
 
             if(runsandwich){
-                inv_C_half<-sqrtcho_rcpp2(inv_C+diag(1e-15,nrow(inv_C)))
+                inv_C_half<-sqrtcho_rcpp2(inv_C)
                 psX_mid<-prod_rcpp(inv_C_half,crossprod_rcpp(C_half,psX))
                 psXtX_mid<-self_crossprod_rcpp(psX_mid)
                 psXtX_mid_non0<-psXtX_mid[index_nonzero,index_nonzero,drop=F]
                 inv_psXtX_final<-prod_rcpp(prod_rcpp(inv_psXtX_non0,psXtX_mid_non0),inv_psXtX_non0)
 
                 if(sum(diag(inv_psXtX_non0)<=0)>0){
-                    psXtX_mid_non0_half<-sqrtcho_rcpp2(psXtX_mid_non0+diag(1e-15,nrow(psXtX_mid_non0)))
+                    psXtX_mid_non0_half<-sqrtcho_rcpp2(psXtX_mid_non0)
                     inv_psXtX_final<-self_crossprod_rcpp(prod_rcpp(psXtX_mid_non0_half,inv_psXtX_non0))
                 }
             }
