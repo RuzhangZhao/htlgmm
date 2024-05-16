@@ -1,8 +1,8 @@
 sqrtchoinv_rcpp2<-function(inv_C){
-    # C_half <- tryCatch(
-    #     sqrtchoinv_rcpp(inv_C),
-    #     error = function(e) NULL)
-    # if(!is.null(C_half)){return(C_half)}
+    C_half <- tryCatch(
+        sqrtchoinv_rcpp(inv_C),
+        error = function(e) NULL)
+    if(!is.null(C_half)){return(C_half)}
     inv_adjust=1e-15
     iter=0
     max_iter=min(100,round(mean(diag(inv_C))/inv_adjust))
@@ -20,10 +20,10 @@ sqrtchoinv_rcpp2<-function(inv_C){
 }
 
 sqrtcho_rcpp2<-function(fix_C){
-    # C_half <- tryCatch(
-    #     sqrtcho_rcpp(fix_C),
-    #     error = function(e) NULL)
-    # if(!is.null(C_half)){return(C_half)}
+    C_half <- tryCatch(
+        sqrtcho_rcpp(fix_C),
+        error = function(e) NULL)
+    if(!is.null(C_half)){return(C_half)}
     inv_adjust=1e-15
     iter=0
     max_iter=min(100,round(mean(diag(fix_C))/inv_adjust))
@@ -41,10 +41,10 @@ sqrtcho_rcpp2<-function(fix_C){
 }
 
 choinv_rcpp2<-function(fix_C){
-    # inv_C <- tryCatch(
-    #     choinv_rcpp(fix_C),
-    #     error = function(e) NULL)
-    # if(!is.null(inv_C)){return(inv_C)}
+    inv_C <- tryCatch(
+        choinv_rcpp(fix_C),
+        error = function(e) NULL)
+    if(!is.null(inv_C)){return(inv_C)}
     inv_adjust=1e-15
     iter=0
     max_iter=min(100,round(mean(diag(fix_C))/inv_adjust))
@@ -1449,21 +1449,6 @@ htlgmm.default<-function(
 
     ###########--------------###########
     # perform inference
-    beta1<<-beta
-    y1<<-y
-    Z1<<-Z
-    W1<<-W
-    family1<<-family
-    ext_study_info1<<-ext_study_info
-    A1<<-A
-    pA1<<-pA
-    pZ1<<-pZ
-    hat_thetaA1<<-hat_thetaA
-    V_thetaA1<<-V_thetaA
-    use_offset1<<-use_offset
-    X1<<-X
-    XR1<<-XR
-    C_half1<<-C_half
     if(inference){
         index_nonzero<-which(beta!=0)
         if(length(index_nonzero) > 1){
