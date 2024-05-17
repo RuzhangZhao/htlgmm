@@ -1509,9 +1509,6 @@ htlgmm.default<-function(
                 # psXtX_non0<-psXtX[index_nonzero,index_nonzero,drop=F]
                 # inv_psXtX_non0<-choinv_rcpp2(psXtX_non0)
                 # inv_psXtX_final<-inv_psXtX_non0
-
-            }else{
-
                 runsandwich<-F
                 if(tune_weight){
                     weight<-final.weight.min
@@ -1521,6 +1518,7 @@ htlgmm.default<-function(
                         runsandwich<-T
                     }
                 }
+            }
             if(!is.null(fix_C)|!is.null(fix_inv_C)|use_sparseC){runsandwich<-T}
             ###########--------------###########
             # Compute new pseudo_X
@@ -1550,7 +1548,7 @@ htlgmm.default<-function(
                 }
             }
 
-            }
+
             final_vcov<-inv_psXtX_final/nZ
             final_v<-diag(final_vcov)
 
