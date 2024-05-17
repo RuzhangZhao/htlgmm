@@ -1463,10 +1463,17 @@ htlgmm.default<-function(
             ###########--------------###########
             # refine C will cover the previously used C
             runsandwich<-F
-            C_half1<-C_half
-            weight<-final.weight.min
-            C_half2<-weighted_C_half_func(inv_C,weight,pA+pZ+pW,pZ,6,C_half)
-            C_half3<-weighted_C_half_func(inv_C,weight,pA+pZ+pW,pZ,2,C_half)
+            if(!is.null(alpha)){
+                if(alpha == 11){
+                    C_half1<-C_half
+                    weight<-final.weight.min
+                    C_half2<-weighted_C_half_func(inv_C,weight,pA+pZ+pW,pZ,6,C_half)
+                    C_half3<-weighted_C_half_func(inv_C,weight,pA+pZ+pW,pZ,2,C_half)
+                }}
+            if(!is.null(alpha)){
+                if(alpha == 10){
+                    C_half1<-C_half
+                }}
             inv_C = Delta_opt_rcpp(y=y,Z=Z,W=W,
                                    family=family,
                                    ext_study_info=ext_study_info,
@@ -1475,8 +1482,12 @@ htlgmm.default<-function(
                                    V_thetaA = V_thetaA,
                                    use_offset = use_offset,
                                    X=X,XR=XR)
-            C_half4<-weighted_C_half_func(inv_C,weight,pA+pZ+pW,pZ,6,C_half)
-            C_half5<-weighted_C_half_func(inv_C,weight,pA+pZ+pW,pZ,2,C_half)
+            if(!is.null(alpha)){
+                if(alpha == 11){
+                    C_half4<-weighted_C_half_func(inv_C,weight,pA+pZ+pW,pZ,6,C_half)
+                    C_half5<-weighted_C_half_func(inv_C,weight,pA+pZ+pW,pZ,2,C_half)
+                }}
+
             if(!refine_C){
                 sC_half<-diag(1/sqrt(diag(inv_C)))
                 if(use_sparseC){
@@ -1560,54 +1571,57 @@ htlgmm.default<-function(
 
 
             if(!is.null(alpha)){
+                fC<-function(C_half){
+                    pseudo_Xy_list<-pseudo_Xy(C_half=C_half,Z=Z,W=W,A=A,y=y,
+                                              beta=beta,hat_thetaA=hat_thetaA,
+                                              ext_study_info=ext_study_info,X=X,XR=XR)
+                    psX<-pseudo_Xy_list$pseudo_X/nZ
+
+                    psXtX<-self_crossprod_rcpp(psX)
+                    psXtX_non0<-psXtX[index_nonzero,index_nonzero,drop=F]
+                    inv_psXtX_non0<-choinv_rcpp2(psXtX_non0)
+                    inv_psXtX_final<-inv_psXtX_non0
+                    ###########--------------###########
+                    # When the C using is not optimal C,
+
+                    inv_C_half<-sqrtcho_rcpp2(inv_C)
+                    psX_mid<-prod_rcpp(inv_C_half,crossprod_rcpp(C_half,psX))
+                    psXtX_mid<-self_crossprod_rcpp(psX_mid)
+                    psXtX_mid_non0<-psXtX_mid[index_nonzero,index_nonzero,drop=F]
+                    inv_psXtX_final<-prod_rcpp(prod_rcpp(inv_psXtX_non0,psXtX_mid_non0),inv_psXtX_non0)
+
+                    final_vcov<-inv_psXtX_final/nZ
+                    final_v<-diag(final_vcov)
+
+                    pval_final<-pchisq(beta[index_nonzero]^2/final_v,1,lower.tail = F)
+                    pval_final1<-p.adjust(pval_final,method = "BH")
+
+                    selected_pos<-index_nonzero[which(pval_final1<0.05)]
+                    return(list("position"=index_nonzero,
+                                "name"=Xcolnames[index_nonzero],
+                                "coef"=beta[index_nonzero],
+                                "variance"=final_v,
+                                "variance_covariance"=final_vcov,
+                                "pval"=pval_final,
+                                "FDR_adjust_position"=selected_pos,
+                                "FDR_adjust_name"=Xcolnames[selected_pos]))
+                }
+                if(alpha == 10){
+                    print("extra inference")
+                    return_list<-c(return_list,
+                                   list("selected_vars1"=fC(C_half1)))
+                }
                 if(alpha == 11){
                     print("extra inference")
-                    fC<-function(C_half){
-                        pseudo_Xy_list<-pseudo_Xy(C_half=C_half,Z=Z,W=W,A=A,y=y,
-                                                  beta=beta,hat_thetaA=hat_thetaA,
-                                                  ext_study_info=ext_study_info,X=X,XR=XR)
-                        psX<-pseudo_Xy_list$pseudo_X/nZ
 
-                        psXtX<-self_crossprod_rcpp(psX)
-                        psXtX_non0<-psXtX[index_nonzero,index_nonzero,drop=F]
-                        inv_psXtX_non0<-choinv_rcpp2(psXtX_non0)
-                        inv_psXtX_final<-inv_psXtX_non0
-                        ###########--------------###########
-                        # When the C using is not optimal C,
-
-                        inv_C_half<-sqrtcho_rcpp2(inv_C)
-                        psX_mid<-prod_rcpp(inv_C_half,crossprod_rcpp(C_half,psX))
-                        psXtX_mid<-self_crossprod_rcpp(psX_mid)
-                        psXtX_mid_non0<-psXtX_mid[index_nonzero,index_nonzero,drop=F]
-                        inv_psXtX_final<-prod_rcpp(prod_rcpp(inv_psXtX_non0,psXtX_mid_non0),inv_psXtX_non0)
-
-                        final_vcov<-inv_psXtX_final/nZ
-                        final_v<-diag(final_vcov)
-
-                        pval_final<-pchisq(beta[index_nonzero]^2/final_v,1,lower.tail = F)
-                        pval_final1<-p.adjust(pval_final,method = "BH")
-
-                        selected_pos<-index_nonzero[which(pval_final1<0.05)]
-                        return(list("position"=index_nonzero,
-                                    "name"=Xcolnames[index_nonzero],
-                                    "coef"=beta[index_nonzero],
-                                    "variance"=final_v,
-                                    "variance_covariance"=final_vcov,
-                                    "pval"=pval_final,
-                                    "FDR_adjust_position"=selected_pos,
-                                    "FDR_adjust_name"=Xcolnames[selected_pos]))
-                    }
                     return_list<-c(return_list,
                                    list("selected_vars1"=fC(C_half1)),
                                    list("selected_vars2"=fC(C_half2)),
                                    list("selected_vars3"=fC(C_half3)),
                                    list("selected_vars4"=fC(C_half4)),
                                    list("selected_vars5"=fC(C_half5)))
-
                 }
             }
-
-
         }}
     if(is.null(fix_C) & is.null(fix_inv_C)){
         return_list<-c(return_list,list("Delta_opt"=inv_C))
