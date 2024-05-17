@@ -1471,11 +1471,6 @@ htlgmm.default<-function(
             if(penalty_type == "lasso"){
                 warning("Current penalty is lasso, please turn to adaptivelasso for inference")
             }
-            if(!is.null(alpha)){
-                if(alpha == 11){
-                    C_half1<-C_half
-                }
-            }
             ###########--------------###########
             # refine C will cover the previously used C
             runsandwich<-F
@@ -1572,7 +1567,25 @@ htlgmm.default<-function(
             if(!is.null(alpha)){
                 if(alpha == 11){
                     print("extra inference")
-                    C_half<-C_half1
+
+                    inv_C = Delta_opt_rcpp(y=y,Z=Z,W=W,
+                                           family=family,
+                                           ext_study_info=ext_study_info,
+                                           A=A,pA=pA,pZ=pZ,beta=beta,
+                                           hat_thetaA=hat_thetaA,
+                                           V_thetaA = V_thetaA,
+                                           use_offset = use_offset,
+                                           X=X,XR=XR)
+                    C_half<-sqrtchoinv_rcpp2(inv_C)
+                    if(tune_weight){
+                        weight<-final.weight.min
+                        C_half<-weighted_C_half_func(inv_C,weight,pA+pZ+pW,pZ,tune_weight_method,C_half)
+                        if(!((tune_weight_method%in%c(1,4,5,6) & weight == 1)|
+                             (tune_weight_method%in%c(2,3) & weight == 0))){
+                            runsandwich<-T
+                        }
+                    }
+
                     pseudo_Xy_list<-pseudo_Xy(C_half=C_half,Z=Z,W=W,A=A,y=y,
                                               beta=beta,hat_thetaA=hat_thetaA,
                                               ext_study_info=ext_study_info,X=X,XR=XR)
