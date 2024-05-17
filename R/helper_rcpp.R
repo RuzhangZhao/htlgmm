@@ -1478,6 +1478,7 @@ htlgmm.default<-function(
             }
             ###########--------------###########
             # refine C will cover the previously used C
+            runsandwich<-F
             if(refine_C){
                 inv_C = Delta_opt_rcpp(y=y,Z=Z,W=W,
                                        family=family,
@@ -1509,7 +1510,6 @@ htlgmm.default<-function(
                 # psXtX_non0<-psXtX[index_nonzero,index_nonzero,drop=F]
                 # inv_psXtX_non0<-choinv_rcpp2(psXtX_non0)
                 # inv_psXtX_final<-inv_psXtX_non0
-                runsandwich<-F
                 if(tune_weight){
                     weight<-final.weight.min
                     C_half<-weighted_C_half_func(inv_C,weight,pA+pZ+pW,pZ,tune_weight_method,C_half)
