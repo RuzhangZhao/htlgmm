@@ -1454,22 +1454,6 @@ htlgmm.default<-function(
 
     ###########--------------###########
     # perform inference
-
-    y1<<-y
-    Z1<<-Z
-    W1<<-W
-    family1<<-family
-    study_info1<<-study_info
-    A1<<-A
-    pA1<<-pA
-    pZ1<<-pZ
-    beta1<<-beta
-    hat_thetaA1<<-hat_thetaA
-    V_thetaA1<<-V_thetaA
-    use_offset1<<-use_offset
-    X1<<-X
-    XR1<<-XR
-    beta1<<-beta
     if(inference){
         index_nonzero<-which(beta!=0)
         if(length(index_nonzero) > 1){
