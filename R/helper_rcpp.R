@@ -555,9 +555,14 @@ weighted_C_half_func<-function(inv_C_train,weight,dim_U1,dim_U2,tune_weight_meth
     }else if(tune_weight_method == 5){
         diag(inv_C_train)<-diag(inv_C_train)*weight
     }else if(tune_weight_method == 6){
-        C_half_train[(dim_U1+1):(dim_U1+dim_U2),(dim_U1+1):(dim_U1+dim_U2)]<-C_half_train[(dim_U1+1):(dim_U1+dim_U2),(dim_U1+1):(dim_U1+dim_U2)]*sqrt(abs(weight))
+        inv_C_train2<-inv_C_train[c(1:dim_U1),c(1:dim_U1)]
+        cutoff<-mean(abs(inv_C_train2[row(inv_C_train2)!=col(inv_C_train2)]))
+        inv_C_train2[abs(inv_C_train2)<cutoff]<-0
+        diag(inv_C_train2)<-diag(inv_C_train)[c(1:dim_U1)]
+        inv_C_train[c(1:dim_U1),c(1:dim_U1)]<-inv_C_train[c(1:dim_U1),c(1:dim_U1)]+(weight-1)*inv_C_train2
+        #C_half_train[(dim_U1+1):(dim_U1+dim_U2),(dim_U1+1):(dim_U1+dim_U2)]<-C_half_train[(dim_U1+1):(dim_U1+dim_U2),(dim_U1+1):(dim_U1+dim_U2)]*sqrt(abs(weight))
     }
-    if(tune_weight_method%in%c(1:5)){
+    if(tune_weight_method%in%c(1:6)){
         C_half_train<-sqrtchoinv_rcpp2(inv_C_train)
     }
     return(C_half_train)
@@ -1551,6 +1556,7 @@ htlgmm.default<-function(
             pval_final1<-p.adjust(pval_final,method = "BH")
 
             selected_pos<-index_nonzero[which(pval_final1<0.05)]
+            print(selected_pos)
             return_list<-c(return_list,
                            list("selected_vars"=
                                     list("position"=index_nonzero,
