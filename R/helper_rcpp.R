@@ -81,6 +81,8 @@ Delta_opt_rcpp<-function(y,Z,W,family,
     DZ=Z*c(mu_X_beta-mu_XR_theta)
     DZ2=Z*c(mu_prime_XR_theta)
     V_U1=(1/n_main)*self_crossprod_rcpp(DX)
+    DX1=X*c(sqrt(mu_X_beta*(1-mu_X_beta)))
+    V_U1=(1/n_main)*self_crossprod_rcpp(DX1)
     V_U2=(1/n_main)*self_crossprod_rcpp(DZ)
     Cov_U1U2=(1/n_main)*crossprod_rcpp(DX,DZ)
     GammaZZ=(1/n_main)*crossprod_rcpp(DZ2,Z)
@@ -1456,6 +1458,27 @@ htlgmm.default<-function(
 
     ###########--------------###########
     # perform inference
+    if(!is.null(alpha)){
+        if(alpha == 10){
+
+            y1<<-y
+            Z1<<-Z
+            W1<<-W
+            family1<<-family
+            ext_study_info1<<-ext_study_info
+            A1<<-A
+            pA1<<-pA
+            pZ1<<-pZ
+            beta1<<-beta
+            hat_thetaA1<<-hat_thetaA
+            V_thetaA1<<-V_thetaA
+            use_offset1<<-use_offset
+            X1<<-X
+            XR1<<-XR
+            C_half11<<-C_half
+            inv_C11<<-inv_C
+        }
+    }
     if(inference){
         index_nonzero<-which(beta!=0)
         if(length(index_nonzero) > 1){
