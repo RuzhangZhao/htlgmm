@@ -1461,7 +1461,7 @@ htlgmm.default<-function(
     ###########--------------###########
     # perform inference
     if(!is.null(alpha)){
-        if(alpha == 11){
+        if(alpha == 10){
 
             y1<<-y
             Z1<<-Z
@@ -1490,12 +1490,11 @@ htlgmm.default<-function(
             ###########--------------###########
             # refine C will cover the previously used C
             runsandwich<-F
-            if(!is.null(alpha)){
-                if(alpha == 10){
-                    print("savestable")
-                    C_half1<-C_half
-                    inv_C1<-inv_C
-                }}
+            # if(!is.null(alpha)){
+            #     if(alpha == 10){
+            #         C_half1<-C_half
+            #         inv_C1<-inv_C
+            #     }}
             inv_C = Delta_opt_rcpp(y=y,Z=Z,W=W,
                                    family=family,
                                    ext_study_info=ext_study_info,
@@ -1503,7 +1502,7 @@ htlgmm.default<-function(
                                    hat_thetaA=hat_thetaA,
                                    V_thetaA = V_thetaA,
                                    use_offset = use_offset,
-                                   X=X,XR=XR,stable = T)
+                                   X=X,XR=XR)
 
             if(!refine_C){
                 sC_half<-diag(1/sqrt(diag(inv_C)))
@@ -1632,11 +1631,11 @@ htlgmm.default<-function(
                                            hat_thetaA=hat_thetaA,
                                            V_thetaA = V_thetaA,
                                            use_offset = use_offset,
-                                           X=X,XR=XR,stable = F)
+                                           X=X,XR=XR,stable = T)
                     C_half2<-sqrtchoinv_rcpp2(inv_C2)
 
                     return_list<-c(return_list,
-                                   list("selected_vars1"=fC(C_half1,inv_C1),
+                                   list("selected_vars1"=fC(C_half2,inv_C),
                                         "selected_vars2"=fC(C_half2,inv_C2),
                                         "selected_vars3"=fC(C_half,inv_C2)))
                 }
