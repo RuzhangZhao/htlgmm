@@ -64,7 +64,7 @@ choinv_rcpp2<-function(fix_C){
 Delta_opt_rcpp<-function(y,Z,W,family,
                     ext_study_info,A=NULL,pA=NULL,pZ=NULL,
                     beta=NULL,hat_thetaA=NULL,
-                    V_thetaA=NULL,use_offset=TRUE,X=NULL,XR=NULL){
+                    V_thetaA=NULL,use_offset=TRUE,X=NULL,XR=NULL,stable=F){
     n_main=length(y)
     tilde_thetaZ=ext_study_info[[1]]$Coeff
     tilde_theta=c(hat_thetaA,tilde_thetaZ)
@@ -81,8 +81,10 @@ Delta_opt_rcpp<-function(y,Z,W,family,
     DZ=Z*c(mu_X_beta-mu_XR_theta)
     DZ2=Z*c(mu_prime_XR_theta)
     V_U1=(1/n_main)*self_crossprod_rcpp(DX)
-    DX1=X*c(sqrt(mu_X_beta*(1-mu_X_beta)))
-    V_U1=(1/n_main)*self_crossprod_rcpp(DX1)
+    if(stable){
+        DX1=X*c(sqrt(mu_X_beta*(1-mu_X_beta)))
+        V_U1=(1/n_main)*self_crossprod_rcpp(DX1)
+    }
     V_U2=(1/n_main)*self_crossprod_rcpp(DZ)
     Cov_U1U2=(1/n_main)*crossprod_rcpp(DX,DZ)
     GammaZZ=(1/n_main)*crossprod_rcpp(DZ2,Z)
@@ -1489,15 +1491,9 @@ htlgmm.default<-function(
             # refine C will cover the previously used C
             runsandwich<-F
             if(!is.null(alpha)){
-                if(alpha == 11){
-                    C_half1<-C_half
-                    weight<-final.weight.min
-                    C_half2<-weighted_C_half_func(inv_C,weight,pA+pZ+pW,pZ,6,C_half)
-                    C_half3<-weighted_C_half_func(inv_C,weight,pA+pZ+pW,pZ,2,C_half)
-                }}
-            if(!is.null(alpha)){
                 if(alpha == 10){
                     C_half1<-C_half
+                    inv_C1<-inv_C
                 }}
             inv_C = Delta_opt_rcpp(y=y,Z=Z,W=W,
                                    family=family,
@@ -1506,12 +1502,7 @@ htlgmm.default<-function(
                                    hat_thetaA=hat_thetaA,
                                    V_thetaA = V_thetaA,
                                    use_offset = use_offset,
-                                   X=X,XR=XR)
-            if(!is.null(alpha)){
-                if(alpha == 11){
-                    C_half4<-weighted_C_half_func(inv_C,weight,pA+pZ+pW,pZ,6,C_half)
-                    C_half5<-weighted_C_half_func(inv_C,weight,pA+pZ+pW,pZ,2,C_half)
-                }}
+                                   X=X,XR=XR,stable = T)
 
             if(!refine_C){
                 sC_half<-diag(1/sqrt(diag(inv_C)))
@@ -1596,7 +1587,7 @@ htlgmm.default<-function(
 
 
             if(!is.null(alpha)){
-                fC<-function(C_half){
+                fC<-function(C_half,inv_C){
                     pseudo_Xy_list<-pseudo_Xy(C_half=C_half,Z=Z,W=W,A=A,y=y,
                                               beta=beta,hat_thetaA=hat_thetaA,
                                               ext_study_info=ext_study_info,X=X,XR=XR)
@@ -1633,18 +1624,20 @@ htlgmm.default<-function(
                 }
                 if(alpha == 10){
                     print("extra inference")
-                    return_list<-c(return_list,
-                                   list("selected_vars1"=fC(C_half1)))
-                }
-                if(alpha == 11){
-                    print("extra inference")
+                    inv_C2 = Delta_opt_rcpp(y=y,Z=Z,W=W,
+                                           family=family,
+                                           ext_study_info=ext_study_info,
+                                           A=A,pA=pA,pZ=pZ,beta=beta,
+                                           hat_thetaA=hat_thetaA,
+                                           V_thetaA = V_thetaA,
+                                           use_offset = use_offset,
+                                           X=X,XR=XR,stable = F)
+                    C_half2<-sqrtchoinv_rcpp2(inv_C2)
 
                     return_list<-c(return_list,
-                                   list("selected_vars1"=fC(C_half1)),
-                                   list("selected_vars2"=fC(C_half2)),
-                                   list("selected_vars3"=fC(C_half3)),
-                                   list("selected_vars4"=fC(C_half4)),
-                                   list("selected_vars5"=fC(C_half5)))
+                                   list("selected_vars1"=fC(C_half1,inv_C1),
+                                        "selected_vars2"=fC(C_half2,inv_C2),
+                                        "selected_vars3"=fC(C_half1,inv_C2)))
                 }
             }
         }}
