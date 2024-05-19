@@ -1461,7 +1461,7 @@ htlgmm.default<-function(
     ###########--------------###########
     # perform inference
     if(!is.null(alpha)){
-        if(alpha == 10){
+        if(alpha == 11){
 
             y1<<-y
             Z1<<-Z
@@ -1492,6 +1492,7 @@ htlgmm.default<-function(
             runsandwich<-F
             if(!is.null(alpha)){
                 if(alpha == 10){
+                    print("savestable")
                     C_half1<-C_half
                     inv_C1<-inv_C
                 }}
