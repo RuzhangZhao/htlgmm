@@ -1638,7 +1638,7 @@ htlgmm.default<-function(
                     return_list<-c(return_list,
                                    list("selected_vars1"=fC(C_half1,inv_C1),
                                         "selected_vars2"=fC(C_half2,inv_C2),
-                                        "selected_vars3"=fC(C_half1,inv_C2)))
+                                        "selected_vars3"=fC(C_half,inv_C2)))
                 }
             }
         }}
