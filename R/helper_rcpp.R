@@ -559,11 +559,24 @@ weighted_C_half_func<-function(inv_C_train,weight,dim_U1,dim_U2,tune_weight_meth
     }else if(tune_weight_method == 5){
         diag(inv_C_train)<-diag(inv_C_train)*weight
     }else if(tune_weight_method == 6){
-        inv_C_train2<-inv_C_train[c(1:dim_U1),c(1:dim_U1)]
-        cutoff<-mean(abs(inv_C_train2[row(inv_C_train2)!=col(inv_C_train2)]))
-        inv_C_train2[abs(inv_C_train2)<cutoff]<-0
-        diag(inv_C_train2)<-diag(inv_C_train)[c(1:dim_U1)]
-        inv_C_train[c(1:dim_U1),c(1:dim_U1)]<-inv_C_train[c(1:dim_U1),c(1:dim_U1)]+(weight-1)*inv_C_train2
+        soft_thres<-function(M,weight){
+            off_diag<-M[row(M)!=col(M)]
+            max_off<-max(abs(off_diag))
+            min_off<-min(abs(off_diag))
+            lam<-min_off+(max_off-min_off)*weight
+            diag<-diag(M)
+            M1<-M-lam
+            M2<-M+lam
+            M<-M1*(M1>0)+M2*(M2<0)
+            diag(M)<-diag
+            M
+        }
+        inv_C_train<-soft_thres(inv_C_train,weight)
+        # inv_C_train2<-inv_C_train[c(1:dim_U1),c(1:dim_U1)]
+        # cutoff<-mean(abs(inv_C_train2[row(inv_C_train2)!=col(inv_C_train2)]))
+        # inv_C_train2[abs(inv_C_train2)<cutoff]<-0
+        # diag(inv_C_train2)<-diag(inv_C_train)[c(1:dim_U1)]
+        # inv_C_train[c(1:dim_U1),c(1:dim_U1)]<-inv_C_train[c(1:dim_U1),c(1:dim_U1)]+(weight-1)*inv_C_train2
         #C_half_train[(dim_U1+1):(dim_U1+dim_U2),(dim_U1+1):(dim_U1+dim_U2)]<-C_half_train[(dim_U1+1):(dim_U1+dim_U2),(dim_U1+1):(dim_U1+dim_U2)]*sqrt(abs(weight))
     }
     if(tune_weight_method%in%c(1:6)){
@@ -1572,7 +1585,7 @@ htlgmm.default<-function(
             pval_final1<-p.adjust(pval_final,method = "BH")
 
             selected_pos<-index_nonzero[which(pval_final1<0.05)]
-            print(selected_pos)
+
             return_list<-c(return_list,
                            list("selected_vars"=
                                     list("position"=index_nonzero,
