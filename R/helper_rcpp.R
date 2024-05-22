@@ -64,7 +64,7 @@ choinv_rcpp2<-function(fix_C){
 Delta_opt_rcpp<-function(y,Z,W,family,
                     ext_study_info,A=NULL,pA=NULL,pZ=NULL,
                     beta=NULL,hat_thetaA=NULL,
-                    V_thetaA=NULL,use_offset=TRUE,X=NULL,XR=NULL,stable=F){
+                    V_thetaA=NULL,use_offset=TRUE,X=NULL,XR=NULL,stable=stable_global){
     n_main=length(y)
     tilde_thetaZ=ext_study_info[[1]]$Coeff
     tilde_theta=c(hat_thetaA,tilde_thetaZ)
@@ -1072,7 +1072,13 @@ htlgmm.default<-function(
 
     ###########--------------###########
     # estimation of C
-
+    stable_global<<-F
+    if(!is.null(alpha)){
+        if(alpha == 3){
+            stable_global<<-T
+        }
+    }
+    print(paste0("global stable is",stable_global))
     if(is.null(fix_C) & is.null(fix_inv_C)){
 
         inv_C = Delta_opt_rcpp(y=y,Z=Z,W=W,
