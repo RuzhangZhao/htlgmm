@@ -1078,7 +1078,7 @@ htlgmm.default<-function(
             stable_global<<-T
         }
     }
-    print(paste0("global stable is",stable_global))
+    #print(paste0("global stable is",stable_global))
     if(is.null(fix_C) & is.null(fix_inv_C)){
 
         inv_C = Delta_opt_rcpp(y=y,Z=Z,W=W,
