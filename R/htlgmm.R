@@ -505,4 +505,27 @@ choinv<-function(X){
 }
 
 
+#' Fast Matrix Square Root Inverse for Positive Definite Matrix by Cholesky Decomposition
+#'
+#' @details Implemented by RcppEigen
+#'
+#' @param X The positive definite matrix.
+#' @return The inverse of X.
+#'
+#'
+#' @useDynLib htlgmm
+#' @import Rcpp
+#' @export
+#'
+#'
+#'
+sqrtchoinv<-function(X){
+    if(!is.matrix(X)){
+        stop("The input must be in matrix format")
+    }
+    sqrtchoinv_rcpp(X)
+}
+
+
+
 
