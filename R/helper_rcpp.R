@@ -547,7 +547,7 @@ weighted_C_half_func<-function(inv_C_train,weight,dim_U1,dim_U2,tune_weight_meth
 
     if(tune_weight_method == 1){
         # enlarge the variance of U1
-        inv_C_train[c(1:dim_U1),c(1:dim_U1)]<-inv_C_train[c(1:dim_U1),c(1:dim_U1)]*weight
+        inv_C_train[c(1:dim_U1),c(1:dim_U1)]<-inv_C_train[c(1:dim_U1),c(1:dim_U1)]*(1+weight)
     }else if(tune_weight_method == 2){
         # add the same constant to the diagonal of the variance of U1 proportional to the mean of the diagonal of the variance of U1
         diag(inv_C_train)[c(1:dim_U1)]<-diag(inv_C_train)[c(1:dim_U1)]+rep(weight*mean(diag(inv_C_train)[c(1:dim_U1)]),dim_U1)
