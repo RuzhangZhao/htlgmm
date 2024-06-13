@@ -555,9 +555,9 @@ weighted_C_half_func<-function(inv_C_train,weight,dim_U1,dim_U2,tune_weight_meth
         # add the same constant to the diagonal of whole variance matrix proportional to the mean of the diagonal
         diag(inv_C_train)<-diag(inv_C_train)+rep(weight*mean(diag(inv_C_train)),nrow(inv_C_train))
     }else if(tune_weight_method == 4){
-        diag(inv_C_train)[c(1:dim_U1)]<-diag(inv_C_train)[c(1:dim_U1)]*weight
+        diag(inv_C_train)[c(1:dim_U1)]<-diag(inv_C_train)[c(1:dim_U1)]*(weight+1)
     }else if(tune_weight_method == 5){
-        diag(inv_C_train)<-diag(inv_C_train)*weight
+        diag(inv_C_train)<-diag(inv_C_train)*(weight+1)
     }else if(tune_weight_method == 6){
         soft_thres<-function(M,weight){
             off_diag<-M[row(M)!=col(M)]
@@ -1181,11 +1181,7 @@ htlgmm.default<-function(
     # generate weight list from glmnet
     if(tune_weight){
         if(is.null(weight_list)){
-            if(tune_weight_method %in% c(1,2,3,6)){
-                weight_list<-c(1,2,4,8,16)
-            }else{
-                weight_list<-c(1,2,4,8,16)-1
-            }
+            weight_list<-c(1,2,4,8,16)-1
         }
     }
 
