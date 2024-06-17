@@ -1485,7 +1485,7 @@ htlgmm.default<-function(
                                    use_offset = use_offset,
                                    X=X,XR=XR)
 
-            if(!refine_C){
+            if(refine_C){
                 sC_half<-diag(1/sqrt(diag(inv_C)))
                 if(use_sparseC){
                     C_half<-sC_half

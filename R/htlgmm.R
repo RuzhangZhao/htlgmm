@@ -41,7 +41,7 @@
 #' @param inference Whether to do inference without penalty or post-selection inference with adaptive lasso penalty. The default is 'default', which is TRUE when penalty_type = 'none' or 'adaptivelasso', and FALSE otherwise.
 #' @param fix_C When fix_C = NULL, the optimal C is computed. When user wants to customize the fix_C, please match its dimension as dim(A)+2*dim(Z)+dim(W) and make sure it is positive definite.
 #' @param fix_inv_C When fix_inv_C = NULL, the optimal C is computed. When user wants to customize the fix_inv_C, please match its dimension as dim(A)+2*dim(Z)+dim(W) and make sure it is positive definite. When fix_C and fix_inv_C are both given, the fix_C will be used.
-#' @param refine_C When computing the variance, whether recompute the weighting matrix C using final estimated beta. The default is FALSE.
+#' @param refine_C When computing the variance, whether recompute the weighting matrix C using final estimated beta. The default is FALSE, which means we do not update the C. Instead, keep it as what we use in the algorithm.
 #' @param sqrt_matrix The method to split weighting matrix into square root matrix. Select from c('svd','cholesky'), where 'cholesky' generates faster computation.
 #' @param fix_lambda Without cross validation, fix the lambda. The default is NULL.
 #' @param lambda_list Customize the input lambda list for validation. The default is NULL to generate lambda list according to glmnet.
@@ -309,13 +309,13 @@ cv.htlgmm<-function(
         tune_weight = FALSE,
         fix_weight = NULL,
         weight_list = NULL,
-        tune_weight_method = 'block',
+        tune_weight_method = 'propshrink',
         gamma_adaptivelasso = 1/2,
         use_sparseC = TRUE,
         seed.use = 97,
         output_all_betas=FALSE
 ){
-    if(tune_weight_method == "block"){
+    if(tune_weight_method == "propshrink"){
         tune_weight_method = 1
     }else if(tune_weight_method == "ridge"){
         tune_weight_method = 2
