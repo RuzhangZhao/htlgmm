@@ -228,7 +228,7 @@ htlgmm<-function(
 #' @param tune_weight Whether to assign tuning weight for weighting matrix of external study part. The default is FALSE. This is not applied to coxph model.
 #' @param fix_weight The fixed weight for for weighting matrix of external study part. The default is NULL. If it is NULL, select the best weight via cross validation.
 #' @param weight_list The weight list if it is preset. The default is NULL and weight list will be generated.
-#' @param tune_weight_method Method for weight tuning. The default is 'block'.
+#' @param tune_weight_method Method for weight tuning. The default is 'multiplicative shrinkage', which can also be used as 'mshrink' or 'ms'. The other choice is 'ridge'.
 #' @param gamma_adaptivelasso The gamma for adaptive lasso. Select from c(1/2,1,2). The default is 1/2.
 #' @param use_sparseC Whether to use approximate version of weighting matrix C.
 #' If approximation, use the diagonal of inverse of C(inv_C) to approximate the inv_C. The default is TRUE.
@@ -309,13 +309,13 @@ cv.htlgmm<-function(
         tune_weight = FALSE,
         fix_weight = NULL,
         weight_list = NULL,
-        tune_weight_method = 'propshrink',
+        tune_weight_method = 'mshrink',
         gamma_adaptivelasso = 1/2,
         use_sparseC = TRUE,
         seed.use = 97,
         output_all_betas=FALSE
 ){
-    if(tune_weight_method == "propshrink"){
+    if(tune_weight_method %in% c("mshrink","ms","multiplicative shrinkage") ){
         tune_weight_method = 1
     }else if(tune_weight_method == "ridge"){
         tune_weight_method = 2
