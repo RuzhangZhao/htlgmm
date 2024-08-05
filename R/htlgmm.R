@@ -531,6 +531,90 @@ sqrtchoinv<-function(X){
     sqrtchoinv_rcpp(X)
 }
 
+#' Fast Matrix Dot Product with Transpose to Replace "crossprod".
+#'
+#' @details Implemented by RcppEigen
+#'
+#' @param x The input matrix.
+#' @param y The input matrix or vector or NULL.
+#' @return The dot product of the transpose of 'x' and 'y'.
+#'
+#'
+#' @useDynLib htlgmm
+#' @import Rcpp
+#' @export
+#'
+#'
+#'
+crossprod_fast<-function(x,y=NULL){
+    if(is.null(y)){
+        if(!is.matrix(x)){
+            x<-matrix(x,ncol = 1)
+        }
+        return(self_crossprod_rcpp(x))
+    }
+    if(is.matrix(x)){
+        if(is.matrix(y)){
+            if(nrow(x)!=nrow(y)){
+                stop("dimensions do not match!")
+            }else{
+                return(crossprod_rcpp(x,y))
+            }
+        }else{
+            if(nrow(x)!=length(y)){
+                stop("dimensions do not match!")
+            }else{
+                return(crossprodv_rcpp(x,y))
+            }
+        }
+    }else{
+        if(is.matrix(y)){
+            stop("dimensions do not match!")
+        }else{
+            return(sum(timesv_rcpp(x,y)))
+        }
+    }
+}
+
+#' Fast Matrix Dot Product with Transpose to Replace "\%*\%".
+#'
+#' @details Implemented by RcppEigen
+#'
+#' @param x The input matrix.
+#' @param y The input matrix or vector or NULL.
+#' @return The dot product of 'x' and 'y'.
+#'
+#'
+#' @useDynLib htlgmm
+#' @import Rcpp
+#' @export
+#'
+#'
+#'
+prod_fast<-function(x,y){
+    if(is.matrix(x)){
+        if(is.matrix(y)){
+            if(ncol(x)!=nrow(y)){
+                stop("dimensions do not match!")
+            }else{
+                return(prod_rcpp(x,y))
+            }
+        }else{
+            if(ncol(x)!=length(y)){
+                stop("dimensions do not match!")
+            }else{
+                return(prodv_rcpp(x,y))
+            }
+        }
+    }else{
+        if(is.matrix(y)){
+            stop("dimensions do not match!")
+        }else{
+            return(sum(timesv_rcpp(x,y)))
+        }
+    }
+}
+
 
 
 

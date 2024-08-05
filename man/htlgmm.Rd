@@ -92,7 +92,7 @@ For coxph model, robust is also about whether we apply the robust variance for t
 
 \item{fix_inv_C}{When fix_inv_C = NULL, the optimal C is computed. When user wants to customize the fix_inv_C, please match its dimension as dim(A)+2*dim(Z)+dim(W) and make sure it is positive definite. When fix_C and fix_inv_C are both given, the fix_C will be used.}
 
-\item{refine_C}{When computing the variance, whether recompute the weighting matrix C using final estimated beta. The default is FALSE.}
+\item{refine_C}{When computing the variance, whether recompute the weighting matrix C using final estimated beta. The default is FALSE, which means we do not update the C. Instead, keep it as what we use in the algorithm.}
 
 \item{sqrt_matrix}{The method to split weighting matrix into square root matrix. Select from c('svd','cholesky'), where 'cholesky' generates faster computation.}
 

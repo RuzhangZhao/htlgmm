@@ -41,7 +41,7 @@ cv.htlgmm(
   tune_weight = FALSE,
   fix_weight = NULL,
   weight_list = NULL,
-  tune_weight_method = 1,
+  tune_weight_method = "mshrink",
   gamma_adaptivelasso = 1/2,
   use_sparseC = TRUE,
   seed.use = 97,
@@ -135,7 +135,7 @@ For coxph model, robust is also about whether we apply the robust variance for t
 
 \item{weight_list}{The weight list if it is preset. The default is NULL and weight list will be generated.}
 
-\item{tune_weight_method}{Method for weight tuning.}
+\item{tune_weight_method}{Method for weight tuning. The default is 'multiplicative shrinkage', which can also be used as 'mshrink' or 'ms'. The other choice is 'ridge'.}
 
 \item{gamma_adaptivelasso}{The gamma for adaptive lasso. Select from c(1/2,1,2). The default is 1/2.}
 
