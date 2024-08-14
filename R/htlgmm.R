@@ -9,7 +9,7 @@
 #'
 #' @param y The outcome variable, which can be continuous, binary or time-to-event data. For coxph model, y should be a list with two items including 'time' and 'event'.
 #' @param Z The overlapping features in both main and external studies.
-#' @param W The unmatched features only in main study, the default is NULL. Without W, the problem is degenerated to problem similar to meta-analysis.
+#' @param W The unmatched features only in main study.
 #' @param ext_study_info The trained model from external study, including estimated coefficients, and estimated variance-covariance matrix.
 #' The 'ext_study_info' is in the format of list. The first item is 'Coeff', the second item is 'Covariance'.
 #' E.g. ext_study_info = list(list("Coeff"=coeff,"Covariance"=covariance))
@@ -26,18 +26,17 @@
 #' by cross validation using (penalty) regression, chosen from c("ridge","lasso","glm"). The default is "glm". If penalty_type = 'glm',
 #' for continuous y, we use ordinary least square, and for binary y, we use logistic regression without penalty.)
 #' @param beta_initial The initial estimation for beta if a consistent estimator is available.
-#' E.g., one may input htlgmm result as beta_initial for more rounds to refine the final estimation.
 #' The default is NULL, and main study is used for initial estimation according to 'initial_with_type'.
-#' @param weight_adaptivelasso The weight of adaptive lasso when using penalty_type = 'adaptivelasso'. The default is NULL. When using default weight_adaptivelasso, user may follow the instruction from 'Zou, H. (2006). The adaptive lasso and its oracle properties.'
+#' @param weight_adaptivelasso The customized adaptive-weight adaptive lasso when using penalty_type = 'adaptivelasso'. The default is NULL. When using default weight_adaptivelasso, user may follow the instruction from 'Zou, H. (2006). The adaptive lasso and its oracle properties.'
 #' The input of 'weight_adaptivelasso' can either be with all features (the same length as beta_initial) or without intercept.
-#' @param alpha The elasticnet mixing parameter, between 0 and 1, which is corresponding to the alpha for glmnet. Only used when penalty_type == 'elasticnet'.
+#' @param alpha The elasticnet mixing parameter, between 0 and 1, which is corresponding to the alpha for glmnet. Only used when penalty_type = 'elasticnet'.
 #' @param hat_thetaA If A is not NULL, one can provide hat_thetaA as the input. If 'hat_thetaA = NULL', we estimate hat_thetaA with glm by main study.
 #' @param V_thetaA If A is not NULL, one can provide V_thetaA as the input. If 'V_thetaA = NULL', we estimate V_thetaA with glm by main study.
 #' @param use_offset Whether to use offset regarding the external model estimated coefficient. The default is FALSE.
 #' @param robust Whether to apply sandwich formula to compute the variance-covariance matrix of hat_thetaA.The default is TRUE.
 #' For coxph model, robust is also about whether we apply the robust variance for the estimating equations.
-#' @param remove_penalty_Z Not penalize Z if it is TRUE. The default is FALSE.
-#' @param remove_penalty_W Not penalize W if it is TRUE. The default is FALSE.
+#' @param remove_penalty_Z Do not penalize Z if it is TRUE. The default is FALSE.
+#' @param remove_penalty_W Do not penalize W if it is TRUE. The default is FALSE.
 #' @param inference Whether to do inference without penalty or post-selection inference with adaptive lasso penalty. The default is 'default', which is TRUE when penalty_type = 'none' or 'adaptivelasso', and FALSE otherwise.
 #' @param fix_C When fix_C = NULL, the optimal C is computed. When user wants to customize the fix_C, please match its dimension as dim(A)+2*dim(Z)+dim(W) and make sure it is positive definite.
 #' @param fix_inv_C When fix_inv_C = NULL, the optimal C is computed. When user wants to customize the fix_inv_C, please match its dimension as dim(A)+2*dim(Z)+dim(W) and make sure it is positive definite. When fix_C and fix_inv_C are both given, the fix_C will be used.
@@ -49,7 +48,7 @@
 #' @param fix_weight The fixed weight for weighting matrix of external study.
 #' @param gamma_adaptivelasso The gamma for adaptive lasso. Select from c(1/2,1,2). The default is 1/2.
 #' @param use_sparseC Whether to use approximate version of weighting matrix C using only diagonal terms as nonzeros.
-#' If approximation, use the diagonal of inverse of C(inv_C) to approximate the inv_C. The default is TRUE.
+#' If approximation, use the diagonal of inverse of C(inv_C) to approximate the inv_C. The default is FALSE.
 #' When main study sample size is limited, use_sparseC = TRUE is recommended.
 #' When main study sample size is large enough, use_sparseC = FALSE is recommended.
 #' @param seed.use The seed for  97.
@@ -109,7 +108,7 @@ htlgmm<-function(
         fix_ratio = NULL,
         fix_weight = NULL,
         gamma_adaptivelasso = 1/2,
-        use_sparseC = TRUE,
+        use_sparseC = FALSE,
         seed.use = 97,
         output_all_betas=FALSE
 ){
@@ -180,7 +179,7 @@ htlgmm<-function(
 #'
 #' @param y The variable of interest, which can be continuous or binary.
 #' @param Z The overlapping features in both main and external studies.
-#' @param W The unmatched features only in main study, the default is NULL.
+#' @param W The unmatched features only in main study.
 #' @param ext_study_info The trained model from external study, including estimated coefficients, and estimated variance-covariance matrix.
 #' The 'ext_study_info' is in the format of list. The first item is 'Coeff', the second item is 'Covariance'.
 #' E.g. ext_study_info = list(list("Coeff"=coeff,"Covariance"=covariance))
@@ -197,18 +196,17 @@ htlgmm<-function(
 #' by cross validation using penalty regression, chosen from c("ridge","lasso","glm"). The default is "lasso". If penalty_type = 'glm',
 #' for continuous y, we use ordinary least square, and for binary y, we use logistic regression without penalty.)
 #' @param beta_initial The initial estimation for beta if a consistent estimator is available.
-#' E.g., one may input htlgmm result as beta_initial for more rounds to refine the final estimation.
 #' The default is NULL, and main study is used for initial estimation according to 'initial_with_type'.
-#' @param weight_adaptivelasso The weight of adaptive lasso when using penalty_type = 'adaptivelasso'. The default is NULL. When using default weight_adaptivelasso, user may follow the instruction from 'Zou, H. (2006). The adaptive lasso and its oracle properties.'
+#' @param weight_adaptivelasso The customized adaptive-weight of adaptive lasso when using penalty_type = 'adaptivelasso'. The default is NULL. When using default weight_adaptivelasso, user may follow the instruction from 'Zou, H. (2006). The adaptive lasso and its oracle properties.'
 #' The input of 'weight_adaptivelasso' can either be with all features (the same length as beta_initial) or without intercept.
-#' @param alpha The elasticnet mixing parameter, between 0 and 1, which is corresponding to the alpha for glmnet. Only used when penalty_type == 'elasticnet'.
+#' @param alpha The elasticnet mixing parameter, between 0 and 1, which is corresponding to the alpha for glmnet. Only used when penalty_type = 'elasticnet'.
 #' @param hat_thetaA If A is not NULL, one can provide hat_thetaA as the input. If 'hat_thetaA = NULL', we estimate hat_thetaA with glm by main study.
 #' @param V_thetaA If A is not NULL, one can provide V_thetaA as the input. If 'V_thetaA = NULL', we estimate V_thetaA with glm by main study.
 #' @param use_offset Whether to use offset regarding the external model estimated coefficient. The default is FALSE.
 #' @param robust Whether to apply sandwich formula to compute the variance-covariance matrix of hat_thetaA.The default is FALSE.
 #' For coxph model, robust is also about whether we apply the robust variance for the estimating equations.
-#' @param remove_penalty_Z Not penalize Z if it is TRUE. The default is FALSE.
-#' @param remove_penalty_W Not penalize W if it is TRUE. The default is FALSE.
+#' @param remove_penalty_Z Do not penalize Z if it is TRUE. The default is FALSE.
+#' @param remove_penalty_W Do not penalize W if it is TRUE. The default is FALSE.
 #' @param inference Whether to do inference without penalty or post-selection inference with adaptive lasso penalty. The default is 'default', which is TRUE when penalty_type = 'none' or 'adaptivelasso', and FALSE otherwise.
 #' @param fix_C When fix_C = NULL, the optimal C is computed. When user wants to customize the fix_C, please match its dimension as dim(A)+2*dim(Z)+dim(W) and make sure it is positive definite.
 #' @param fix_inv_C When fix_inv_C = NULL, the optimal C is computed. When user wants to customize the fix_inv_C, please match its dimension as dim(A)+2*dim(Z)+dim(W) and make sure it is positive definite. When fix_C and fix_inv_C are both given, the fix_C will be used.
@@ -225,13 +223,13 @@ htlgmm<-function(
 #' @param tune_ratio Whether to use two-lambda stratgey. The default is FALSE. This is not applied to coxph model.
 #' @param fix_ratio The fixed ratio for two-lambda strategy. The ratio is multiplied for Z features. The default is NULL. If it is NULL, select the best ratio via cross validation.
 #' @param ratio_list The ratio list if it is preset. The default is NULL and ratio list will be generated.
-#' @param tune_weight Whether to assign tuning weight for weighting matrix of external study part. The default is FALSE. This is not applied to coxph model.
-#' @param fix_weight The fixed weight for for weighting matrix of external study part. The default is NULL. If it is NULL, select the best weight via cross validation.
+#' @param tune_weight Whether to assign tuning weight for the regularization of weighting matrix. The default is FALSE.
+#' @param fix_weight The fixed weight for the regularization of weighting matrix. The default is NULL. If it is NULL, select the best weight via cross validation.
 #' @param weight_list The weight list if it is preset. The default is NULL and weight list will be generated.
-#' @param tune_weight_method Method for weight tuning. The default is 'multiplicative shrinkage', which can also be used as 'mshrink' or 'ms'. The other choice is 'ridge'.
+#' @param tune_weight_method Method for weighting matrix regularization. The default is 'multiplicative shrinkage', which can also be used as 'mshrink' or 'ms'. The other choice is 'ridge'.
 #' @param gamma_adaptivelasso The gamma for adaptive lasso. Select from c(1/2,1,2). The default is 1/2.
 #' @param use_sparseC Whether to use approximate version of weighting matrix C.
-#' If approximation, use the diagonal of inverse of C(inv_C) to approximate the inv_C. The default is TRUE.
+#' If approximation, use the diagonal of inverse of C(inv_C) to approximate the inv_C. The default is FALSE.
 #' When main study sample size is limited, use_sparseC = TRUE is recommended.
 #' When main study sample size is large enough, use_sparseC = FALSE is recommended.
 #' @param seed.use The seed for  97.
@@ -311,7 +309,7 @@ cv.htlgmm<-function(
         weight_list = NULL,
         tune_weight_method = 'mshrink',
         gamma_adaptivelasso = 1/2,
-        use_sparseC = TRUE,
+        use_sparseC = FALSE,
         seed.use = 97,
         output_all_betas=FALSE
 ){
