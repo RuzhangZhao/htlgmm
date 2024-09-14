@@ -202,6 +202,7 @@ htlgmm.gwas.default<-function(
         }
     }else{
         repeated_term = NULL
+        A_thetaA = 0
     }
 
     # Estimation of C
