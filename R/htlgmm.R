@@ -194,7 +194,7 @@ htlgmm<-function(
 #' @param family The family is chosen from c("gaussian","binomial"). Linear regression for "gaussian" and logistic regression for "binomial".
 #' @param initial_with_type Get initial estimation for beta using main study data only
 #' by cross validation using penalty regression, chosen from c("ridge","lasso","glm"). The default is "lasso". If penalty_type = 'glm',
-#' for continuous y, we use ordinary least square, and for binary y, we use logistic regression without penalty.)
+#' for continuous y, we use ordinary least square, and for binary y, we use logistic regression without penalty.
 #' @param beta_initial The initial estimation for beta if a consistent estimator is available.
 #' The default is NULL, and main study is used for initial estimation according to 'initial_with_type'.
 #' @param weight_adaptivelasso The customized adaptive-weight of adaptive lasso when using penalty_type = 'adaptivelasso'. The default is NULL. When using default weight_adaptivelasso, user may follow the instruction from 'Zou, H. (2006). The adaptive lasso and its oracle properties.'
@@ -203,7 +203,7 @@ htlgmm<-function(
 #' @param hat_thetaA If A is not NULL, one can provide hat_thetaA as the input. If 'hat_thetaA = NULL', we estimate hat_thetaA with glm by main study.
 #' @param V_thetaA If A is not NULL, one can provide V_thetaA as the input. If 'V_thetaA = NULL', we estimate V_thetaA with glm by main study.
 #' @param use_offset Whether to use offset regarding the external model estimated coefficient. The default is FALSE.
-#' @param robust Whether to apply sandwich formula to compute the variance-covariance matrix of hat_thetaA.The default is FALSE.
+#' @param robust Whether to apply sandwich formula to compute the variance-covariance matrix of hat_thetaA.The default is 'default', which is TRUE for coxph model, and FALSE for others.
 #' For coxph model, robust is also about whether we apply the robust variance for the estimating equations.
 #' @param remove_penalty_Z Do not penalize Z if it is TRUE. The default is FALSE.
 #' @param remove_penalty_W Do not penalize W if it is TRUE. The default is FALSE.
@@ -334,6 +334,7 @@ cv.htlgmm<-function(
         }}
 
     if(family == 'cox'){
+        if(robust == 'default'){robust = TRUE}
         res<-htlgmm.cox.default(y,Z,W,ext_study_info,A,penalty_type,
                                 initial_with_type,beta_initial,
                                 weight_adaptivelasso,alpha,
@@ -344,6 +345,7 @@ cv.htlgmm<-function(
                                 tune_weight,fix_weight,weight_list,tune_weight_method,
                                 gamma_adaptivelasso,use_sparseC,seed.use)
     }else{
+        if(robust == 'default'){robust = FALSE}
         V_thetaA_sandwich=robust
         res<-htlgmm.default(y,Z,W,ext_study_info,A,penalty_type,
                             family,initial_with_type,beta_initial,

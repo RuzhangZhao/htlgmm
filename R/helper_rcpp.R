@@ -822,7 +822,7 @@ htlgmm.default<-function(
         A=1,
         penalty_type = "lasso",
         family = "gaussian",
-        initial_with_type = "ridge",
+        initial_with_type = "lasso",
         beta_initial = NULL,
         weight_adaptivelasso = NULL,
         alpha = NULL,

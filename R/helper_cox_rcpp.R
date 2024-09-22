@@ -739,8 +739,6 @@ htlgmm.cox.default<-function(y,Z,W=NULL,
             index_fold<-lapply(1:length(uni_fold),function(i){which(foldid==uni_fold[i])})
         }
 
-
-
         if(tune_weight){
             fold_self_beta = TRUE
             cv_res<-cv_C_lambda_Cweight_func(tune_weight_method,
@@ -757,7 +755,6 @@ htlgmm.cox.default<-function(y,Z,W=NULL,
                                              robust,
                                              fold_self_beta,
                                              X,XR,fix_lambda_list,sC_half)
-
 
             cv_auc<-cv_res$auc
             ids_auc<-which(cv_auc==max(cv_auc),arr.ind = TRUE)
